@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-url" content="">
+    <title>C# AI Buddy</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>C# AI Buddy</h1>
+            <button id="new-chat-btn" class="new-chat-btn" aria-label="Start new chat">
+                <span>New Chat</span>
+            </button>
+        </header>
+
+        <main class="chat-container">
+            <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+                <div class="welcome-message">
+                    <h2>Welcome to C# AI Buddy!</h2>
+                    <p>Ask me anything about C# programming, and I'll help you out.</p>
+                </div>
+            </div>
+
+            <div class="suggestions-container">
+                <div id="suggestions" class="suggestions" role="region" aria-label="Suggested questions">
+                    <button class="suggestion-btn" data-suggestion="How do I create a class in C#?">
+                        How do I create a class in C#?
+                    </button>
+                    <button class="suggestion-btn" data-suggestion="What are the differences between var and explicit types?">
+                        What are the differences between var and explicit types?
+                    </button>
+                    <button class="suggestion-btn" data-suggestion="How do I handle exceptions in C#?">
+                        How do I handle exceptions in C#?
+                    </button>
+                </div>
+            </div>
+
+            <form class="input-form" id="chat-form">
+                <div class="input-container">
+                    <textarea 
+                        id="question-input" 
+                        class="question-input" 
+                        placeholder="Ask a question about C#..." 
+                        rows="1"
+                        aria-label="Enter your question"
+                        required
+                    ></textarea>
+                    <button type="submit" class="send-btn" aria-label="Send message">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

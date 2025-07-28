@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: csharp-ai-buddy-api
+    runtime: python3
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    plan: free
+    environmentGroup: main
+    region: oregon
+    branch: main
+    rootDir: src/api
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0

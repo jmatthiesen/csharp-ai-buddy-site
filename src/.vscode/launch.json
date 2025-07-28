@@ -1,0 +1,61 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Full Stack",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/api/main.py",
+            "module": "uvicorn",
+            "args": [
+                "api.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "preLaunchTask": "Start Frontend Server",
+            "postDebugTask": "",
+            "serverReadyAction": {
+                "pattern": "Uvicorn running on (https?://[^\\s]+)",
+                "uriFormat": "http://localhost:3000",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "Debug API Only",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "api.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Full Stack (Compound)",
+            "configurations": [
+                "Debug API Only"
+            ],
+            "preLaunchTask": "Start Frontend Server",
+            "stopAll": true
+        }
+    ]
+}

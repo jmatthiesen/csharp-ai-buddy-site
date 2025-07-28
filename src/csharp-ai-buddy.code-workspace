@@ -1,0 +1,60 @@
+{
+    "folders": [
+        {
+            "name": "C# AI Buddy Site",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "python3",
+        "python.terminal.activateEnvironment": true,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/node_modules": true,
+            "**/.env": false
+        },
+        "liveServer.settings.root": "/frontend",
+        "liveServer.settings.port": 3000,
+        "editor.formatOnSave": true,
+        "python.formatting.provider": "black"
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.debugpy",
+            "ritwickdey.liveserver",
+            "ms-vscode.vscode-json"
+        ]
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug Full Stack",
+                "type": "debugpy",
+                "request": "launch",
+                "module": "uvicorn",
+                "args": [
+                    "api.main:app",
+                    "--host",
+                    "0.0.0.0",
+                    "--port",
+                    "8000",
+                    "--reload"
+                ],
+                "console": "integratedTerminal",
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}"
+                },
+                "preLaunchTask": "Start Frontend Server",
+                "serverReadyAction": {
+                    "pattern": "Uvicorn running on (https?://[^\\s]+)",
+                    "uriFormat": "http://localhost:3000",
+                    "action": "openExternally"
+                }
+            }
+        ]
+    }
+}
