@@ -5,7 +5,6 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     plan: free
-    environmentGroup: main
     region: oregon
     branch: release
     rootDir: src/api
@@ -20,7 +19,6 @@ services:
     runtime: static
     name: csharp-ai-buddy-frontend
     plan: free
-    environmentGroup: main
     region: oregon
     branch: release
     rootDir: src/frontend
