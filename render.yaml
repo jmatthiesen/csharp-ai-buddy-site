@@ -11,7 +11,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: PORT
-        generateValue: true
+        value: 80
       - key: PYTHON_VERSION
         value: 3.11.0
 
