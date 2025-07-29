@@ -7,59 +7,59 @@ class ChatApp {
         this.chatForm = document.getElementById('chat-form');
         this.suggestionsContainer = document.getElementById('suggestions');
         this.newChatBtn = document.getElementById('new-chat-btn');
-        
+
         this.conversationHistory = [];
         this.isStreaming = false;
-        
+
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
-        
+
         // Configure marked for security
         marked.setOptions({
             breaks: true,
             gfm: true,
             sanitize: false, // We'll sanitize manually
-            highlight: function(code, lang) {
+            highlight: function (code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
                     try {
-                        return hljs.highlight(code, {language: lang}).value;
-                    } catch (err) {}
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) { }
                 }
                 return hljs.highlightAuto(code).value;
             },
             langPrefix: 'hljs language-'
         });
     }
-    
+
     detectApiUrl() {
         // Check if we're running in development (localhost)
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
             return 'http://localhost:8000';
         }
-        
+
         // Check for environment variable or meta tag with API URL
         const apiUrlMeta = document.querySelector('meta[name="api-url"]');
         if (apiUrlMeta) {
             return apiUrlMeta.content;
         }
-        
+
         // Default to production API URL (you'll need to update this with your Render URL)
-        return 'https://your-render-app-name.onrender.com';
+        return 'https://csharp-ai-buddy-api.onrender.com/';
     }
-    
+
     initializeEventListeners() {
         // Form submission
         this.chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleSubmit();
         });
-        
+
         // Auto-resize textarea
         this.questionInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
-        
+
         // Enter key handling (Shift+Enter for new line, Enter to submit)
         this.questionInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -67,12 +67,12 @@ class ChatApp {
                 this.handleSubmit();
             }
         });
-        
+
         // New chat button
         this.newChatBtn.addEventListener('click', () => {
             this.startNewChat();
         });
-        
+
         // Suggestion clicks
         this.suggestionsContainer.addEventListener('click', (e) => {
             if (e.target.classList.contains('suggestion-btn')) {
@@ -83,11 +83,11 @@ class ChatApp {
             }
         });
     }
-    
+
     initializeAccessibility() {
         // Ensure proper focus management
         this.questionInput.focus();
-        
+
         // Add keyboard navigation for suggestions
         this.suggestionsContainer.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -98,39 +98,39 @@ class ChatApp {
             }
         });
     }
-    
+
     autoResizeTextarea() {
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
     }
-    
+
     async handleSubmit() {
         const question = this.questionInput.value.trim();
         if (!question || this.isStreaming) return;
-        
+
         // Add user message
         this.addMessage('user', question);
-        
+
         // Clear input and reset height
         this.questionInput.value = '';
         this.questionInput.style.height = 'auto';
-        
+
         // Hide suggestions temporarily
         this.suggestionsContainer.style.display = 'none';
-        
+
         // Send message to backend
         await this.sendMessage(question);
     }
-    
+
     addMessage(role, content, isStreaming = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
         messageDiv.setAttribute('role', 'article');
         messageDiv.setAttribute('aria-label', `${role} message`);
-        
+
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        
+
         if (role === 'user') {
             // Sanitize user input to prevent XSS
             contentDiv.textContent = content;
@@ -142,59 +142,59 @@ class ChatApp {
                 contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
             }
         }
-        
+
         messageDiv.appendChild(contentDiv);
         this.chatMessages.appendChild(messageDiv);
-        
+
         // Remove welcome message if it exists
         const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
         if (welcomeMessage) {
             welcomeMessage.remove();
         }
-        
+
         // Scroll to bottom
         this.scrollToBottom();
-        
+
         return contentDiv;
     }
-    
+
     sanitizeAndRenderMarkdown(content) {
         // Basic HTML sanitization to prevent XSS
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = marked.parse(content);
-        
+
         // Remove potentially dangerous elements and attributes
         this.sanitizeElement(tempDiv);
-        
+
         // Apply syntax highlighting to code blocks
         const codeBlocks = tempDiv.querySelectorAll('pre code');
         codeBlocks.forEach(block => {
             hljs.highlightElement(block);
         });
-        
+
         return tempDiv.innerHTML;
     }
-    
+
     sanitizeElement(element) {
         // Remove script tags and event handlers
         const scripts = element.querySelectorAll('script');
         scripts.forEach(script => script.remove());
-        
+
         // Remove dangerous attributes
         const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'javascript:'];
         const allElements = element.querySelectorAll('*');
-        
+
         allElements.forEach(el => {
             // Remove dangerous attributes
             Array.from(el.attributes).forEach(attr => {
-                if (dangerousAttrs.some(dangerous => 
+                if (dangerousAttrs.some(dangerous =>
                     attr.name.toLowerCase().includes(dangerous.toLowerCase()) ||
                     attr.value.toLowerCase().includes('javascript:')
                 )) {
                     el.removeAttribute(attr.name);
                 }
             });
-            
+
             // Only allow safe tags
             const safeTags = ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a'];
             if (!safeTags.includes(el.tagName.toLowerCase())) {
@@ -204,7 +204,7 @@ class ChatApp {
                 el.parentNode.replaceChild(span, el);
             }
         });
-        
+
         // Sanitize links
         const links = element.querySelectorAll('a');
         links.forEach(link => {
@@ -215,15 +215,15 @@ class ChatApp {
             link.setAttribute('rel', 'noopener noreferrer');
         });
     }
-    
+
     async sendMessage(question) {
         this.isStreaming = true;
         const submitBtn = document.querySelector('.send-btn');
         submitBtn.disabled = true;
-        
+
         // Add loading message
         const assistantMessageContent = this.addMessage('assistant', '', true);
-        
+
         try {
             // Using relative URL that will be proxied to backend
             const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
@@ -237,23 +237,23 @@ class ChatApp {
                     history: this.conversationHistory
                 })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             // Handle streaming response
             await this.handleStreamingResponse(response, assistantMessageContent);
-            
+
             // Update conversation history
             this.conversationHistory.push(
                 { role: 'user', content: question },
                 { role: 'assistant', content: assistantMessageContent.textContent }
             );
-            
+
             // Generate follow-up suggestions
             this.generateFollowUpSuggestions(assistantMessageContent.textContent);
-            
+
         } catch (error) {
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
@@ -268,40 +268,40 @@ class ChatApp {
             this.questionInput.focus();
         }
     }
-    
+
     async handleStreamingResponse(response, contentElement) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
         let fullContent = '';
-        
+
         try {
             while (true) {
                 const { done, value } = await reader.read();
-                
+
                 if (done) break;
-                
+
                 buffer += decoder.decode(value, { stream: true });
-                
+
                 // Process complete JSON-L lines
                 const lines = buffer.split('\n');
                 buffer = lines.pop(); // Keep incomplete line in buffer
-                
+
                 for (const line of lines) {
                     if (line.trim()) {
                         try {
                             const data = JSON.parse(line);
-                            
+
                             if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
-                                
+
                                 // Apply syntax highlighting to any new code blocks
                                 const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
                                 codeBlocks.forEach(block => {
                                     hljs.highlightElement(block);
                                 });
-                                
+
                                 this.scrollToBottom();
                             } else if (data.type === 'error') {
                                 throw new Error(data.message);
@@ -312,7 +312,7 @@ class ChatApp {
                     }
                 }
             }
-            
+
             // Process any remaining buffer content
             if (buffer.trim()) {
                 try {
@@ -320,7 +320,7 @@ class ChatApp {
                     if (data.type === 'content') {
                         fullContent += data.content;
                         contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
-                        
+
                         // Apply syntax highlighting to any remaining code blocks
                         const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
                         codeBlocks.forEach(block => {
@@ -331,16 +331,16 @@ class ChatApp {
                     console.warn('Failed to parse final buffer:', buffer, parseError);
                 }
             }
-            
+
         } finally {
             reader.releaseLock();
         }
     }
-    
+
     generateFollowUpSuggestions(assistantResponse) {
         // Simple follow-up suggestion generation based on response content
         const suggestions = [];
-        
+
         if (assistantResponse.toLowerCase().includes('class')) {
             suggestions.push('Can you show me an example?');
             suggestions.push('What about inheritance?');
@@ -355,10 +355,10 @@ class ChatApp {
             suggestions.push('Show me a practical example');
             suggestions.push('What are common mistakes to avoid?');
         }
-        
+
         this.updateSuggestions(suggestions.slice(0, 3));
     }
-    
+
     loadDefaultSuggestions() {
         const defaultSuggestions = [
             'How do I create a class in C#?',
@@ -367,10 +367,10 @@ class ChatApp {
         ];
         this.updateSuggestions(defaultSuggestions);
     }
-    
+
     updateSuggestions(suggestions) {
         this.suggestionsContainer.innerHTML = '';
-        
+
         suggestions.forEach(suggestion => {
             const button = document.createElement('button');
             button.className = 'suggestion-btn';
@@ -378,17 +378,17 @@ class ChatApp {
             button.dataset.suggestion = suggestion;
             button.setAttribute('tabindex', '0');
             button.setAttribute('aria-label', `Suggestion: ${suggestion}`);
-            
+
             this.suggestionsContainer.appendChild(button);
         });
-        
+
         this.suggestionsContainer.style.display = 'block';
     }
-    
+
     startNewChat() {
         // Clear conversation history
         this.conversationHistory = [];
-        
+
         // Clear chat messages
         this.chatMessages.innerHTML = `
             <div class="welcome-message">
@@ -396,13 +396,13 @@ class ChatApp {
                 <p>Ask me anything about C# programming, and I'll help you out.</p>
             </div>
         `;
-        
+
         // Reset suggestions
         this.loadDefaultSuggestions();
-        
+
         // Focus input
         this.questionInput.focus();
-        
+
         // Announce to screen readers
         const announcement = document.createElement('div');
         announcement.setAttribute('aria-live', 'polite');
@@ -410,12 +410,12 @@ class ChatApp {
         announcement.className = 'sr-only';
         announcement.textContent = 'Started new chat conversation';
         document.body.appendChild(announcement);
-        
+
         setTimeout(() => {
             document.body.removeChild(announcement);
         }, 1000);
     }
-    
+
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
