@@ -11,9 +11,9 @@ services:
     healthCheckPath: /health
     envVars:
       - key: PORT
-        value: 80
+        value: 8000
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.13.4
 
   - type: web
     runtime: static
