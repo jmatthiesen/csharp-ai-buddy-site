@@ -122,6 +122,7 @@ class ChatApp {
         await this.sendMessage(question);
     }
 
+
     addMessage(role, content, isStreaming = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
@@ -253,7 +254,6 @@ class ChatApp {
 
             // Generate follow-up suggestions
             this.generateFollowUpSuggestions(assistantMessageContent.textContent);
-
         } catch (error) {
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
@@ -320,7 +320,7 @@ class ChatApp {
                     if (data.type === 'content') {
                         fullContent += data.content;
                         contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
-
+                        
                         // Apply syntax highlighting to any remaining code blocks
                         const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
                         codeBlocks.forEach(block => {
@@ -331,16 +331,16 @@ class ChatApp {
                     console.warn('Failed to parse final buffer:', buffer, parseError);
                 }
             }
-
+            
         } finally {
             reader.releaseLock();
         }
     }
-
+    
     generateFollowUpSuggestions(assistantResponse) {
         // Simple follow-up suggestion generation based on response content
         const suggestions = [];
-
+        
         if (assistantResponse.toLowerCase().includes('class')) {
             suggestions.push('Can you show me an example?');
             suggestions.push('What about inheritance?');
@@ -355,10 +355,10 @@ class ChatApp {
             suggestions.push('Show me a practical example');
             suggestions.push('What are common mistakes to avoid?');
         }
-
+        
         this.updateSuggestions(suggestions.slice(0, 3));
     }
-
+    
     loadDefaultSuggestions() {
         const defaultSuggestions = [
             'How do I create a class in C#?',
@@ -367,10 +367,10 @@ class ChatApp {
         ];
         this.updateSuggestions(defaultSuggestions);
     }
-
+    
     updateSuggestions(suggestions) {
         this.suggestionsContainer.innerHTML = '';
-
+        
         suggestions.forEach(suggestion => {
             const button = document.createElement('button');
             button.className = 'suggestion-btn';
@@ -378,17 +378,17 @@ class ChatApp {
             button.dataset.suggestion = suggestion;
             button.setAttribute('tabindex', '0');
             button.setAttribute('aria-label', `Suggestion: ${suggestion}`);
-
+            
             this.suggestionsContainer.appendChild(button);
         });
-
+        
         this.suggestionsContainer.style.display = 'block';
     }
-
+    
     startNewChat() {
         // Clear conversation history
         this.conversationHistory = [];
-
+        
         // Clear chat messages
         this.chatMessages.innerHTML = `
             <div class="welcome-message">
@@ -396,13 +396,13 @@ class ChatApp {
                 <p>Ask me anything about C# programming, and I'll help you out.</p>
             </div>
         `;
-
+        
         // Reset suggestions
         this.loadDefaultSuggestions();
-
+        
         // Focus input
         this.questionInput.focus();
-
+        
         // Announce to screen readers
         const announcement = document.createElement('div');
         announcement.setAttribute('aria-live', 'polite');
@@ -411,11 +411,12 @@ class ChatApp {
         announcement.textContent = 'Started new chat conversation';
         document.body.appendChild(announcement);
 
+        
         setTimeout(() => {
             document.body.removeChild(announcement);
         }, 1000);
     }
-
+    
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
