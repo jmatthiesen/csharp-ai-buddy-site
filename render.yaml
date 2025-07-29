@@ -18,7 +18,6 @@ services:
   - type: web
     runtime: static
     name: csharp-ai-buddy-frontend
-    plan: free
     branch: release
     rootDir: src/frontend
     buildCommand: null
