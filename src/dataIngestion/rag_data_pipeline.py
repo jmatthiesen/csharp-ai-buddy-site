@@ -411,8 +411,6 @@ class RAGDataPipeline:
 def main():
     """Main function for command-line interface."""
     parser = argparse.ArgumentParser(description="RAG Data Ingestion Pipeline")
-    parser.add_argument("--config", default="config.json", help="Configuration file path")
-    
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Add document command
@@ -457,7 +455,7 @@ def main():
         return
     
     # Load configuration
-    config = Config.from_file(args.config)
+    config = Config.load()
     pipeline = RAGDataPipeline(config)
     
     try:

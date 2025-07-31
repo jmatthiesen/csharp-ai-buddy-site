@@ -7,6 +7,14 @@ import json
 from typing import Optional
 from dataclasses import dataclass
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not available, continue without it
+    pass
+
 
 @dataclass
 class Config:
@@ -27,7 +35,8 @@ class Config:
     
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
-        """Load configuration from JSON file."""
+        """Load configuration from JSON file (deprecated, use from_env instead)."""
+        print("Warning: JSON config files are deprecated. Please use environment variables or .env files.")
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         
@@ -48,6 +57,17 @@ class Config:
             max_content_length=int(os.getenv("MAX_CONTENT_LENGTH", "8192")),
             batch_size=int(os.getenv("BATCH_SIZE", "10"))
         )
+    
+    @classmethod
+    def load(cls) -> "Config":
+        """Load configuration with priority: environment variables > .env file > JSON file."""
+        # Try environment variables first
+        config = cls.from_env()
+        
+        # Validate the configuration
+        config.validate()
+        
+        return config
     
     def to_dict(self) -> dict:
         """Convert configuration to dictionary."""
@@ -73,15 +93,15 @@ class Config:
     def validate(self) -> bool:
         """Validate configuration settings."""
         if not self.openai_api_key:
-            raise ValueError("OpenAI API key is required")
+            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
         
         if not self.mongodb_connection_string:
-            raise ValueError("MongoDB connection string is required")
+            raise ValueError("MongoDB connection string is required. Set MONGODB_CONNECTION_STRING environment variable.")
         
         if not self.mongodb_database:
-            raise ValueError("MongoDB database name is required")
+            raise ValueError("MongoDB database name is required. Set MONGODB_DATABASE environment variable.")
         
         if not self.mongodb_collection:
-            raise ValueError("MongoDB collection name is required")
+            raise ValueError("MongoDB collection name is required. Set MONGODB_COLLECTION environment variable.")
         
         return True 
