@@ -25,6 +25,9 @@ from config import Config
 # Document type
 from document import Document
 
+# Chunking utility
+from utils.chunking import chunk_markdown
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +44,10 @@ class DocumentPipeline:
         
         # Initialize MarkItDown
         self.markitdown = MarkItDown()
+        
+        # Chunking configuration - 4000 characters is reasonable for technical documentation
+        # This allows for good context while staying within typical embedding model limits
+        self.chunk_size = 4000
         
         # Create indexes for efficient querying
         self._create_indexes()
@@ -151,6 +158,95 @@ class DocumentPipeline:
         
         return final_tags
     
+    def process_document_with_chunking(self, 
+                                     document: Document,
+                                     use_ai_categorization: bool = True,
+                                     additional_metadata: Optional[Dict[str, Any]] = None) -> List[Document]:
+        """
+        Process a document through the full pipeline with chunking support.
+        
+        Args:
+            document: Document to process
+            use_ai_categorization: Whether to use AI for automatic categorization
+            additional_metadata: Additional metadata to merge
+            
+        Returns:
+            List[Document]: List of processed document chunks with embeddings and enriched metadata
+        """
+        try:
+            # Step 1: Convert content to markdown
+            markdown_content = self.convert_to_markdown(document)
+            
+            # Step 2: Chunk the markdown content
+            chunks = chunk_markdown(markdown_content, self.chunk_size)
+            
+            # If no chunks or content is small enough, treat as single chunk
+            if not chunks:
+                chunks = [markdown_content] if markdown_content.strip() else [""]
+            
+            processed_documents = []
+            
+            # Step 3: Process each chunk
+            for i, chunk_content in enumerate(chunks):
+                # Create a new document for this chunk
+                chunk_document = Document(
+                    documentId=f"{document.documentId}#chunk_{i}" if len(chunks) > 1 else document.documentId,
+                    title=document.title,
+                    content=chunk_content,  # Keep original content
+                    sourceUrl=document.sourceUrl,
+                    createdDate=document.createdDate,
+                    tags=document.tags.copy() if document.tags else [],
+                    metadata=document.metadata.copy() if document.metadata else {},
+                    # Copy RSS-specific fields if they exist
+                    rss_feed_url=getattr(document, 'rss_feed_url', None),
+                    rss_item_id=getattr(document, 'rss_item_id', None),
+                    rss_title=getattr(document, 'rss_title', None),
+                    rss_published_date=getattr(document, 'rss_published_date', None),
+                    rss_author=getattr(document, 'rss_author', None)
+                )
+                
+                # Add chunk-specific metadata
+                chunk_metadata = {
+                    "chunk_index": i,
+                    "total_chunks": len(chunks),
+                    "chunk_size": len(chunk_content),
+                    "original_document_id": document.documentId
+                }
+                
+                if chunk_document.metadata is None:
+                    chunk_document.metadata = {}
+                chunk_document.metadata.update(chunk_metadata)
+                
+                # Step 4: Generate embeddings for this chunk
+                if chunk_content.strip():  # Only generate embeddings for non-empty chunks
+                    embeddings = self.generate_embeddings(chunk_content)
+                    chunk_document.embeddings = embeddings
+                else:
+                    chunk_document.embeddings = []
+                
+                # Step 5: Auto-categorize with AI if enabled (only for first chunk to avoid redundancy)
+                if use_ai_categorization and i == 0:
+                    categorized_tags = self.categorize_document(chunk_content, chunk_document.tags)
+                    # Apply the same tags to all chunks
+                    for doc in [chunk_document] + processed_documents:
+                        doc.tags = categorized_tags
+                
+                # Step 6: Merge additional metadata
+                if additional_metadata:
+                    chunk_document.metadata.update(additional_metadata)
+                
+                # Step 7: Set processing timestamp
+                chunk_document.indexedDate = datetime.now(timezone.utc)
+                
+                processed_documents.append(chunk_document)
+            
+            logger.info(f"Successfully processed document into {len(processed_documents)} chunks: {document.documentId}")
+            return processed_documents
+            
+        except Exception as e:
+            logger.error(f"Error processing document {document.documentId}: {e}")
+            raise
+    
     def process_document(self, 
                         document: Document,
                         use_ai_categorization: bool = True,
@@ -219,6 +315,66 @@ class DocumentPipeline:
         except Exception as e:
             logger.error(f"Error storing document: {e}")
             raise
+    
+    def store_document_chunks(self, document_chunks: List[Document]) -> List[str]:
+        """
+        Store multiple processed document chunks in MongoDB.
+        
+        Args:
+            document_chunks: List of processed document chunks to store
+            
+        Returns:
+            List[str]: List of document IDs of the stored chunks
+        """
+        try:
+            stored_ids = []
+            
+            for chunk in document_chunks:
+                try:
+                    # Insert each chunk into MongoDB
+                    result = self.documents_collection.insert_one(chunk.to_dict())
+                    stored_ids.append(chunk.documentId)
+                except DuplicateKeyError:
+                    logger.warning(f"Document chunk with ID {chunk.documentId} already exists, skipping")
+                    continue
+            
+            logger.info(f"Successfully stored {len(stored_ids)} document chunks")
+            return stored_ids
+            
+        except Exception as e:
+            logger.error(f"Error storing document chunks: {e}")
+            raise
+    
+    def process_and_store_document(self, 
+                                 document: Document,
+                                 use_ai_categorization: bool = True,
+                                 additional_metadata: Optional[Dict[str, Any]] = None,
+                                 use_chunking: bool = True) -> List[str]:
+        """
+        Process and store a document, with optional chunking support.
+        
+        Args:
+            document: Document to process and store
+            use_ai_categorization: Whether to use AI for automatic categorization
+            additional_metadata: Additional metadata to merge
+            use_chunking: Whether to use chunking (default: True)
+            
+        Returns:
+            List[str]: List of document IDs of the stored documents/chunks
+        """
+        if use_chunking:
+            # Process with chunking
+            processed_chunks = self.process_document_with_chunking(
+                document, use_ai_categorization, additional_metadata
+            )
+            return self.store_document_chunks(processed_chunks)
+        else:
+            # Process without chunking (legacy behavior)
+            processed_document = self.process_document(
+                document, use_ai_categorization, additional_metadata
+            )
+            stored_id = self.store_document(processed_document)
+            return [stored_id]
     
     def update_document(self, document: Document) -> bool:
         """

@@ -19,10 +19,7 @@ class Document:
     title: str
     content: str
     sourceUrl: str
-    
-    # Processed content
-    markdownContent: Optional[str] = None
-    
+        
     # Vector embeddings for similarity search
     embeddings: Optional[List[float]] = None
     
@@ -129,11 +126,10 @@ class Document:
             indexedDate=datetime.now(timezone.utc)
         )
     
-    def update_content(self, new_content: str, new_markdown_content: Optional[str] = None):
-        """Update the document content and markdown content."""
-        self.content = new_content
-        if new_markdown_content:
-            self.markdownContent = new_markdown_content
+    def update_content(self, new_content: str):
+        """Update the document content"""
+        if new_content:
+            self.content = new_content
         self.updatedDate = datetime.now(timezone.utc)
     
     def update_embeddings(self, embeddings: List[float]):

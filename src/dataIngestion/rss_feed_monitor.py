@@ -62,7 +62,7 @@ class RSSFeedSubscription:
         return data
     
     @classmethod
-    def from_dict(self, data: Dict[str, Any]) -> "RSSFeedSubscription":
+    def from_dict(cls, data: Dict[str, Any]) -> "RSSFeedSubscription":
         """Create from dictionary from MongoDB."""
         
         # Convert ISO strings back to datetime objects
@@ -72,7 +72,7 @@ class RSSFeedSubscription:
                     data[key] = datetime.fromisoformat(value)
                 except ValueError:
                     data[key] = None
-        return self(**data)
+        return cls(**data)
 
 
 @dataclass
@@ -178,6 +178,7 @@ class RSSFeedMonitor:
                 return False
             
             subscription = RSSFeedSubscription(
+                _id=None,  # Will be set by MongoDB
                 feed_url=feed_url,
                 name=name,
                 description=description,
@@ -346,18 +347,16 @@ class RSSFeedMonitor:
             combined_tags = subscription_tags + item_tags
             matching_document.tags = combined_tags
             
-            # Process through document pipeline
-            processed_document = self.document_pipeline.process_document(
+            # Process and store through document pipeline with chunking
+            stored_ids = self.document_pipeline.process_and_store_document(
                 document=matching_document,
                 use_ai_categorization=True,
                 additional_metadata={
                     "rss_feed_name": subscription.name,
                     "rss_feed_description": subscription.description
-                }
+                },
+                use_chunking=True
             )
-            
-            # Store in database
-            self.document_pipeline.store_document(processed_document)
             
             # Mark as processed
             self._mark_item_processed(subscription.feed_url, item_id)

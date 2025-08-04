@@ -52,15 +52,15 @@ class RAGDataPipelineCLI:
                     document.tags = []
                 document.tags.extend(tags)
             
-            # Process through pipeline
-            processed_document = self.pipeline.process_document(
+            # Process and store through pipeline with chunking
+            stored_ids = self.pipeline.process_and_store_document(
                 document=document,
                 use_ai_categorization=use_ai_categorization,
-                additional_metadata=metadata
+                additional_metadata=metadata,
+                use_chunking=True
             )
             
-            # Store in database
-            document_id = self.pipeline.store_document(processed_document)
+            document_id = stored_ids[0] if stored_ids else None
             
             logger.info(f"Successfully added document from URL: {source_url}")
             return document_id
@@ -112,7 +112,7 @@ class RAGDataPipelineCLI:
             elif existing_doc.metadata:
                 updated_document.metadata = existing_doc.metadata
             
-            # Process through pipeline
+            # For updates, use non-chunking approach to maintain document integrity
             processed_document = self.pipeline.process_document(
                 document=updated_document,
                 use_ai_categorization=True
