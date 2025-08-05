@@ -55,6 +55,8 @@ class ChatApp {
         // New chat button
         this.newChatBtn.addEventListener('click', () => {
             this.startNewChat();
+            // Switch to chat tab when starting a new chat
+            document.dispatchEvent(new CustomEvent('switchToChat'));
         });
 
         // Suggestion clicks
@@ -712,6 +714,11 @@ class AppManager {
 
         samplesTab.addEventListener('click', () => {
             this.switchTab('samples');
+        });
+
+        // Listen for New Chat button requests to switch to chat tab
+        document.addEventListener('switchToChat', () => {
+            this.switchTab('chat');
         });
 
         // Sidebar toggle

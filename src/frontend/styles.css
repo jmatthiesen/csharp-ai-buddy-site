@@ -66,18 +66,35 @@ body {
     background: #4a5568;
 }
 
+.site-branding {
+    display: flex;
+    align-items: center;
+    margin-left: 1rem;
+    flex: 1;
+}
+
+.site-icon {
+    color: #4299e1;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    transition: opacity 0.3s ease;
+}
+
 .app-title {
     font-size: 1.25rem;
     font-weight: 600;
-    margin-left: 1rem;
     white-space: nowrap;
     overflow: hidden;
     transition: opacity 0.3s ease;
 }
 
-.sidebar.collapsed .app-title {
+.sidebar.collapsed .site-branding .app-title,
+.sidebar.collapsed .site-branding .site-icon {
     opacity: 0;
     width: 0;
+}
+
+.sidebar.collapsed .site-branding {
     margin-left: 0;
 }
 
@@ -114,7 +131,7 @@ body {
 
 .sidebar-item.new-chat-item {
     background: #38a169;
-    margin: 0 1rem 1rem 1rem;
+    margin: 0 0.75rem 1rem 0.75rem;
     border-radius: 8px;
     border-left: none;
 }
@@ -151,7 +168,7 @@ body {
 }
 
 .sidebar.collapsed .sidebar-item.new-chat-item {
-    margin: 0 0.5rem 1rem 0.5rem;
+    margin: 0 0.375rem 1rem 0.375rem;
 }
 
 /* Main Container */
@@ -162,16 +179,9 @@ body {
     overflow: hidden;
 }
 
-/* Header */
+/* Header - Hidden to not reserve space */
 .main-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    padding: 1rem 2rem;
-    border-bottom: 1px solid #e1e5e9;
-    background: white;
-    z-index: 10;
-    min-height: 70px;
+    display: none;
 }
 
 .header-actions {
