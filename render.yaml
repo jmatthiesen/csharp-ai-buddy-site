@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: csharp-ai-buddy-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    region: oregon
+    branch: release
+    rootDir: src/api
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.13.4
+
+  - type: web
+    runtime: static
+    name: csharp-ai-buddy-frontend
+    branch: release
+    rootDir: src/frontend
+    buildCommand: null
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
