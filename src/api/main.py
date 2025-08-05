@@ -66,17 +66,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Request/Response models
 class Message(BaseModel):
     role: str
     content: str
 
-
 class ChatRequest(BaseModel):
     message: str
     history: List[Message] = []
-
 
 class HealthResponse(BaseModel):
     status: str
@@ -134,7 +131,6 @@ def generate_embedding(text: str) -> List[float]:
     except Exception as e:
         logger.error(f"Error generating embedding: {str(e)}", exc_info=True)
         raise
-
 
 @function_tool
 async def search_knowledge_base(user_query: str) -> str:
@@ -206,7 +202,6 @@ async def search_knowledge_base(user_query: str) -> str:
         # Process results
         documents = list(results)
         logger.info(f"Found {len(documents)} relevant documents")
-
         if not documents:
             logger.warning("No documents found for the query")
             return "No relevant documents found for your query."
@@ -229,7 +224,6 @@ async def search_knowledge_base(user_query: str) -> str:
     except Exception as e:
         logger.error(f"Error in search_knowledge_base: {str(e)}", exc_info=True)
         return f"Sorry, I encountered an error while searching the knowledge base: {str(e)}"
-
 
 async def build_mcp_servers() -> List[MCPServerStreamableHttp]:
     servers = [
@@ -617,7 +611,6 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @app.get("/")
 async def root():

@@ -1,6 +1,6 @@
 def chunk_markdown(content, chunk_size):
     """
-    Single-pass markdown chunking with strict size limits.
+    Intelligently chunk markdown content while preserving structure.
     
     Args:
         content (str): The markdown content to chunk
