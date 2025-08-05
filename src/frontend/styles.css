@@ -140,6 +140,16 @@ body {
     background: #2f855a;
 }
 
+/* Prevent New Chat button from showing active state */
+.sidebar-item.new-chat-item.active {
+    background: #38a169;
+    border-left: none;
+}
+
+.sidebar-item.new-chat-item.active:hover {
+    background: #2f855a;
+}
+
 .sidebar-icon {
     min-width: 20px;
     min-height: 20px;
