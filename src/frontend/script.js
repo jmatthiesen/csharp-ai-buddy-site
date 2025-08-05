@@ -14,6 +14,9 @@ class ChatApp {
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
+
+        // Initialize markdown and syntax highlighting when libraries are loaded
+        this.initializeMarkdownSupport();
     }
 
     detectApiUrl() {
@@ -121,11 +124,11 @@ class ChatApp {
             // Sanitize user input to prevent XSS
             contentDiv.textContent = content;
         } else {
-            // For assistant messages, render as plain text for now
+            // For assistant messages, render markdown and apply syntax highlighting
             if (isStreaming) {
                 contentDiv.innerHTML = '<div class="loading">Thinking...</div>';
             } else {
-                contentDiv.textContent = content;
+                contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
             }
         }
 
@@ -144,6 +147,110 @@ class ChatApp {
         return contentDiv;
     }
 
+    initializeMarkdownSupport() {
+        // Configure marked for security when available
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                sanitize: false, // We'll sanitize manually
+                highlight: function (code, lang) {
+                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) { }
+                    }
+                    if (typeof hljs !== 'undefined' && hljs.highlightAuto) {
+                        try {
+                            return hljs.highlightAuto(code).value;
+                        } catch (err) { }
+                    }
+                    return code;
+                },
+                langPrefix: 'hljs language-'
+            });
+        }
+    }
+
+    sanitizeAndRenderMarkdown(content) {
+        // Basic HTML sanitization to prevent XSS
+        const tempDiv = document.createElement('div');
+        
+        // Use marked if available, otherwise fall back to basic formatting
+        if (typeof marked !== 'undefined' && marked.parse) {
+            tempDiv.innerHTML = marked.parse(content);
+        } else {
+            // Basic markdown-like formatting as fallback
+            let formatted = content
+                .replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre><code class="language-$1">$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+            tempDiv.innerHTML = formatted;
+        }
+
+        // Remove potentially dangerous elements and attributes
+        this.sanitizeElement(tempDiv);
+
+        // Apply syntax highlighting to code blocks if hljs is available
+        if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+            const codeBlocks = tempDiv.querySelectorAll('pre code');
+            codeBlocks.forEach(block => {
+                try {
+                    hljs.highlightElement(block);
+                } catch (err) {
+                    console.warn('Syntax highlighting failed:', err);
+                }
+            });
+        }
+
+        return tempDiv.innerHTML;
+    }
+
+    sanitizeElement(element) {
+        // Remove script tags and event handlers
+        const scripts = element.querySelectorAll('script');
+        scripts.forEach(script => script.remove());
+
+        // Remove dangerous attributes
+        const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'javascript:'];
+        const allElements = element.querySelectorAll('*');
+
+        allElements.forEach(el => {
+            // Remove dangerous attributes
+            Array.from(el.attributes).forEach(attr => {
+                if (dangerousAttrs.some(dangerous =>
+                    attr.name.toLowerCase().includes(dangerous.toLowerCase()) ||
+                    attr.value.toLowerCase().includes('javascript:')
+                )) {
+                    el.removeAttribute(attr.name);
+                }
+            });
+
+            // Only allow safe tags
+            const safeTags = ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a'];
+            if (!safeTags.includes(el.tagName.toLowerCase())) {
+                // Replace unsafe tags with spans
+                const span = document.createElement('span');
+                span.innerHTML = el.innerHTML;
+                el.parentNode?.replaceChild(span, el);
+            }
+
+            // Ensure links are safe
+            if (el.tagName.toLowerCase() === 'a') {
+                el.setAttribute('target', '_blank');
+                el.setAttribute('rel', 'noopener noreferrer');
+                
+                // Only allow http/https links
+                const href = el.getAttribute('href');
+                if (href && !href.match(/^https?:\/\//)) {
+                    el.removeAttribute('href');
+                }
+            }
+        });
+    }
+
     async sendMessage(question) {
         this.isStreaming = true;
         const submitBtn = document.querySelector('.send-btn');
@@ -153,7 +260,36 @@ class ChatApp {
         const assistantMessageContent = this.addMessage('assistant', '', true);
 
         try {
-            assistantMessageContent.textContent = 'Chat functionality requires backend API connection.';
+            // Add to conversation history
+            this.conversationHistory.push({ role: 'user', content: question });
+
+            const response = await fetch(`${this.apiBaseUrl}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: this.conversationHistory,
+                    stream: true
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Handle streaming response
+            if (response.headers.get('content-type')?.includes('text/plain')) {
+                await this.handleStreamingResponse(response, assistantMessageContent);
+            } else {
+                // Handle non-streaming response
+                const data = await response.json();
+                const content = data.response || data.content || 'Sorry, I received an empty response.';
+                assistantMessageContent.innerHTML = this.sanitizeAndRenderMarkdown(content);
+                
+                // Add to conversation history
+                this.conversationHistory.push({ role: 'assistant', content: content });
+            }
         } catch (error) {
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
@@ -166,6 +302,84 @@ class ChatApp {
             this.isStreaming = false;
             submitBtn.disabled = false;
             this.questionInput.focus();
+        }
+    }
+
+    async handleStreamingResponse(response, contentElement) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullContent = '';
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete JSON-L lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const data = JSON.parse(line);
+
+                            if (data.type === 'content') {
+                                fullContent += data.content;
+                                contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
+
+                                // Apply syntax highlighting to any new code blocks if hljs is available
+                                if (typeof hljs !== 'undefined') {
+                                    const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
+                                    codeBlocks.forEach(block => {
+                                        try {
+                                            hljs.highlightElement(block);
+                                        } catch (err) {
+                                            console.warn('Syntax highlighting failed:', err);
+                                        }
+                                    });
+                                }
+
+                                this.scrollToBottom();
+                            } else if (data.type === 'error') {
+                                throw new Error(data.message);
+                            }
+                        } catch (parseError) {
+                            console.warn('Failed to parse JSON line:', line, parseError);
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining buffer content
+            if (buffer.trim()) {
+                try {
+                    const data = JSON.parse(buffer);
+                    if (data.type === 'content') {
+                        fullContent += data.content;
+                        contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
+                    }
+                } catch (parseError) {
+                    console.warn('Failed to parse remaining buffer:', buffer, parseError);
+                }
+            }
+
+            // Add final response to conversation history
+            if (fullContent) {
+                this.conversationHistory.push({ role: 'assistant', content: fullContent });
+            }
+
+        } catch (error) {
+            console.error('Streaming error:', error);
+            contentElement.innerHTML = `
+                <div class="error-message">
+                    <p>Error during streaming response: ${error.message}</p>
+                </div>
+            `;
         }
     }
     
