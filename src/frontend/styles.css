@@ -586,7 +586,9 @@ header h1 {
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
-    height: fit-content;
+    height: 320px;
+    display: flex;
+    flex-direction: column;
 }
 
 .sample-card:hover {
@@ -655,12 +657,26 @@ header h1 {
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    flex: 1;
 }
 
 .sample-tags {
     display: flex;
-    flex-wrap: wrap;
     gap: 0.5rem;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.sample-tags::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, transparent, white);
+    pointer-events: none;
 }
 
 .sample-tag {
@@ -670,6 +686,8 @@ header h1 {
     border-radius: 12px;
     font-size: 0.8rem;
     border: 1px solid #e2e8f0;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .sample-tag.msft {
