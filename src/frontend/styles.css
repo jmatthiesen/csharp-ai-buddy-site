@@ -14,60 +14,204 @@ body {
     overflow: hidden;
 }
 
-.container {
+.app-container {
     display: flex;
-    flex-direction: column;
     height: 100vh;
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     background: white;
     box-shadow: 0 0 20px rgba(0,0,0,0.1);
 }
 
-/* Header */
-header {
+/* Sidebar */
+.sidebar {
+    background: #2d3748;
+    color: white;
+    width: 280px;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    position: relative;
+    border-right: 1px solid #1a202c;
+}
+
+.sidebar.collapsed {
+    width: 70px;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #4a5568;
+    min-height: 70px;
+}
+
+.sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+}
+
+.sidebar-toggle:hover {
+    background: #4a5568;
+}
+
+.app-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-left: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .app-title {
+    opacity: 0;
+    width: 0;
+    margin-left: 0;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+    text-align: left;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+    background: #4a5568;
+    color: white;
+}
+
+.sidebar-item.active {
+    background: #4299e1;
+    color: white;
+    border-left-color: #63b3ed;
+}
+
+.sidebar-item.new-chat-item {
+    background: #38a169;
+    margin: 0 1rem 1rem 1rem;
+    border-radius: 8px;
+    border-left: none;
+}
+
+.sidebar-item.new-chat-item:hover {
+    background: #2f855a;
+}
+
+.sidebar-icon {
+    min-width: 20px;
+    min-height: 20px;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.sidebar-text {
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .sidebar-text {
+    opacity: 0;
+    width: 0;
+}
+
+.sidebar.collapsed .sidebar-icon {
+    margin-right: 0;
+}
+
+.sidebar.collapsed .sidebar-item {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.sidebar.collapsed .sidebar-item.new-chat-item {
+    margin: 0 0.5rem 1rem 0.5rem;
+}
+
+/* Main Container */
+.main-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Header */
+.main-header {
+    display: flex;
+    justify-content: flex-end;
     align-items: center;
     padding: 1rem 2rem;
     border-bottom: 1px solid #e1e5e9;
     background: white;
     z-index: 10;
+    min-height: 70px;
 }
 
-header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #2d3748;
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
 }
 
-.new-chat-btn {
-    background: #4299e1;
-    color: white;
-    border: none;
+.telemetry-btn {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #718096;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
 }
 
-.new-chat-btn:hover {
-    background: #3182ce;
+.telemetry-btn:hover {
+    border-color: #cbd5e0;
+    color: #4a5568;
 }
 
-.new-chat-btn:focus {
-    outline: 2px solid #4299e1;
-    outline-offset: 2px;
+.telemetry-btn.disabled {
+    background: #fed7d7;
+    border-color: #feb2b2;
+    color: #e53e3e;
 }
 
-/* Chat header */
-.chat-header {
-    display: flex;
-    justify-content: flex-end;
-    padding: 1rem 2rem 0.5rem;
-    border-bottom: 1px solid #e1e5e9;
+/* Remove old header/tab styles */
+.nav-tabs {
+    display: none;
 }
+
+.nav-tab {
+    display: none;
+}
+
+/* Chat header - removed since New Chat is now in sidebar */
 
 /* Chat container */
 .chat-container {
@@ -320,11 +464,27 @@ header h1 {
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .container {
+    .app-container {
         height: 100vh;
     }
     
-    header,
+    .sidebar {
+        width: 70px;
+    }
+    
+    .sidebar.expanded {
+        width: 280px;
+        position: fixed;
+        z-index: 1000;
+        height: 100vh;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .main-container {
+        margin-left: 0;
+    }
+    
+    .main-header,
     .suggestions-container,
     .input-form {
         padding-left: 1rem;
@@ -364,62 +524,7 @@ header h1 {
     }
 }
 
-/* Tab Navigation */
-.nav-tabs {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.nav-tab {
-    background: transparent;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px 8px 0 0;
-    cursor: pointer;
-    font-weight: 500;
-    color: #718096;
-    transition: all 0.2s ease;
-    border-bottom: 3px solid transparent;
-}
-
-.nav-tab.active {
-    color: #4299e1;
-    background: #f7fafc;
-    border-bottom-color: #4299e1;
-}
-
-.nav-tab:hover {
-    color: #4299e1;
-    background: #f7fafc;
-}
-
-.header-actions {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-}
-
-.telemetry-btn {
-    background: transparent;
-    border: 1px solid #e2e8f0;
-    color: #718096;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-}
-
-.telemetry-btn:hover {
-    border-color: #cbd5e0;
-    color: #4a5568;
-}
-
-.telemetry-btn.disabled {
-    background: #fed7d7;
-    border-color: #feb2b2;
-    color: #e53e3e;
-}
+/* Tab Navigation - Legacy styles removed */
 
 /* Samples Gallery */
 .samples-container {
@@ -989,6 +1094,14 @@ header h1 {
     
     .sample-detail-meta {
         grid-template-columns: 1fr;
+    }
+    
+    /* Sidebar overlay on mobile when expanded */
+    .sidebar.expanded {
+        position: fixed;
+        z-index: 999;
+        height: 100vh;
+        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
     }
 }
 

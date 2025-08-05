@@ -691,6 +691,7 @@ class AppManager {
         this.samplesGallery = new SamplesGallery();
         this.currentTab = 'chat';
         
+        this.initializeSidebarState();
         this.initializeNavigation();
         this.initializePrivacyNotice();
         this.initializeUrlHandling();
@@ -701,7 +702,10 @@ class AppManager {
         const samplesTab = document.getElementById('samples-tab');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
 
+        // Tab navigation
         chatTab.addEventListener('click', () => {
             this.switchTab('chat');
         });
@@ -709,6 +713,67 @@ class AppManager {
         samplesTab.addEventListener('click', () => {
             this.switchTab('samples');
         });
+
+        // Sidebar toggle
+        sidebarToggle.addEventListener('click', () => {
+            this.toggleSidebar();
+        });
+
+        // Auto-collapse sidebar on mobile when clicking nav items
+        if (window.innerWidth <= 768) {
+            [chatTab, samplesTab].forEach(tab => {
+                tab.addEventListener('click', () => {
+                    if (sidebar.classList.contains('expanded')) {
+                        this.toggleSidebar();
+                    }
+                });
+            });
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.add('expanded');
+            } else {
+                sidebar.classList.remove('expanded');
+            }
+        });
+    }
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const isExpanded = sidebar.classList.contains('expanded');
+        
+        if (isExpanded) {
+            sidebar.classList.remove('expanded');
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+            sidebar.classList.add('expanded');
+        }
+        
+        // Save sidebar state to localStorage
+        localStorage.setItem('sidebarExpanded', !isExpanded);
+    }
+
+    initializeSidebarState() {
+        const sidebar = document.getElementById('sidebar');
+        const savedState = localStorage.getItem('sidebarExpanded');
+        
+        // Default to expanded on desktop, collapsed on mobile
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('expanded');
+            sidebar.classList.add('collapsed');
+        } else {
+            const shouldExpand = savedState === null ? true : savedState === 'true';
+            if (shouldExpand) {
+                sidebar.classList.add('expanded');
+                sidebar.classList.remove('collapsed');
+            } else {
+                sidebar.classList.remove('expanded');
+                sidebar.classList.add('collapsed');
+            }
+        }
     }
 
     switchTab(tab) {
