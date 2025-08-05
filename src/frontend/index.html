@@ -6,18 +6,27 @@
     <meta name="api-url" content="">
     <title>C# AI Buddy</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>C# AI Buddy</h1>
-            <button id="new-chat-btn" class="new-chat-btn" aria-label="Start new chat">
-                <span>New Chat</span>
-            </button>
+            <nav class="nav-tabs">
+                <button id="chat-tab" class="nav-tab active" data-tab="chat">AI Chat</button>
+                <button id="samples-tab" class="nav-tab" data-tab="samples">Sample Gallery</button>
+            </nav>
+            <div class="header-actions">
+                <button id="telemetry-toggle" class="telemetry-btn" aria-label="Toggle telemetry">
+                    <span id="telemetry-status">Telemetry: On</span>
+                </button>
+                <button id="new-chat-btn" class="new-chat-btn" aria-label="Start new chat">
+                    <span>New Chat</span>
+                </button>
+            </div>
         </header>
 
-        <main class="chat-container">
+        <!-- Chat Section -->
+        <main id="chat-section" class="chat-container">
             <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
                 <div class="welcome-message">
                     <h2>Welcome to C# AI Buddy!</h2>
@@ -58,14 +67,68 @@
                 </div>
             </form>
         </main>
+
+        <!-- Samples Gallery Section -->
+        <main id="samples-section" class="samples-container" style="display: none;">
+            <div class="samples-header">
+                <h2>Sample Gallery</h2>
+                <div class="samples-controls">
+                    <div class="search-container">
+                        <input type="text" id="samples-search" class="samples-search" placeholder="Search samples..." aria-label="Search samples">
+                        <button id="search-btn" class="search-btn" aria-label="Search">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="filters-container">
+                        <button id="filters-toggle" class="filters-btn">Filters</button>
+                        <div id="filters-panel" class="filters-panel" style="display: none;">
+                            <div id="tag-filters" class="tag-filters">
+                                <!-- Tag filters will be populated dynamically -->
+                            </div>
+                            <button id="clear-filters" class="clear-filters-btn">Clear All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="samples-loading" class="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading samples...</p>
+            </div>
+
+            <div id="samples-grid" class="samples-grid">
+                <!-- Sample cards will be populated here -->
+            </div>
+
+            <div id="no-results" class="no-results" style="display: none;">
+                <h3>No samples found</h3>
+                <p>Try adjusting your search or filters.</p>
+            </div>
+
+            <div id="pagination" class="pagination">
+                <!-- Pagination controls will be populated here -->
+            </div>
+        </main>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/csharp.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <!-- Sample Detail Modal -->
+    <div id="sample-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Sample Details</h2>
+                <button id="modal-close" class="modal-close" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-sample-details">
+                    <!-- Sample details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
