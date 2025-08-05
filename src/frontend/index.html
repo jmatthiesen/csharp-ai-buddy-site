@@ -16,17 +16,17 @@
                 <button id="samples-tab" class="nav-tab" data-tab="samples">Sample Gallery</button>
             </nav>
             <div class="header-actions">
-                <button id="telemetry-toggle" class="telemetry-btn" aria-label="Toggle telemetry">
-                    <span id="telemetry-status">Telemetry: On</span>
-                </button>
-                <button id="new-chat-btn" class="new-chat-btn" aria-label="Start new chat">
-                    <span>New Chat</span>
-                </button>
+                <!-- Privacy notice will be added here -->
             </div>
         </header>
 
         <!-- Chat Section -->
         <main id="chat-section" class="chat-container">
+            <div class="chat-header">
+                <button id="new-chat-btn" class="new-chat-btn" aria-label="Start new chat">
+                    <span>New Chat</span>
+                </button>
+            </div>
             <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
                 <div class="welcome-message">
                     <h2>Welcome to C# AI Buddy!</h2>
@@ -75,12 +75,24 @@
                 <div class="samples-controls">
                     <div class="search-container">
                         <input type="text" id="samples-search" class="samples-search" placeholder="Search samples..." aria-label="Search samples">
+                        <button id="clear-search-btn" class="clear-search-btn" aria-label="Clear search" style="display: none;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                         <button id="search-btn" class="search-btn" aria-label="Search">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <path d="m21 21-4.35-4.35"></path>
                             </svg>
                         </button>
+                    </div>
+                    <div class="sort-container">
+                        <select id="sort-select" class="sort-select" aria-label="Sort samples">
+                            <option value="alphabetical">Alphabetical (Z-A)</option>
+                            <option value="date">Newest First</option>
+                        </select>
                     </div>
                     <div class="filters-container">
                         <button id="filters-toggle" class="filters-btn">Filters</button>
@@ -125,6 +137,18 @@
                 <div id="modal-sample-details">
                     <!-- Sample details will be populated here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Notice -->
+    <div id="privacy-notice" class="privacy-notice" style="display: none;">
+        <div class="privacy-content">
+            <p>We use cookies and similar technologies to improve your experience and analyze usage. This helps us make our service better.</p>
+            <div class="privacy-actions">
+                <button id="accept-privacy" class="privacy-btn primary">Accept</button>
+                <button id="decline-privacy" class="privacy-btn secondary">Decline</button>
+                <a href="#" id="privacy-policy-link" class="privacy-link">Privacy Policy</a>
             </div>
         </div>
     </div>

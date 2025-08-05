@@ -223,6 +223,8 @@ class SamplesGallery {
         this.samplesGrid = document.getElementById('samples-grid');
         this.samplesSearch = document.getElementById('samples-search');
         this.searchBtn = document.getElementById('search-btn');
+        this.clearSearchBtn = document.getElementById('clear-search-btn');
+        this.sortSelect = document.getElementById('sort-select');
         this.filtersToggle = document.getElementById('filters-toggle');
         this.filtersPanel = document.getElementById('filters-panel');
         this.tagFilters = document.getElementById('tag-filters');
@@ -236,6 +238,7 @@ class SamplesGallery {
 
         this.currentPage = 1;
         this.currentSearch = '';
+        this.currentSort = 'alphabetical';
         this.currentFilters = [];
         this.availableTags = [];
         this.currentSample = null;
@@ -263,6 +266,7 @@ class SamplesGallery {
     initializeEventListeners() {
         // Search functionality
         this.samplesSearch.addEventListener('input', () => {
+            this.updateClearSearchButton();
             this.debounceSearch();
         });
 
@@ -270,10 +274,23 @@ class SamplesGallery {
             this.performSearch();
         });
 
+        // Clear search functionality
+        this.clearSearchBtn.addEventListener('click', () => {
+            this.clearSearch();
+        });
+
         this.samplesSearch.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 this.performSearch();
+            } else if (e.key === 'Escape') {
+                this.clearSearch();
             }
+        });
+
+        // Sort functionality
+        this.sortSelect.addEventListener('change', () => {
+            this.currentSort = this.sortSelect.value;
+            this.performSearch();
         });
 
         // Filters
@@ -324,6 +341,19 @@ class SamplesGallery {
         this.loadMockData();
     }
 
+    clearSearch() {
+        this.samplesSearch.value = '';
+        this.currentSearch = '';
+        this.updateClearSearchButton();
+        this.currentPage = 1;
+        this.loadMockData();
+    }
+
+    updateClearSearchButton() {
+        const hasText = this.samplesSearch.value.trim().length > 0;
+        this.clearSearchBtn.style.display = hasText ? 'block' : 'none';
+    }
+
     toggleFilters() {
         const isVisible = this.filtersPanel.style.display !== 'none';
         this.filtersPanel.style.display = isVisible ? 'none' : 'block';
@@ -339,7 +369,8 @@ class SamplesGallery {
                 author: 'Bruno Capuano',
                 authorUrl: 'https://github.com/BrunoCapuano',
                 source: 'https://github.com/Microsoft/eshoplite-semantic-search',
-                tags: ['AI', 'Azure AI Search', '.NET/C#', 'msft']
+                tags: ['AI', 'Azure AI Search', '.NET/C#', 'msft'],
+                date: '2024-01-15'
             },
             {
                 id: '2',
@@ -348,7 +379,8 @@ class SamplesGallery {
                 author: 'Microsoft .NET Team',
                 authorUrl: 'https://github.com/dotnet',
                 source: 'https://github.com/dotnet-samples/blazor-signalr-chat',
-                tags: ['.NET/C#', 'Blazor', 'SignalR', 'msft']
+                tags: ['.NET/C#', 'Blazor', 'SignalR', 'msft'],
+                date: '2024-02-10'
             },
             {
                 id: '3',
@@ -357,7 +389,8 @@ class SamplesGallery {
                 author: 'Microsoft .NET Team',
                 authorUrl: 'https://github.com/dotnet',
                 source: 'https://github.com/dotnet-samples/minimal-api-ef-core',
-                tags: ['.NET/C#', 'Entity Framework', 'API', 'msft']
+                tags: ['.NET/C#', 'Entity Framework', 'API', 'msft'],
+                date: '2024-01-28'
             },
             {
                 id: '4',
@@ -366,7 +399,8 @@ class SamplesGallery {
                 author: 'Microsoft .NET Team',
                 authorUrl: 'https://github.com/dotnet',
                 source: 'https://github.com/dotnet-samples/maui-cross-platform',
-                tags: ['.NET/C#', 'MAUI', 'Mobile', 'msft']
+                tags: ['.NET/C#', 'MAUI', 'Mobile', 'msft'],
+                date: '2024-02-05'
             },
             {
                 id: '5',
@@ -375,7 +409,8 @@ class SamplesGallery {
                 author: 'Jason Taylor',
                 authorUrl: 'https://github.com/jasontaylordev',
                 source: 'https://github.com/jasontaylordev/CleanArchitecture',
-                tags: ['.NET/C#', 'Architecture', 'CQRS', 'Testing']
+                tags: ['.NET/C#', 'Architecture', 'CQRS', 'Testing'],
+                date: '2024-01-20'
             },
             {
                 id: '6',
@@ -384,7 +419,8 @@ class SamplesGallery {
                 author: 'Microsoft ML.NET Team',
                 authorUrl: 'https://github.com/dotnet',
                 source: 'https://github.com/dotnet-samples/mlnet-machine-learning',
-                tags: ['.NET/C#', 'ML.NET', 'AI', 'msft']
+                tags: ['.NET/C#', 'ML.NET', 'AI', 'msft'],
+                date: '2024-02-12'
             }
         ];
 
@@ -405,6 +441,13 @@ class SamplesGallery {
             filteredSamples = filteredSamples.filter(sample =>
                 this.currentFilters.some(filter => sample.tags.includes(filter))
             );
+        }
+
+        // Sort samples based on current sort option
+        if (this.currentSort === 'alphabetical') {
+            filteredSamples.sort((a, b) => b.title.localeCompare(a.title)); // Z-A (descending)
+        } else if (this.currentSort === 'date') {
+            filteredSamples.sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
         }
 
         // Extract unique tags from all samples
@@ -649,7 +692,7 @@ class AppManager {
         this.currentTab = 'chat';
         
         this.initializeNavigation();
-        this.initializeTelemetryToggle();
+        this.initializePrivacyNotice();
         this.initializeUrlHandling();
     }
 
@@ -694,29 +737,30 @@ class AppManager {
         window.history.replaceState({}, '', url);
     }
 
-    initializeTelemetryToggle() {
-        const telemetryToggle = document.getElementById('telemetry-toggle');
-        const telemetryStatus = document.getElementById('telemetry-status');
+    initializePrivacyNotice() {
+        const privacyNotice = document.getElementById('privacy-notice');
+        const acceptBtn = document.getElementById('accept-privacy');
+        const declineBtn = document.getElementById('decline-privacy');
         
-        // Load saved preference
-        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        this.updateTelemetryUI(telemetryEnabled);
+        // Check if user has already made a choice
+        const privacyChoice = localStorage.getItem('privacy_choice');
         
-        telemetryToggle.addEventListener('click', () => {
-            const currentlyEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-            const newState = !currentlyEnabled;
-            
-            localStorage.setItem('telemetry_enabled', newState.toString());
-            this.updateTelemetryUI(newState);
+        if (!privacyChoice) {
+            // Show privacy notice if no choice has been made
+            privacyNotice.style.display = 'block';
+        }
+        
+        acceptBtn.addEventListener('click', () => {
+            localStorage.setItem('privacy_choice', 'accepted');
+            localStorage.setItem('telemetry_enabled', 'true');
+            privacyNotice.style.display = 'none';
         });
-    }
-
-    updateTelemetryUI(enabled) {
-        const telemetryToggle = document.getElementById('telemetry-toggle');
-        const telemetryStatus = document.getElementById('telemetry-status');
         
-        telemetryStatus.textContent = `Telemetry: ${enabled ? 'On' : 'Off'}`;
-        telemetryToggle.classList.toggle('disabled', !enabled);
+        declineBtn.addEventListener('click', () => {
+            localStorage.setItem('privacy_choice', 'declined');
+            localStorage.setItem('telemetry_enabled', 'false');
+            privacyNotice.style.display = 'none';
+        });
     }
 
     initializeUrlHandling() {
