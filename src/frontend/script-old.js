@@ -15,8 +15,21 @@ class ChatApp {
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
 
-        // Initialize markdown and syntax highlighting when libraries are loaded
-        this.initializeMarkdownSupport();
+        // Configure marked for security
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false, // We'll sanitize manually
+            highlight: function (code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) { }
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            langPrefix: 'hljs language-'
+        });
     }
 
     detectApiUrl() {
@@ -58,8 +71,6 @@ class ChatApp {
         // New chat button
         this.newChatBtn.addEventListener('click', () => {
             this.startNewChat();
-            // Switch to chat tab when starting a new chat
-            document.dispatchEvent(new CustomEvent('switchToChat'));
         });
 
         // Suggestion clicks
@@ -111,6 +122,7 @@ class ChatApp {
         await this.sendMessage(question);
     }
 
+
     addMessage(role, content, isStreaming = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
@@ -124,7 +136,7 @@ class ChatApp {
             // Sanitize user input to prevent XSS
             contentDiv.textContent = content;
         } else {
-            // For assistant messages, render markdown and apply syntax highlighting
+            // For assistant messages, render markdown
             if (isStreaming) {
                 contentDiv.innerHTML = '<div class="loading">Thinking...</div>';
             } else {
@@ -147,63 +159,19 @@ class ChatApp {
         return contentDiv;
     }
 
-    initializeMarkdownSupport() {
-        // Configure marked for security when available
-        if (typeof marked !== 'undefined') {
-            marked.setOptions({
-                breaks: true,
-                gfm: true,
-                sanitize: false, // We'll sanitize manually
-                highlight: function (code, lang) {
-                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage && hljs.getLanguage(lang)) {
-                        try {
-                            return hljs.highlight(code, { language: lang }).value;
-                        } catch (err) { }
-                    }
-                    if (typeof hljs !== 'undefined' && hljs.highlightAuto) {
-                        try {
-                            return hljs.highlightAuto(code).value;
-                        } catch (err) { }
-                    }
-                    return code;
-                },
-                langPrefix: 'hljs language-'
-            });
-        }
-    }
-
     sanitizeAndRenderMarkdown(content) {
         // Basic HTML sanitization to prevent XSS
         const tempDiv = document.createElement('div');
-        
-        // Use marked if available, otherwise fall back to basic formatting
-        if (typeof marked !== 'undefined' && marked.parse) {
-            tempDiv.innerHTML = marked.parse(content);
-        } else {
-            // Basic markdown-like formatting as fallback
-            let formatted = content
-                .replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre><code class="language-$1">$2</code></pre>')
-                .replace(/`([^`]+)`/g, '<code>$1</code>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n/g, '<br>');
-            tempDiv.innerHTML = formatted;
-        }
+        tempDiv.innerHTML = marked.parse(content);
 
         // Remove potentially dangerous elements and attributes
         this.sanitizeElement(tempDiv);
 
-        // Apply syntax highlighting to code blocks if hljs is available
-        if (typeof hljs !== 'undefined' && hljs.highlightElement) {
-            const codeBlocks = tempDiv.querySelectorAll('pre code');
-            codeBlocks.forEach(block => {
-                try {
-                    hljs.highlightElement(block);
-                } catch (err) {
-                    console.warn('Syntax highlighting failed:', err);
-                }
-            });
-        }
+        // Apply syntax highlighting to code blocks
+        const codeBlocks = tempDiv.querySelectorAll('pre code');
+        codeBlocks.forEach(block => {
+            hljs.highlightElement(block);
+        });
 
         return tempDiv.innerHTML;
     }
@@ -231,23 +199,21 @@ class ChatApp {
             // Only allow safe tags
             const safeTags = ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a'];
             if (!safeTags.includes(el.tagName.toLowerCase())) {
-                // Replace unsafe tags with spans
+                // Replace with span to preserve content
                 const span = document.createElement('span');
                 span.innerHTML = el.innerHTML;
-                el.parentNode?.replaceChild(span, el);
+                el.parentNode.replaceChild(span, el);
             }
+        });
 
-            // Ensure links are safe
-            if (el.tagName.toLowerCase() === 'a') {
-                el.setAttribute('target', '_blank');
-                el.setAttribute('rel', 'noopener noreferrer');
-                
-                // Only allow http/https links
-                const href = el.getAttribute('href');
-                if (href && !href.match(/^https?:\/\//)) {
-                    el.removeAttribute('href');
-                }
+        // Sanitize links
+        const links = element.querySelectorAll('a');
+        links.forEach(link => {
+            if (link.href && !link.href.startsWith('http')) {
+                link.removeAttribute('href');
             }
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
         });
     }
 
@@ -260,25 +226,23 @@ class ChatApp {
         const assistantMessageContent = this.addMessage('assistant', '', true);
 
         try {
-            
-            const response = await fetch(`${this.apiBaseUrl}/chat`, {
+            // Using relative URL that will be proxied to backend
+            const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     message: question,
                     history: this.conversationHistory
                 })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
-            // Add to conversation history
-            this.conversationHistory.push({ role: 'user', content: question });
-            
+
             // Handle streaming response
             await this.handleStreamingResponse(response, assistantMessageContent);
 
@@ -290,18 +254,6 @@ class ChatApp {
 
             // Generate follow-up suggestions
             this.generateFollowUpSuggestions(assistantMessageContent.textContent);
-            
-            /*if (response.headers.get('content-type')?.includes('text/plain')) {
-                await this.handleStreamingResponse(response, assistantMessageContent);
-            } else {
-                // Handle non-streaming response
-                const data = await response.json();
-                const content = data.response || data.content || 'Sorry, I received an empty response.';
-                assistantMessageContent.innerHTML = this.sanitizeAndRenderMarkdown(content);
-                
-                // Add to conversation history
-                this.conversationHistory.push({ role: 'assistant', content: content });
-            }*/
         } catch (error) {
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
@@ -344,6 +296,7 @@ class ChatApp {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
 
+                                // Apply syntax highlighting to any new code blocks
                                 const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
                                 codeBlocks.forEach(block => {
                                     hljs.highlightElement(block);
@@ -367,31 +320,27 @@ class ChatApp {
                     if (data.type === 'content') {
                         fullContent += data.content;
                         contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
+                        
+                        // Apply syntax highlighting to any remaining code blocks
+                        const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
+                        codeBlocks.forEach(block => {
+                            hljs.highlightElement(block);
+                        });
                     }
                 } catch (parseError) {
-                    console.warn('Failed to parse remaining buffer:', buffer, parseError);
+                    console.warn('Failed to parse final buffer:', buffer, parseError);
                 }
             }
-
-            // Add final response to conversation history
-            if (fullContent) {
-                this.conversationHistory.push({ role: 'assistant', content: fullContent });
-            }
-
-        } catch (error) {
-            console.error('Streaming error:', error);
-            contentElement.innerHTML = `
-                <div class="error-message">
-                    <p>Error during streaming response: ${error.message}</p>
-                </div>
-            `;
+            
+        } finally {
+            reader.releaseLock();
         }
     }
     
     generateFollowUpSuggestions(assistantResponse) {
         // Simple follow-up suggestion generation based on response content
         const suggestions = [];
-
+        
         if (assistantResponse.toLowerCase().includes('class')) {
             suggestions.push('Can you show me an example?');
             suggestions.push('What about inheritance?');
@@ -406,10 +355,10 @@ class ChatApp {
             suggestions.push('Show me a practical example');
             suggestions.push('What are common mistakes to avoid?');
         }
-
+        
         this.updateSuggestions(suggestions.slice(0, 3));
     }
-
+    
     loadDefaultSuggestions() {
         const defaultSuggestions = [
             'How do I create a class in C#?',
@@ -451,6 +400,9 @@ class ChatApp {
         // Reset suggestions
         this.loadDefaultSuggestions();
         
+        // Focus input
+        this.questionInput.focus();
+        
         // Announce to screen readers
         const announcement = document.createElement('div');
         announcement.setAttribute('aria-live', 'polite');
@@ -459,12 +411,10 @@ class ChatApp {
         announcement.textContent = 'Started new chat conversation';
         document.body.appendChild(announcement);
 
+        
         setTimeout(() => {
             document.body.removeChild(announcement);
         }, 1000);
-
-        // Focus input
-        this.questionInput.focus();
     }
     
     scrollToBottom() {
@@ -478,8 +428,6 @@ class SamplesGallery {
         this.samplesGrid = document.getElementById('samples-grid');
         this.samplesSearch = document.getElementById('samples-search');
         this.searchBtn = document.getElementById('search-btn');
-        this.clearSearchBtn = document.getElementById('clear-search-btn');
-        this.sortSelect = document.getElementById('sort-select');
         this.filtersToggle = document.getElementById('filters-toggle');
         this.filtersPanel = document.getElementById('filters-panel');
         this.tagFilters = document.getElementById('tag-filters');
@@ -493,13 +441,13 @@ class SamplesGallery {
 
         this.currentPage = 1;
         this.currentSearch = '';
-        this.currentSort = 'alphabetical';
         this.currentFilters = [];
         this.availableTags = [];
         this.currentSample = null;
 
         this.initializeEventListeners();
-        this.loadMockData(); // Load mock data for demonstration
+        this.loadAvailableTags();
+        this.loadSamples();
     }
 
     detectApiUrl() {
@@ -521,7 +469,6 @@ class SamplesGallery {
     initializeEventListeners() {
         // Search functionality
         this.samplesSearch.addEventListener('input', () => {
-            this.updateClearSearchButton();
             this.debounceSearch();
         });
 
@@ -529,23 +476,10 @@ class SamplesGallery {
             this.performSearch();
         });
 
-        // Clear search functionality
-        this.clearSearchBtn.addEventListener('click', () => {
-            this.clearSearch();
-        });
-
         this.samplesSearch.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 this.performSearch();
-            } else if (e.key === 'Escape') {
-                this.clearSearch();
             }
-        });
-
-        // Sort functionality
-        this.sortSelect.addEventListener('change', () => {
-            this.currentSort = this.sortSelect.value;
-            this.performSearch();
         });
 
         // Filters
@@ -593,20 +527,7 @@ class SamplesGallery {
     performSearch() {
         this.currentSearch = this.samplesSearch.value.trim();
         this.currentPage = 1;
-        this.loadMockData();
-    }
-
-    clearSearch() {
-        this.samplesSearch.value = '';
-        this.currentSearch = '';
-        this.updateClearSearchButton();
-        this.currentPage = 1;
-        this.loadMockData();
-    }
-
-    updateClearSearchButton() {
-        const hasText = this.samplesSearch.value.trim().length > 0;
-        this.clearSearchBtn.style.display = hasText ? 'block' : 'none';
+        this.loadSamples();
     }
 
     toggleFilters() {
@@ -614,116 +535,16 @@ class SamplesGallery {
         this.filtersPanel.style.display = isVisible ? 'none' : 'block';
     }
 
-    loadMockData() {
-        // Mock data for demonstration
-        const mockSamples = [
-            {
-                id: '1',
-                title: '.NET + Semantic Search + AI Search - eShopLite',
-                description: 'eShopLite - Semantic Search - Azure AI Search is a reference .NET application implementing an eCommerce site with advanced search capabilities using semantic search and Azure AI services.',
-                author: 'Bruno Capuano',
-                authorUrl: 'https://github.com/BrunoCapuano',
-                source: 'https://github.com/Microsoft/eshoplite-semantic-search',
-                tags: ['AI', 'Azure AI Search', '.NET/C#', 'msft'],
-                date: '2024-01-15'
-            },
-            {
-                id: '2',
-                title: 'Blazor Server Chat with SignalR',
-                description: 'A real-time chat application built with Blazor Server and SignalR, demonstrating real-time communication in .NET applications with modern web UI patterns.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/blazor-signalr-chat',
-                tags: ['.NET/C#', 'Blazor', 'SignalR', 'msft'],
-                date: '2024-02-10'
-            },
-            {
-                id: '3',
-                title: 'Minimal API with Entity Framework Core',
-                description: 'A simple yet powerful example of building RESTful APIs using .NET Minimal APIs with Entity Framework Core for data access and modern authentication patterns.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/minimal-api-ef-core',
-                tags: ['.NET/C#', 'Entity Framework', 'API', 'msft'],
-                date: '2024-01-28'
-            },
-            {
-                id: '4',
-                title: 'MAUI Cross-Platform App',
-                description: 'Cross-platform mobile and desktop application built with .NET MAUI, showcasing native UI patterns across iOS, Android, Windows, and macOS from a single codebase.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/maui-cross-platform',
-                tags: ['.NET/C#', 'MAUI', 'Mobile', 'msft'],
-                date: '2024-02-05'
-            },
-            {
-                id: '5',
-                title: 'Clean Architecture Template',
-                description: 'A comprehensive Clean Architecture solution template for .NET applications, including CQRS, Domain-Driven Design patterns, and extensive testing examples.',
-                author: 'Jason Taylor',
-                authorUrl: 'https://github.com/jasontaylordev',
-                source: 'https://github.com/jasontaylordev/CleanArchitecture',
-                tags: ['.NET/C#', 'Architecture', 'CQRS', 'Testing'],
-                date: '2024-01-20'
-            },
-            {
-                id: '6',
-                title: 'Machine Learning with ML.NET',
-                description: 'Machine learning examples using ML.NET framework, including classification, regression, clustering, and recommendation systems with custom model training.',
-                author: 'Microsoft ML.NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/mlnet-machine-learning',
-                tags: ['.NET/C#', 'ML.NET', 'AI', 'msft'],
-                date: '2024-02-12'
+    async loadAvailableTags() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/samples/tags`);
+            if (response.ok) {
+                const data = await response.json();
+                this.availableTags = data.tags;
+                this.renderTagFilters();
             }
-        ];
-
-        // Filter samples based on search and filters
-        let filteredSamples = mockSamples;
-        
-        if (this.currentSearch) {
-            const searchLower = this.currentSearch.toLowerCase();
-            filteredSamples = filteredSamples.filter(sample =>
-                sample.title.toLowerCase().includes(searchLower) ||
-                sample.description.toLowerCase().includes(searchLower) ||
-                sample.author.toLowerCase().includes(searchLower) ||
-                sample.tags.some(tag => tag.toLowerCase().includes(searchLower))
-            );
-        }
-
-        if (this.currentFilters.length > 0) {
-            filteredSamples = filteredSamples.filter(sample =>
-                this.currentFilters.some(filter => sample.tags.includes(filter))
-            );
-        }
-
-        // Sort samples based on current sort option
-        if (this.currentSort === 'alphabetical') {
-            filteredSamples.sort((a, b) => b.title.localeCompare(a.title)); // Z-A (descending)
-        } else if (this.currentSort === 'date') {
-            filteredSamples.sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
-        }
-
-        // Extract unique tags from all samples
-        this.availableTags = [...new Set(mockSamples.flatMap(sample => sample.tags))].sort();
-        this.renderTagFilters();
-
-        if (filteredSamples.length === 0) {
-            this.showNoResults();
-            this.trackTelemetry('search_no_results', { 
-                query: this.currentSearch, 
-                filters: this.currentFilters 
-            });
-        } else {
-            this.renderSamples(filteredSamples);
-            this.renderPagination({
-                samples: filteredSamples,
-                total: filteredSamples.length,
-                page: 1,
-                pages: 1,
-                page_size: 20
-            });
+        } catch (error) {
+            console.error('Error loading available tags:', error);
         }
     }
 
@@ -757,7 +578,7 @@ class SamplesGallery {
         
         this.currentPage = 1;
         this.renderTagFilters();
-        this.loadMockData();
+        this.loadSamples();
         
         // Track filter usage
         this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
@@ -767,7 +588,63 @@ class SamplesGallery {
         this.currentFilters = [];
         this.renderTagFilters();
         this.currentPage = 1;
-        this.loadMockData();
+        this.loadSamples();
+    }
+
+    async loadSamples() {
+        this.showLoading();
+        
+        try {
+            const params = new URLSearchParams({
+                page: this.currentPage.toString(),
+                page_size: '20'
+            });
+            
+            if (this.currentSearch) {
+                params.append('search', this.currentSearch);
+            }
+            
+            if (this.currentFilters.length > 0) {
+                params.append('tags', this.currentFilters.join(','));
+            }
+            
+            const response = await fetch(`${this.apiBaseUrl}/api/samples?${params}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.samples.length === 0 && (this.currentSearch || this.currentFilters.length > 0)) {
+                this.showNoResults();
+                // Track no results
+                this.trackTelemetry('search_no_results', { 
+                    query: this.currentSearch, 
+                    filters: this.currentFilters 
+                });
+            } else {
+                this.renderSamples(data.samples);
+                this.renderPagination(data);
+            }
+            
+        } catch (error) {
+            console.error('Error loading samples:', error);
+            this.showError('Failed to load samples. Please try again.');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    showLoading() {
+        this.loadingSpinner.style.display = 'flex';
+        this.samplesGrid.style.display = 'none';
+        this.noResults.style.display = 'none';
+        this.pagination.style.display = 'none';
+    }
+
+    hideLoading() {
+        this.loadingSpinner.style.display = 'none';
     }
 
     showNoResults() {
@@ -776,10 +653,19 @@ class SamplesGallery {
         this.pagination.style.display = 'none';
     }
 
+    showError(message) {
+        this.noResults.innerHTML = `
+            <h3>Error</h3>
+            <p>${message}</p>
+        `;
+        this.noResults.style.display = 'flex';
+        this.samplesGrid.style.display = 'none';
+        this.pagination.style.display = 'none';
+    }
+
     renderSamples(samples) {
         this.samplesGrid.innerHTML = '';
         this.samplesGrid.style.display = 'grid';
-        this.noResults.style.display = 'none';
         
         samples.forEach(sample => {
             const card = this.createSampleCard(sample);
@@ -836,21 +722,84 @@ class SamplesGallery {
     }
 
     renderPagination(data) {
-        this.pagination.innerHTML = `
-            <div class="pagination-info">
-                Showing ${data.samples.length} of ${data.total} samples
-            </div>
-        `;
+        this.pagination.innerHTML = '';
         this.pagination.style.display = 'flex';
+        
+        // Previous button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'pagination-btn';
+        prevBtn.textContent = '« Previous';
+        prevBtn.disabled = data.page === 1;
+        prevBtn.addEventListener('click', () => {
+            if (data.page > 1) {
+                this.currentPage = data.page - 1;
+                this.loadSamples();
+            }
+        });
+        this.pagination.appendChild(prevBtn);
+        
+        // Page numbers
+        const maxVisiblePages = 5;
+        const startPage = Math.max(1, data.page - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(data.pages, startPage + maxVisiblePages - 1);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'pagination-btn';
+            pageBtn.textContent = i.toString();
+            
+            if (i === data.page) {
+                pageBtn.classList.add('active');
+            }
+            
+            pageBtn.addEventListener('click', () => {
+                this.currentPage = i;
+                this.loadSamples();
+            });
+            
+            this.pagination.appendChild(pageBtn);
+        }
+        
+        // Info
+        const info = document.createElement('div');
+        info.className = 'pagination-info';
+        info.textContent = `${data.page} of ${data.pages} (${data.total} samples)`;
+        this.pagination.appendChild(info);
+        
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'pagination-btn';
+        nextBtn.textContent = 'Next »';
+        nextBtn.disabled = data.page === data.pages;
+        nextBtn.addEventListener('click', () => {
+            if (data.page < data.pages) {
+                this.currentPage = data.page + 1;
+                this.loadSamples();
+            }
+        });
+        this.pagination.appendChild(nextBtn);
     }
 
-    openSampleModal(sample) {
+    async openSampleModal(sample) {
         this.currentSample = sample;
         
         // Track sample view
         this.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
         
-        this.renderSampleModal(sample);
+        try {
+            // Fetch full sample details
+            const response = await fetch(`${this.apiBaseUrl}/api/samples/${sample.id}`);
+            if (response.ok) {
+                const fullSample = await response.json();
+                this.renderSampleModal(fullSample);
+            } else {
+                this.renderSampleModal(sample);
+            }
+        } catch (error) {
+            console.error('Error fetching sample details:', error);
+            this.renderSampleModal(sample);
+        }
+        
         this.sampleModal.style.display = 'flex';
         this.sampleModal.setAttribute('aria-hidden', 'false');
         this.modalClose.focus();
@@ -902,7 +851,7 @@ class SamplesGallery {
             </div>
             
             <div class="clone-instructions">
-                <button class="copy-btn" onclick="navigator.clipboard?.writeText?.('git clone ${this.escapeHtml(sample.source)}')">Copy</button>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('git clone ${this.escapeHtml(sample.source)}')">Copy</button>
                 <div>git clone ${this.escapeHtml(sample.source)}</div>
             </div>
         `;
@@ -933,10 +882,26 @@ class SamplesGallery {
             return;
         }
         
-        console.log('Telemetry:', eventType, data);
+        const telemetryData = {
+            event_type: eventType,
+            data: {
+                ...data,
+                timestamp: new Date().toISOString(),
+                url: window.location.href
+            },
+            user_consent: telemetryEnabled
+        };
         
-        // In a real implementation, this would send to the backend
-        // For now, just log to console
+        // Send telemetry to backend
+        fetch(`${this.apiBaseUrl}/api/telemetry`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(telemetryData)
+        }).catch(error => {
+            console.warn('Failed to send telemetry:', error);
+        });
     }
 }
 
@@ -946,9 +911,8 @@ class AppManager {
         this.samplesGallery = new SamplesGallery();
         this.currentTab = 'chat';
         
-        this.initializeSidebarState();
         this.initializeNavigation();
-        this.initializePrivacyNotice();
+        this.initializeTelemetryToggle();
         this.initializeUrlHandling();
     }
 
@@ -957,10 +921,7 @@ class AppManager {
         const samplesTab = document.getElementById('samples-tab');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const sidebar = document.getElementById('sidebar');
 
-        // Tab navigation
         chatTab.addEventListener('click', () => {
             this.switchTab('chat');
         });
@@ -968,72 +929,6 @@ class AppManager {
         samplesTab.addEventListener('click', () => {
             this.switchTab('samples');
         });
-
-        // Listen for New Chat button requests to switch to chat tab
-        document.addEventListener('switchToChat', () => {
-            this.switchTab('chat');
-        });
-
-        // Sidebar toggle
-        sidebarToggle.addEventListener('click', () => {
-            this.toggleSidebar();
-        });
-
-        // Auto-collapse sidebar on mobile when clicking nav items
-        if (window.innerWidth <= 768) {
-            [chatTab, samplesTab].forEach(tab => {
-                tab.addEventListener('click', () => {
-                    if (sidebar.classList.contains('expanded')) {
-                        this.toggleSidebar();
-                    }
-                });
-            });
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 768) {
-                sidebar.classList.add('expanded');
-            } else {
-                sidebar.classList.remove('expanded');
-            }
-        });
-    }
-
-    toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const isExpanded = sidebar.classList.contains('expanded');
-        
-        if (isExpanded) {
-            sidebar.classList.remove('expanded');
-            sidebar.classList.add('collapsed');
-        } else {
-            sidebar.classList.remove('collapsed');
-            sidebar.classList.add('expanded');
-        }
-        
-        // Save sidebar state to localStorage
-        localStorage.setItem('sidebarExpanded', !isExpanded);
-    }
-
-    initializeSidebarState() {
-        const sidebar = document.getElementById('sidebar');
-        const savedState = localStorage.getItem('sidebarExpanded');
-        
-        // Default to expanded on desktop, collapsed on mobile
-        if (window.innerWidth <= 768) {
-            sidebar.classList.remove('expanded');
-            sidebar.classList.add('collapsed');
-        } else {
-            const shouldExpand = savedState === null ? true : savedState === 'true';
-            if (shouldExpand) {
-                sidebar.classList.add('expanded');
-                sidebar.classList.remove('collapsed');
-            } else {
-                sidebar.classList.remove('expanded');
-                sidebar.classList.add('collapsed');
-            }
-        }
     }
 
     switchTab(tab) {
@@ -1062,30 +957,29 @@ class AppManager {
         window.history.replaceState({}, '', url);
     }
 
-    initializePrivacyNotice() {
-        const privacyNotice = document.getElementById('privacy-notice');
-        const acceptBtn = document.getElementById('accept-privacy');
-        const declineBtn = document.getElementById('decline-privacy');
+    initializeTelemetryToggle() {
+        const telemetryToggle = document.getElementById('telemetry-toggle');
+        const telemetryStatus = document.getElementById('telemetry-status');
         
-        // Check if user has already made a choice
-        const privacyChoice = localStorage.getItem('privacy_choice');
+        // Load saved preference
+        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
+        this.updateTelemetryUI(telemetryEnabled);
         
-        if (!privacyChoice) {
-            // Show privacy notice if no choice has been made
-            privacyNotice.style.display = 'block';
-        }
-        
-        acceptBtn.addEventListener('click', () => {
-            localStorage.setItem('privacy_choice', 'accepted');
-            localStorage.setItem('telemetry_enabled', 'true');
-            privacyNotice.style.display = 'none';
+        telemetryToggle.addEventListener('click', () => {
+            const currentlyEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
+            const newState = !currentlyEnabled;
+            
+            localStorage.setItem('telemetry_enabled', newState.toString());
+            this.updateTelemetryUI(newState);
         });
+    }
+
+    updateTelemetryUI(enabled) {
+        const telemetryToggle = document.getElementById('telemetry-toggle');
+        const telemetryStatus = document.getElementById('telemetry-status');
         
-        declineBtn.addEventListener('click', () => {
-            localStorage.setItem('privacy_choice', 'declined');
-            localStorage.setItem('telemetry_enabled', 'false');
-            privacyNotice.style.display = 'none';
-        });
+        telemetryStatus.textContent = `Telemetry: ${enabled ? 'On' : 'Off'}`;
+        telemetryToggle.classList.toggle('disabled', !enabled);
     }
 
     initializeUrlHandling() {

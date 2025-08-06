@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any, AsyncGenerator
+from typing import List, Dict, Any, AsyncGenerator, Optional
 import json
 import asyncio
 import time
@@ -11,6 +11,12 @@ from datetime import datetime
 import logging
 from dotenv import load_dotenv
 from pymongo import MongoClient
+import uuid
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from agents import Agent, Runner, function_tool, WebSearchTool
 from agents.mcp import MCPServerStreamableHttp
@@ -19,6 +25,17 @@ from openai.types.responses import ResponseTextDeltaEvent
 
 # Load environment variables
 load_dotenv()
+
+# Configure OpenTelemetry
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+# Configure OTLP exporter if endpoint is provided
+otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+if otlp_endpoint:
+    otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+    span_processor = BatchSpanProcessor(otlp_exporter)
+    trace.get_tracer_provider().add_span_processor(span_processor)
 
 # Configure logging
 logging.basicConfig(
@@ -33,11 +50,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="C# AI Buddy API",
-    description="Backend API for C# AI Buddy chat interface",
+    description="Backend API for C# AI Buddy chat interface and samples gallery",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Instrument FastAPI with OpenTelemetry
+FastAPIInstrumentor.instrument_app(app)
 
 # CORS middleware for frontend integration
 app.add_middleware(
@@ -61,6 +81,30 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     version: str
+
+# Sample-related models
+class Sample(BaseModel):
+    id: str
+    title: str
+    description: str
+    preview: Optional[str] = None
+    authorUrl: str
+    author: str
+    source: str
+    tags: List[str]
+
+class SamplesResponse(BaseModel):
+    samples: List[Sample]
+    total: int
+    page: int
+    pages: int
+    page_size: int
+
+class TelemetryEvent(BaseModel):
+    event_type: str  # 'filter_used', 'sample_viewed', 'external_click', 'search_no_results'
+    data: Dict[str, Any]
+    timestamp: Optional[str] = None
+    user_consent: bool = True
 
 def generate_embedding(text: str) -> List[float]:
     """
@@ -298,6 +342,207 @@ async def health_check():
         version="1.0.0"
     )
 
+@app.get("/api/samples", response_model=SamplesResponse)
+async def get_samples(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Number of samples per page"),
+    search: Optional[str] = Query(None, description="Search query"),
+    tags: Optional[str] = Query(None, description="Comma-separated list of tags to filter by")
+):
+    """
+    Get samples with pagination, search, and filtering.
+    """
+    with tracer.start_as_current_span("get_samples") as span:
+        try:
+            span.set_attribute("page", page)
+            span.set_attribute("page_size", page_size)
+            if search:
+                span.set_attribute("search_query", search)
+            if tags:
+                span.set_attribute("filter_tags", tags)
+
+            # Connect to MongoDB
+            mongodb_uri = os.getenv("MONGODB_URI")
+            database_name = os.getenv("DATABASE_NAME")
+            
+            if not mongodb_uri or not database_name:
+                raise HTTPException(status_code=500, detail="Database not configured")
+            
+            mongoClient = MongoClient(mongodb_uri)
+            db = mongoClient[database_name]
+            samples_collection = db["samples"]
+            
+            # Build query
+            query = {}
+            
+            # Add tag filtering
+            if tags:
+                tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                if tag_list:
+                    query["tags"] = {"$in": tag_list}
+            
+            # Add search functionality (simple text search for now)
+            if search:
+                search_regex = {"$regex": search, "$options": "i"}
+                query["$or"] = [
+                    {"title": search_regex},
+                    {"description": search_regex},
+                    {"author": search_regex},
+                    {"tags": search_regex}
+                ]
+            
+            # Count total documents
+            total = samples_collection.count_documents(query)
+            
+            # Calculate pagination
+            skip = (page - 1) * page_size
+            pages = (total + page_size - 1) // page_size
+            
+            # Get samples
+            cursor = samples_collection.find(query).skip(skip).limit(page_size)
+            samples_data = list(cursor)
+            
+            # Convert MongoDB documents to Sample models
+            samples = []
+            for doc in samples_data:
+                sample = Sample(
+                    id=doc.get("id", str(doc.get("_id", ""))),
+                    title=doc.get("title", ""),
+                    description=doc.get("description", ""),
+                    preview=doc.get("preview"),
+                    authorUrl=doc.get("authorUrl", ""),
+                    author=doc.get("author", ""),
+                    source=doc.get("source", ""),
+                    tags=doc.get("tags", [])
+                )
+                samples.append(sample)
+            
+            span.set_attribute("total_results", total)
+            span.set_attribute("returned_results", len(samples))
+            
+            return SamplesResponse(
+                samples=samples,
+                total=total,
+                page=page,
+                pages=pages,
+                page_size=page_size
+            )
+            
+        except Exception as e:
+            span.record_exception(e)
+            logger.error(f"Error in get_samples: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/samples/{sample_id}")
+async def get_sample(sample_id: str):
+    """
+    Get a specific sample by ID.
+    """
+    with tracer.start_as_current_span("get_sample") as span:
+        try:
+            span.set_attribute("sample_id", sample_id)
+            
+            # Connect to MongoDB
+            mongodb_uri = os.getenv("MONGODB_URI")
+            database_name = os.getenv("DATABASE_NAME")
+            
+            if not mongodb_uri or not database_name:
+                raise HTTPException(status_code=500, detail="Database not configured")
+            
+            mongoClient = MongoClient(mongodb_uri)
+            db = mongoClient[database_name]
+            samples_collection = db["samples"]
+            
+            # Find sample by ID
+            sample_doc = samples_collection.find_one({"id": sample_id})
+            
+            if not sample_doc:
+                raise HTTPException(status_code=404, detail="Sample not found")
+            
+            sample = Sample(
+                id=sample_doc.get("id", str(sample_doc.get("_id", ""))),
+                title=sample_doc.get("title", ""),
+                description=sample_doc.get("description", ""),
+                preview=sample_doc.get("preview"),
+                authorUrl=sample_doc.get("authorUrl", ""),
+                author=sample_doc.get("author", ""),
+                source=sample_doc.get("source", ""),
+                tags=sample_doc.get("tags", [])
+            )
+            
+            return sample
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            span.record_exception(e)
+            logger.error(f"Error in get_sample: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/telemetry")
+async def record_telemetry(event: TelemetryEvent):
+    """
+    Record telemetry events.
+    """
+    with tracer.start_as_current_span("record_telemetry") as span:
+        try:
+            # Only process if user has given consent
+            if not event.user_consent:
+                return {"message": "Telemetry event ignored due to user preference"}
+            
+            span.set_attribute("event_type", event.event_type)
+            
+            # Add timestamp if not provided
+            if not event.timestamp:
+                event.timestamp = datetime.utcnow().isoformat()
+            
+            # Log the telemetry event for now (could be sent to a proper analytics service)
+            logger.info(f"Telemetry event: {event.event_type}", extra={
+                "event_type": event.event_type,
+                "event_data": event.data,
+                "timestamp": event.timestamp
+            })
+            
+            # Record as OpenTelemetry span attributes for observability
+            for key, value in event.data.items():
+                if isinstance(value, (str, int, float, bool)):
+                    span.set_attribute(f"event_data.{key}", value)
+            
+            return {"message": "Telemetry recorded successfully"}
+            
+        except Exception as e:
+            span.record_exception(e)
+            logger.error(f"Error in record_telemetry: {str(e)}", exc_info=True)
+            # Don't fail the request for telemetry errors
+            return {"message": "Telemetry recording failed"}
+
+@app.get("/api/samples/tags")
+async def get_available_tags():
+    """
+    Get all available tags from samples.
+    """
+    with tracer.start_as_current_span("get_available_tags"):
+        try:
+            # Connect to MongoDB
+            mongodb_uri = os.getenv("MONGODB_URI")
+            database_name = os.getenv("DATABASE_NAME")
+            
+            if not mongodb_uri or not database_name:
+                raise HTTPException(status_code=500, detail="Database not configured")
+            
+            mongoClient = MongoClient(mongodb_uri)
+            db = mongoClient[database_name]
+            samples_collection = db["samples"]
+            
+            # Get all unique tags
+            tags = samples_collection.distinct("tags")
+            
+            return {"tags": sorted(tags)}
+            
+        except Exception as e:
+            logger.error(f"Error in get_available_tags: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     """
@@ -345,7 +590,9 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",
-        "chat": "/api/chat"
+        "chat": "/api/chat",
+        "samples": "/api/samples",
+        "telemetry": "/api/telemetry"
     }
 
 if __name__ == "__main__":
