@@ -272,11 +272,14 @@ async def generate_streaming_response(message: str, history: List[Message]) -> A
         # Get the agent instance
         agent = await get_agent()
         
-        # Convert history to a format the agent can understand
-        # For now, we'll focus on the current message and let the agent handle context
-        
+        # Include history in the input for now, to keep things simple
+        if history:
+            input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+        else:
+            input = f"user: {message}\n"
+
         # Run the agent with streaming
-        result = Runner.run_streamed(agent, input=message)
+        result = Runner.run_streamed(agent, input)
         
         # Stream the response events
         async for event in result.stream_events():
