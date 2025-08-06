@@ -10,6 +10,7 @@ class ChatApp {
 
         this.conversationHistory = [];
         this.isStreaming = false;
+        this.currentAbortController = null;
 
         this.initializeEventListeners();
         this.initializeAccessibility();
@@ -52,6 +53,9 @@ class ChatApp {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.handleSubmit();
+            } else if (e.key === 'Escape' && this.isStreaming) {
+                e.preventDefault();
+                this.stopStreaming();
             }
         });
 
@@ -69,6 +73,14 @@ class ChatApp {
                 this.questionInput.value = suggestion;
                 this.questionInput.focus();
                 this.autoResizeTextarea();
+            }
+        });
+
+        // Add global escape key handler for stopping streaming
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isStreaming) {
+                e.preventDefault();
+                this.stopStreaming();
             }
         });
     }
@@ -91,6 +103,73 @@ class ChatApp {
     autoResizeTextarea() {
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
+    }
+
+    updateSendButton(isStreaming) {
+        // Get the button by its type since it's always the submit button
+        const submitBtn = document.querySelector('button[type="submit"]') || document.querySelector('.send-btn') || document.querySelector('.stop-btn');
+        
+        if (!submitBtn) {
+            console.error('Could not find submit button');
+            return;
+        }
+        
+        if (isStreaming) {
+            // Change to stop button
+            submitBtn.className = 'stop-btn';
+            submitBtn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="6" width="12" height="12"></rect>
+                </svg>
+            `;
+            submitBtn.setAttribute('aria-label', 'Stop response');
+            submitBtn.title = 'Stop response (Esc)';
+            
+            // Remove form submit handler and add stop handler
+            submitBtn.onclick = (e) => {
+                e.preventDefault();
+                this.stopStreaming();
+            };
+        } else {
+            // Change back to send button
+            submitBtn.className = 'send-btn';
+            submitBtn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                </svg>
+            `;
+            submitBtn.setAttribute('aria-label', 'Send message');
+            submitBtn.title = 'Send message';
+            
+            // Restore form submit functionality
+            submitBtn.onclick = null;
+        }
+    }
+
+    stopStreaming() {
+        if (this.currentAbortController) {
+            this.currentAbortController.abort();
+            this.currentAbortController = null;
+        }
+        
+        this.isStreaming = false;
+        this.updateSendButton(false);
+        this.questionInput.focus();
+        
+        // Show suggestions again
+        this.suggestionsContainer.style.display = 'block';
+        
+        // Add a message to indicate the response was stopped
+        const lastMessage = this.chatMessages.lastElementChild;
+        if (lastMessage && lastMessage.classList.contains('assistant')) {
+            const contentDiv = lastMessage.querySelector('.message-content');
+            if (contentDiv && contentDiv.innerHTML.includes('Thinking...')) {
+                contentDiv.innerHTML = '<div class="error-message"><p>Response stopped by user.</p></div>';
+            } else {
+                contentDiv.innerHTML += '<div style="margin-top: 0.5rem; font-style: italic; color: #718096; font-size: 0.9rem;">[Response stopped]</div>';
+            }
+        }
     }
 
     async handleSubmit() {
@@ -253,8 +332,8 @@ class ChatApp {
 
     async sendMessage(question) {
         this.isStreaming = true;
-        const submitBtn = document.querySelector('.send-btn');
-        submitBtn.disabled = true;
+        this.currentAbortController = new AbortController();
+        this.updateSendButton(true);
 
         // Add loading message
         const assistantMessageContent = this.addMessage('assistant', '', true);
@@ -269,7 +348,8 @@ class ChatApp {
                 body: JSON.stringify({
                     message: question,
                     history: this.conversationHistory
-                })
+                }),
+                signal: this.currentAbortController.signal
             });
             
             if (!response.ok) {
@@ -291,18 +371,13 @@ class ChatApp {
             // Generate follow-up suggestions
             this.generateFollowUpSuggestions(assistantMessageContent.textContent);
             
-            /*if (response.headers.get('content-type')?.includes('text/plain')) {
-                await this.handleStreamingResponse(response, assistantMessageContent);
-            } else {
-                // Handle non-streaming response
-                const data = await response.json();
-                const content = data.response || data.content || 'Sorry, I received an empty response.';
-                assistantMessageContent.innerHTML = this.sanitizeAndRenderMarkdown(content);
-                
-                // Add to conversation history
-                this.conversationHistory.push({ role: 'assistant', content: content });
-            }*/
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('Request was aborted by user');
+                // Don't show error message for user-initiated cancellations
+                return;
+            }
+            
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
                 <div class="error-message">
@@ -312,7 +387,8 @@ class ChatApp {
             `;
         } finally {
             this.isStreaming = false;
-            submitBtn.disabled = false;
+            this.updateSendButton(false);
+            this.currentAbortController = null;
             this.questionInput.focus();
         }
     }
@@ -324,7 +400,7 @@ class ChatApp {
         let fullContent = '';
 
         try {
-            while (true) {
+            while (true && !this.currentAbortController?.signal.aborted) {
                 const { done, value } = await reader.read();
 
                 if (done) break;
@@ -379,12 +455,25 @@ class ChatApp {
             }
 
         } catch (error) {
+            if (error.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
+                console.log('Streaming was aborted by user');
+                // Don't show error for user-initiated cancellations
+                return;
+            }
+            
             console.error('Streaming error:', error);
             contentElement.innerHTML = `
                 <div class="error-message">
                     <p>Error during streaming response: ${error.message}</p>
                 </div>
             `;
+        } finally {
+            // Ensure reader is closed
+            try {
+                reader.cancel();
+            } catch (e) {
+                // Ignore errors when canceling reader
+            }
         }
     }
     

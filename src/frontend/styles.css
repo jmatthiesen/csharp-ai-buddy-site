@@ -447,6 +447,30 @@ body {
     cursor: not-allowed;
 }
 
+.stop-btn {
+    background: #e53e3e;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    transition: background-color 0.2s ease;
+}
+
+.stop-btn:hover {
+    background: #c53030;
+}
+
+.stop-btn:focus {
+    outline: 2px solid #e53e3e;
+    outline-offset: 2px;
+}
+
 /* Loading animation */
 .loading {
     display: inline-flex;
