@@ -260,26 +260,38 @@ class ChatApp {
         const assistantMessageContent = this.addMessage('assistant', '', true);
 
         try {
-            // Add to conversation history
-            this.conversationHistory.push({ role: 'user', content: question });
-
+            
             const response = await fetch(`${this.apiBaseUrl}/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    messages: this.conversationHistory,
-                    stream: true
+                    message: question,
+                    history: this.conversationHistory
                 })
             });
-
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            
+            // Add to conversation history
+            this.conversationHistory.push({ role: 'user', content: question });
+            
             // Handle streaming response
-            if (response.headers.get('content-type')?.includes('text/plain')) {
+            await this.handleStreamingResponse(response, assistantMessageContent);
+
+            // Update conversation history
+            this.conversationHistory.push(
+                { role: 'user', content: question },
+                { role: 'assistant', content: assistantMessageContent.textContent }
+            );
+
+            // Generate follow-up suggestions
+            this.generateFollowUpSuggestions(assistantMessageContent.textContent);
+            
+            /*if (response.headers.get('content-type')?.includes('text/plain')) {
                 await this.handleStreamingResponse(response, assistantMessageContent);
             } else {
                 // Handle non-streaming response
@@ -289,7 +301,7 @@ class ChatApp {
                 
                 // Add to conversation history
                 this.conversationHistory.push({ role: 'assistant', content: content });
-            }
+            }*/
         } catch (error) {
             console.error('Error sending message:', error);
             assistantMessageContent.innerHTML = `
@@ -332,17 +344,10 @@ class ChatApp {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
 
-                                // Apply syntax highlighting to any new code blocks if hljs is available
-                                if (typeof hljs !== 'undefined') {
-                                    const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
-                                    codeBlocks.forEach(block => {
-                                        try {
-                                            hljs.highlightElement(block);
-                                        } catch (err) {
-                                            console.warn('Syntax highlighting failed:', err);
-                                        }
-                                    });
-                                }
+                                const codeBlocks = contentElement.querySelectorAll('pre code:not(.hljs)');
+                                codeBlocks.forEach(block => {
+                                    hljs.highlightElement(block);
+                                });
 
                                 this.scrollToBottom();
                             } else if (data.type === 'error') {
@@ -383,6 +388,28 @@ class ChatApp {
         }
     }
     
+    generateFollowUpSuggestions(assistantResponse) {
+        // Simple follow-up suggestion generation based on response content
+        const suggestions = [];
+
+        if (assistantResponse.toLowerCase().includes('class')) {
+            suggestions.push('Can you show me an example?');
+            suggestions.push('What about inheritance?');
+        } else if (assistantResponse.toLowerCase().includes('exception')) {
+            suggestions.push('What are best practices for exception handling?');
+            suggestions.push('How do I create custom exceptions?');
+        } else if (assistantResponse.toLowerCase().includes('async')) {
+            suggestions.push('How does Task.Run differ from async/await?');
+            suggestions.push('What about cancellation tokens?');
+        } else {
+            suggestions.push('Can you explain this further?');
+            suggestions.push('Show me a practical example');
+            suggestions.push('What are common mistakes to avoid?');
+        }
+
+        this.updateSuggestions(suggestions.slice(0, 3));
+    }
+
     loadDefaultSuggestions() {
         const defaultSuggestions = [
             'How do I create a class in C#?',
@@ -424,6 +451,18 @@ class ChatApp {
         // Reset suggestions
         this.loadDefaultSuggestions();
         
+        // Announce to screen readers
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.setAttribute('aria-atomic', 'true');
+        announcement.className = 'sr-only';
+        announcement.textContent = 'Started new chat conversation';
+        document.body.appendChild(announcement);
+
+        setTimeout(() => {
+            document.body.removeChild(announcement);
+        }, 1000);
+
         // Focus input
         this.questionInput.focus();
     }
