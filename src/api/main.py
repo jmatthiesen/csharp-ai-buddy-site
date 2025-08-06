@@ -7,9 +7,11 @@ import json
 import asyncio
 import time
 import os
+import random
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
+from functools import wraps
 from pymongo import MongoClient
 import uuid
 from opentelemetry import trace
@@ -47,6 +49,132 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Rate limiting and retry configuration
+MAX_RETRY_ATTEMPTS = 5
+BASE_RETRY_DELAY = 1.0  # Base delay in seconds
+
+def retry_with_exponential_backoff(max_retries=MAX_RETRY_ATTEMPTS, base_delay=BASE_RETRY_DELAY):
+    """
+    Decorator to retry OpenAI API calls with exponential backoff for rate limiting errors.
+    
+    Args:
+        max_retries (int): Maximum number of retry attempts (default: 5)
+        base_delay (float): Base delay in seconds for exponential backoff (default: 1.0)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries + 1):  # +1 for initial attempt
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    is_rate_limit_error = False
+                    retry_after = None
+                    
+                    # Check if it's a rate limiting error
+                    if hasattr(e, 'status_code'):
+                        if e.status_code == 429:  # Rate limit exceeded
+                            is_rate_limit_error = True
+                            # Try to get retry-after header if available
+                            if hasattr(e, 'response') and hasattr(e.response, 'headers'):
+                                retry_after = e.response.headers.get('retry-after')
+                    
+                    # Check for quota exceeded errors in the message
+                    error_msg = str(e).lower()
+                    if any(keyword in error_msg for keyword in ['rate limit', 'quota exceeded', 'too many requests']):
+                        is_rate_limit_error = True
+                    
+                    if is_rate_limit_error and attempt < max_retries:
+                        # Calculate delay with exponential backoff and jitter
+                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                        
+                        # Use retry-after header if available
+                        if retry_after:
+                            try:
+                                delay = max(delay, float(retry_after))
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        logger.warning(
+                            f"Rate limit hit for {func.__name__} (attempt {attempt + 1}/{max_retries + 1}). "
+                            f"Retrying in {delay:.2f} seconds. Error: {str(e)}"
+                        )
+                        
+                        time.sleep(delay)
+                        continue
+                    else:
+                        # Not a rate limit error or max retries exceeded
+                        if is_rate_limit_error:
+                            logger.error(
+                                f"Rate limit error for {func.__name__} after {max_retries} retries. "
+                                f"Final error: {str(e)}"
+                            )
+                        raise e
+            
+        return wrapper
+    return decorator
+
+def async_retry_with_exponential_backoff(max_retries=MAX_RETRY_ATTEMPTS, base_delay=BASE_RETRY_DELAY):
+    """
+    Async decorator to retry OpenAI API calls with exponential backoff for rate limiting errors.
+    
+    Args:
+        max_retries (int): Maximum number of retry attempts (default: 5)
+        base_delay (float): Base delay in seconds for exponential backoff (default: 1.0)
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            for attempt in range(max_retries + 1):  # +1 for initial attempt
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    is_rate_limit_error = False
+                    retry_after = None
+                    
+                    # Check if it's a rate limiting error
+                    if hasattr(e, 'status_code'):
+                        if e.status_code == 429:  # Rate limit exceeded
+                            is_rate_limit_error = True
+                            # Try to get retry-after header if available
+                            if hasattr(e, 'response') and hasattr(e.response, 'headers'):
+                                retry_after = e.response.headers.get('retry-after')
+                    
+                    # Check for quota exceeded errors in the message
+                    error_msg = str(e).lower()
+                    if any(keyword in error_msg for keyword in ['rate limit', 'quota exceeded', 'too many requests']):
+                        is_rate_limit_error = True
+                    
+                    if is_rate_limit_error and attempt < max_retries:
+                        # Calculate delay with exponential backoff and jitter
+                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                        
+                        # Use retry-after header if available
+                        if retry_after:
+                            try:
+                                delay = max(delay, float(retry_after))
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        logger.warning(
+                            f"Rate limit hit for {func.__name__} (attempt {attempt + 1}/{max_retries + 1}). "
+                            f"Retrying in {delay:.2f} seconds. Error: {str(e)}"
+                        )
+                        
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        # Not a rate limit error or max retries exceeded
+                        if is_rate_limit_error:
+                            logger.error(
+                                f"Rate limit error for {func.__name__} after {max_retries} retries. "
+                                f"Final error: {str(e)}"
+                            )
+                        raise e
+            
+        return wrapper
+    return decorator
 
 app = FastAPI(
     title="C# AI Buddy API",
@@ -106,6 +234,7 @@ class TelemetryEvent(BaseModel):
     timestamp: Optional[str] = None
     user_consent: bool = True
 
+@retry_with_exponential_backoff()
 def generate_embedding(text: str) -> List[float]:
     """
     Generate embedding for a piece of text.
@@ -263,6 +392,20 @@ async def get_agent() -> Agent:
                 
     return agent
 
+@async_retry_with_exponential_backoff()
+async def run_agent_with_retries(agent, message: str):
+    """
+    Run the agent with retry logic for rate limiting errors.
+    
+    Args:
+        agent: The AI agent instance
+        message: The user message to process
+        
+    Returns:
+        The agent result object
+    """
+    return Runner.run_streamed(agent, input=message)
+
 async def generate_streaming_response(message: str, history: List[Message]) -> AsyncGenerator[str, None]:
     """Generate streaming response using OpenAI agents SDK."""
     
@@ -275,8 +418,8 @@ async def generate_streaming_response(message: str, history: List[Message]) -> A
         # Convert history to a format the agent can understand
         # For now, we'll focus on the current message and let the agent handle context
         
-        # Run the agent with streaming
-        result = Runner.run_streamed(agent, input=message)
+        # Run the agent with streaming and retry logic for rate limiting
+        result = await run_agent_with_retries(agent, message)
         
         # Stream the response events
         async for event in result.stream_events():
@@ -325,12 +468,33 @@ async def generate_streaming_response(message: str, history: List[Message]) -> A
         
     except Exception as e:
         logger.error(f"Error in generate_streaming_response: {str(e)}", exc_info=True)
-        # Send error response
-        error_response = json.dumps({
-            "type": "error",
-            "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
-        }) + "\n"
+        
+        # Check if it's a rate limiting error
+        is_rate_limit_error = False
+        error_msg = str(e).lower()
+        
+        if hasattr(e, 'status_code') and e.status_code == 429:
+            is_rate_limit_error = True
+        elif any(keyword in error_msg for keyword in ['rate limit', 'quota exceeded', 'too many requests']):
+            is_rate_limit_error = True
+        
+        if is_rate_limit_error:
+            # Send rate limit specific error response
+            error_response = json.dumps({
+                "type": "error",
+                "error_type": "rate_limit",
+                "content": "I'm currently experiencing high demand. Please try again in a few moments. If the issue persists, you may have reached your API usage limit.",
+                "timestamp": datetime.utcnow().isoformat()
+            }) + "\n"
+        else:
+            # Send generic error response
+            error_response = json.dumps({
+                "type": "error",
+                "error_type": "general",
+                "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat()
+            }) + "\n"
+        
         yield error_response
 
 @app.get("/health", response_model=HealthResponse)

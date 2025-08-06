@@ -304,10 +304,28 @@ class ChatApp {
             }*/
         } catch (error) {
             console.error('Error sending message:', error);
+            
+            let errorMessage = 'Sorry, I encountered an error while processing your request. Please try again.';
+            let errorClass = 'error-message';
+            
+            // Check for rate limiting errors in HTTP responses
+            if (error.message && error.message.includes('429')) {
+                errorMessage = 'I\'m currently experiencing high demand. Please try again in a few moments.';
+                errorClass = 'error-message rate-limit-error';
+            } else if (error.message && (
+                error.message.toLowerCase().includes('rate limit') ||
+                error.message.toLowerCase().includes('quota') ||
+                error.message.toLowerCase().includes('too many requests')
+            )) {
+                errorMessage = 'Rate limit reached. Please try again in a few moments.';
+                errorClass = 'error-message rate-limit-error';
+            }
+            
             assistantMessageContent.innerHTML = `
-                <div class="error-message">
-                    <p>Sorry, I encountered an error while processing your request. Please try again.</p>
+                <div class="${errorClass}">
+                    <p>${errorMessage}</p>
                     <small>Error: ${error.message}</small>
+                    ${errorClass.includes('rate-limit') ? '<br><small>💡 Tip: Check your API usage limits if this persists.</small>' : ''}
                 </div>
             `;
         } finally {
@@ -351,7 +369,11 @@ class ChatApp {
 
                                 this.scrollToBottom();
                             } else if (data.type === 'error') {
-                                throw new Error(data.message);
+                                // Create enhanced error object with type information
+                                const errorObj = new Error(data.content || data.message || 'Unknown error');
+                                errorObj.errorType = data.error_type || 'general';
+                                errorObj.originalData = data;
+                                throw errorObj;
                             }
                         } catch (parseError) {
                             console.warn('Failed to parse JSON line:', line, parseError);
@@ -380,9 +402,20 @@ class ChatApp {
 
         } catch (error) {
             console.error('Streaming error:', error);
+            
+            let errorMessage = 'Error during streaming response: ' + error.message;
+            let errorClass = 'error-message';
+            
+            // Check if it's a rate limiting error
+            if (error.errorType === 'rate_limit') {
+                errorMessage = error.message;
+                errorClass = 'error-message rate-limit-error';
+            }
+            
             contentElement.innerHTML = `
-                <div class="error-message">
-                    <p>Error during streaming response: ${error.message}</p>
+                <div class="${errorClass}">
+                    <p>${errorMessage}</p>
+                    ${error.errorType === 'rate_limit' ? '<small>💡 Tip: Try again in a few moments or check your API usage limits.</small>' : ''}
                 </div>
             `;
         }

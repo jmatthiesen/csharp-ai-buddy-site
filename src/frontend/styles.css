@@ -351,6 +351,37 @@ body {
     padding-left: 1.5rem;
 }
 
+/* Error message styles */
+.error-message {
+    background: #fed7d7;
+    border: 1px solid #f56565;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    color: #c53030;
+}
+
+.error-message p {
+    margin: 0 0 0.5rem 0;
+    font-weight: 500;
+}
+
+.error-message small {
+    color: #742a2a;
+    font-size: 0.85rem;
+}
+
+/* Rate limiting error specific styles */
+.rate-limit-error {
+    background: #fef5e7;
+    border: 1px solid #ed8936;
+    color: #c05621;
+}
+
+.rate-limit-error small {
+    color: #9c4221;
+}
+
 /* Suggestions */
 .suggestions-container {
     padding: 0 2rem;
