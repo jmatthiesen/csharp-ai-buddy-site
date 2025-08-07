@@ -208,3 +208,22 @@ __marimo__/
 
 # macOS
 .DS_Store
+.claude/agent-manager/config.yaml
+.claude/agent-manager/preferences.yaml
+.claude/agent-manager/README.md
+.claude/agent-manager/cache/agent-registry.json
+.claude/agent-manager/cache/last-check
+.claude/agent-manager/cache/repository-registry.json
+.claude/agent-manager/scripts/agent-manager.sh
+.claude/agents/agent-manager.md
+.claude/agents/code-review-response.md
+.claude/agents/code-reviewer.md
+.claude/agents/execution-monitor.md
+.claude/agents/orchestrator-agent.md
+.claude/agents/prompt-writer.md
+.claude/agents/task-analyzer.md
+.claude/agents/workflow-manager.md
+.claude/agents/worktree-manager.md
+.claude/hooks/check-agent-updates.sh
+prompts/csharp-code-quality-agent-implementation.md
+prompts/nuget-sdk-discovery-implementation.md

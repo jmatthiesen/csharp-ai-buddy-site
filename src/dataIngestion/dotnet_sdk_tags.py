@@ -11,7 +11,8 @@ FRAMEWORK_CATEGORIES = [
     "Semantic Kernel",
     "Semantic Kernel Agents",
     "Semantic Kernel Process Framework",
-    "OpenAI SDK"
+    "OpenAI SDK",
+    "Azure AI Services"
 ]
 
 # Semantic Kernel sub-frameworks (these will get both their specific tag and "Semantic Kernel")
@@ -56,12 +57,16 @@ def categorize_with_ai(content: str, openai_client) -> list:
         - Semantic Kernel Agents
         - Semantic Kernel Process Framework
         - OpenAI SDK
+        - Azure AI Services
         
         Rules:
-        1. Only return framework names that are clearly mentioned or implied in the content
-        2. If content mentions Semantic Kernel Agents or Semantic Kernel Process Framework, also include "Semantic Kernel"
-        3. Return only the framework names, separated by commas
-        4. If no frameworks are detected, return "None"
+        1. Only return framework names that are clearly mentioned or directly used in code examples
+        2. If content mentions Semantic Kernel Agents or Semantic Kernel Process Framework, ALWAYS also include "Semantic Kernel" 
+        3. Look for specific API calls, namespaces, and class names to identify frameworks
+        4. Azure Cognitive Services, TextAnalyticsClient, and similar Azure AI APIs should be categorized as "Azure AI Services"
+        5. OpenAIClient and similar OpenAI APIs should be categorized as "OpenAI SDK"
+        6. Return framework names in the exact format listed above, separated by commas
+        7. If no AI frameworks are detected, return "None"
         
         Content to analyze:
         {content[:2000]}  # Limit content length for API call
@@ -70,7 +75,7 @@ def categorize_with_ai(content: str, openai_client) -> list:
         """
         
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that categorizes .NET AI development content. Return only framework names separated by commas."},
                 {"role": "user", "content": prompt}
