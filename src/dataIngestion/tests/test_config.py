@@ -28,9 +28,8 @@ TEST_CONTENT_SAMPLES = {
         var result = await kernel.InvokePromptAsync("Hello, how are you?");
         ```
         """,
-        "expected_tags": ["Semantic Kernel"]
+        "expected_tags": ["Semantic Kernel"],
     },
-    
     "ml_net": {
         "title": "ML.NET Machine Learning",
         "content": """
@@ -59,9 +58,8 @@ TEST_CONTENT_SAMPLES = {
         var model = pipeline.Fit(dataView);
         ```
         """,
-        "expected_tags": ["ML.NET"]
+        "expected_tags": ["ML.NET"],
     },
-    
     "semantic_kernel_agents": {
         "title": "Semantic Kernel Agents",
         "content": """
@@ -93,9 +91,8 @@ TEST_CONTENT_SAMPLES = {
         var result = await group.InvokeAsync("Analyze this sales data.");
         ```
         """,
-        "expected_tags": ["Semantic Kernel Agents", "Semantic Kernel"]
+        "expected_tags": ["Semantic Kernel Agents", "Semantic Kernel"],
     },
-    
     "microsoft_extensions_ai": {
         "title": "Microsoft.Extensions.AI",
         "content": """
@@ -119,9 +116,8 @@ TEST_CONTENT_SAMPLES = {
         var app = builder.Build();
         ```
         """,
-        "expected_tags": ["Microsoft.Extensions.AI"]
+        "expected_tags": ["Microsoft.Extensions.AI"],
     },
-    
     "autogen": {
         "title": "AutoGen Framework",
         "content": """
@@ -143,9 +139,8 @@ TEST_CONTENT_SAMPLES = {
         var response = await agent.SendMessageAsync("Hello!");
         ```
         """,
-        "expected_tags": ["AutoGen"]
+        "expected_tags": ["AutoGen"],
     },
-    
     "openai_sdk": {
         "title": "OpenAI SDK for .NET",
         "content": """
@@ -167,19 +162,19 @@ TEST_CONTENT_SAMPLES = {
         var response = await client.GetChatCompletionsAsync("gpt-4", "Hello!");
         ```
         """,
-        "expected_tags": ["OpenAI SDK"]
-    }
+        "expected_tags": ["OpenAI SDK"],
+    },
 }
 
 # Expected framework categories
 EXPECTED_FRAMEWORK_CATEGORIES = [
     "Microsoft.Extensions.AI",
-    "ML.NET", 
+    "ML.NET",
     "AutoGen",
     "Semantic Kernel",
     "Semantic Kernel Agents",
     "Semantic Kernel Process Framework",
-    "OpenAI SDK"
+    "OpenAI SDK",
 ]
 
 # Test configuration
@@ -188,7 +183,7 @@ TEST_CONFIG = {
     "max_tokens": 100,
     "temperature": 0.1,
     "timeout_seconds": 30,
-    "retry_attempts": 3
+    "retry_attempts": 3,
 }
 
 # Validation rules for AI categorization
@@ -197,19 +192,15 @@ VALIDATION_RULES = {
         "description": "Semantic Kernel sub-frameworks should include both specific and parent tags",
         "rules": [
             "Semantic Kernel Agents → ['Semantic Kernel Agents', 'Semantic Kernel']",
-            "Semantic Kernel Process Framework → ['Semantic Kernel Process Framework', 'Semantic Kernel']"
-        ]
+            "Semantic Kernel Process Framework → ['Semantic Kernel Process Framework', 'Semantic Kernel']",
+        ],
     },
     "content_length": {
         "description": "Content should be truncated to reasonable length for API calls",
-        "max_length": 2000
+        "max_length": 2000,
     },
     "response_format": {
         "description": "AI responses should be comma-separated framework names",
-        "examples": [
-            "Semantic Kernel",
-            "ML.NET, Microsoft.Extensions.AI",
-            "None"
-        ]
-    }
-} 
+        "examples": ["Semantic Kernel", "ML.NET, Microsoft.Extensions.AI", "None"],
+    },
+}

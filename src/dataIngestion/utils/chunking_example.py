@@ -5,6 +5,7 @@ Example script demonstrating the markdown chunking functionality.
 
 from chunking import chunk_markdown
 
+
 def main():
     # Example markdown content with various elements
     markdown_content = """# Introduction to AI
@@ -50,35 +51,36 @@ Machine learning is a powerful tool that continues to evolve and find new applic
 """
 
     print("Original content length:", len(markdown_content))
-    print("\n" + "="*50)
-    
+    print("\n" + "=" * 50)
+
     # Test different chunk sizes
     chunk_sizes = [200, 400, 800]
-    
+
     for size in chunk_sizes:
         print(f"\nChunking with max size: {size} characters")
         print("-" * 40)
-        
+
         chunks = chunk_markdown(markdown_content, size)
-        
+
         print(f"Number of chunks: {len(chunks)}")
-        
+
         for i, chunk in enumerate(chunks, 1):
             print(f"\nChunk {i} (length: {len(chunk)}):")
             print("┌" + "─" * 50 + "┐")
-            
+
             # Show first few lines of each chunk
-            lines = chunk.split('\n')
+            lines = chunk.split("\n")
             for j, line in enumerate(lines[:5]):
                 print(f"│ {line:<48} │")
-            
+
             if len(lines) > 5:
                 print(f"│ ... ({len(lines)-5} more lines) {'':<25} │")
-            
+
             print("└" + "─" * 50 + "┘")
-    
-    print("\n" + "="*50)
+
+    print("\n" + "=" * 50)
     print("Demonstration complete!")
+
 
 if __name__ == "__main__":
     main()

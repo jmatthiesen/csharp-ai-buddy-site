@@ -5,11 +5,10 @@ Run this script to add sample C# project data to the samples collection.
 """
 
 import os
-import json
 import uuid
-from datetime import datetime
-from pymongo import MongoClient
+
 from dotenv import load_dotenv
+from pymongo import MongoClient
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +23,19 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/BrunoCapuano",
         "author": "Bruno Capuano",
         "source": "https://github.com/Microsoft/eshoplite-semantic-search",
-        "tags": ["AI", "Azure AI Search", "Azure SQL", "Bicep", ".NET/C#", "JavaScript", "Azure Log Analytics", "Azure Managed Identities", "Azure OpenAI Service", "TypeScript", "msft"]
+        "tags": [
+            "AI",
+            "Azure AI Search",
+            "Azure SQL",
+            "Bicep",
+            ".NET/C#",
+            "JavaScript",
+            "Azure Log Analytics",
+            "Azure Managed Identities",
+            "Azure OpenAI Service",
+            "TypeScript",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -34,7 +45,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/kpantos",
         "author": "Konstantinos Pantos",
         "source": "https://github.com/Azure-Samples/apptemplate-wordpress-on-ACA",
-        "tags": ["bicep", "msft", "Azure Container Apps", "WordPress", "MariaDB"]
+        "tags": [
+            "bicep",
+            "msft",
+            "Azure Container Apps",
+            "WordPress",
+            "MariaDB",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -44,7 +61,7 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft .NET Team",
         "source": "https://github.com/dotnet-samples/blazor-signalr-chat",
-        "tags": [".NET/C#", "Blazor", "SignalR", "Real-time", "msft"]
+        "tags": [".NET/C#", "Blazor", "SignalR", "Real-time", "msft"],
     },
     {
         "id": str(uuid.uuid4()),
@@ -54,7 +71,7 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft .NET Team",
         "source": "https://github.com/dotnet-samples/minimal-api-ef-core",
-        "tags": [".NET/C#", "Entity Framework", "Minimal API", "REST", "msft"]
+        "tags": [".NET/C#", "Entity Framework", "Minimal API", "REST", "msft"],
     },
     {
         "id": str(uuid.uuid4()),
@@ -64,7 +81,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/Azure",
         "author": "Azure Team",
         "source": "https://github.com/Azure-Samples/azure-functions-cosmosdb-csharp",
-        "tags": [".NET/C#", "Azure Functions", "Cosmos DB", "Serverless", "msft"]
+        "tags": [
+            ".NET/C#",
+            "Azure Functions",
+            "Cosmos DB",
+            "Serverless",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -74,7 +97,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft .NET Team",
         "source": "https://github.com/dotnet-samples/maui-cross-platform",
-        "tags": [".NET/C#", "MAUI", "Cross-platform", "Mobile", "Desktop", "msft"]
+        "tags": [
+            ".NET/C#",
+            "MAUI",
+            "Cross-platform",
+            "Mobile",
+            "Desktop",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -84,7 +114,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/community-dev",
         "author": "Community Developer",
         "source": "https://github.com/community-samples/aspnet-core-jwt-api",
-        "tags": [".NET/C#", "ASP.NET Core", "JWT", "Authentication", "Web API", "Swagger"]
+        "tags": [
+            ".NET/C#",
+            "ASP.NET Core",
+            "JWT",
+            "Authentication",
+            "Web API",
+            "Swagger",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -94,7 +131,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/ChilliCream",
         "author": "ChilliCream Team",
         "source": "https://github.com/ChilliCream/hotchocolate-examples",
-        "tags": [".NET/C#", "GraphQL", "Hot Chocolate", "Schema-first", "Subscriptions"]
+        "tags": [
+            ".NET/C#",
+            "GraphQL",
+            "Hot Chocolate",
+            "Schema-first",
+            "Subscriptions",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -104,7 +147,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet-architecture",
         "author": ".NET Architecture Team",
         "source": "https://github.com/dotnet-architecture/eShopOnContainers",
-        "tags": [".NET/C#", "Microservices", "Docker", "Containers", "Architecture", "msft"]
+        "tags": [
+            ".NET/C#",
+            "Microservices",
+            "Docker",
+            "Containers",
+            "Architecture",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -114,7 +164,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/jasontaylordev",
         "author": "Jason Taylor",
         "source": "https://github.com/jasontaylordev/CleanArchitecture",
-        "tags": [".NET/C#", "Clean Architecture", "CQRS", "DDD", "Testing", "Templates"]
+        "tags": [
+            ".NET/C#",
+            "Clean Architecture",
+            "CQRS",
+            "DDD",
+            "Testing",
+            "Templates",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -124,7 +181,7 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft .NET Team",
         "source": "https://github.com/dotnet-samples/xamarin-to-maui-migration",
-        "tags": [".NET/C#", "MAUI", "Xamarin", "Migration", "Mobile", "msft"]
+        "tags": [".NET/C#", "MAUI", "Xamarin", "Migration", "Mobile", "msft"],
     },
     {
         "id": str(uuid.uuid4()),
@@ -134,7 +191,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft Orleans Team",
         "source": "https://github.com/dotnet-samples/orleans-distributed-sample",
-        "tags": [".NET/C#", "Orleans", "Actors", "Distributed Systems", "Cloud", "msft"]
+        "tags": [
+            ".NET/C#",
+            "Orleans",
+            "Actors",
+            "Distributed Systems",
+            "Cloud",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -144,7 +208,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft EF Team",
         "source": "https://github.com/dotnet-samples/ef-core-advanced-patterns",
-        "tags": [".NET/C#", "Entity Framework", "Database", "Performance", "ORM", "msft"]
+        "tags": [
+            ".NET/C#",
+            "Entity Framework",
+            "Database",
+            "Performance",
+            "ORM",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -154,7 +225,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/grpc",
         "author": "gRPC Team",
         "source": "https://github.com/grpc-samples/dotnet-grpc-example",
-        "tags": [".NET/C#", "gRPC", "Microservices", "Streaming", "Performance"]
+        "tags": [
+            ".NET/C#",
+            "gRPC",
+            "Microservices",
+            "Streaming",
+            "Performance",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -164,7 +241,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft ML.NET Team",
         "source": "https://github.com/dotnet-samples/mlnet-machine-learning",
-        "tags": [".NET/C#", "ML.NET", "Machine Learning", "AI", "Data Science", "msft"]
+        "tags": [
+            ".NET/C#",
+            "ML.NET",
+            "Machine Learning",
+            "AI",
+            "Data Science",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -174,7 +258,7 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/dotnet",
         "author": "Microsoft Blazor Team",
         "source": "https://github.com/dotnet-samples/blazor-wasm-pwa",
-        "tags": [".NET/C#", "Blazor", "WebAssembly", "PWA", "Offline", "msft"]
+        "tags": [".NET/C#", "Blazor", "WebAssembly", "PWA", "Offline", "msft"],
     },
     {
         "id": str(uuid.uuid4()),
@@ -184,7 +268,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/EventStore",
         "author": "EventStore Team",
         "source": "https://github.com/EventStore/samples-dotnet-event-sourcing",
-        "tags": [".NET/C#", "Event Sourcing", "CQRS", "EventStore", "Architecture"]
+        "tags": [
+            ".NET/C#",
+            "Event Sourcing",
+            "CQRS",
+            "EventStore",
+            "Architecture",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -194,7 +284,14 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/Azure",
         "author": "Azure Team",
         "source": "https://github.com/Azure-Samples/azure-servicebus-messaging-dotnet",
-        "tags": [".NET/C#", "Azure Service Bus", "Messaging", "Queues", "Topics", "msft"]
+        "tags": [
+            ".NET/C#",
+            "Azure Service Bus",
+            "Messaging",
+            "Queues",
+            "Topics",
+            "msft",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -204,7 +301,13 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/IdentityServer",
         "author": "IdentityServer Team",
         "source": "https://github.com/IdentityServer/IdentityServer4.Samples",
-        "tags": [".NET/C#", "IdentityServer", "OAuth", "OpenID Connect", "Authentication"]
+        "tags": [
+            ".NET/C#",
+            "IdentityServer",
+            "OAuth",
+            "OpenID Connect",
+            "Authentication",
+        ],
     },
     {
         "id": str(uuid.uuid4()),
@@ -214,87 +317,96 @@ SAMPLE_DATA = [
         "authorUrl": "https://github.com/StackExchange",
         "author": "StackExchange Team",
         "source": "https://github.com/StackExchange/StackExchange.Redis.Samples",
-        "tags": [".NET/C#", "Redis", "Caching", "Performance", "Distributed Systems"]
-    }
+        "tags": [
+            ".NET/C#",
+            "Redis",
+            "Caching",
+            "Performance",
+            "Distributed Systems",
+        ],
+    },
 ]
+
 
 def connect_to_mongodb():
     """Connect to MongoDB using environment variables."""
     mongodb_uri = os.getenv("MONGODB_URI")
     database_name = os.getenv("DATABASE_NAME")
-    
+
     if not mongodb_uri:
         print("Error: MONGODB_URI environment variable is not set")
         return None, None
-        
+
     if not database_name:
         print("Error: DATABASE_NAME environment variable is not set")
         return None, None
-    
+
     try:
         client = MongoClient(mongodb_uri)
         db = client[database_name]
-        
+
         # Test the connection
-        client.admin.command('ping')
+        client.admin.command("ping")
         print(f"Successfully connected to MongoDB database: {database_name}")
-        
+
         return client, db
     except Exception as e:
         print(f"Error connecting to MongoDB: {e}")
         return None, None
 
+
 def populate_samples_collection(db):
     """Populate the samples collection with test data."""
     try:
         samples_collection = db["samples"]
-        
+
         # Clear existing samples (optional - comment out if you want to keep existing data)
         # samples_collection.delete_many({})
         # print("Cleared existing samples")
-        
+
         # Insert sample data
         result = samples_collection.insert_many(SAMPLE_DATA)
         print(f"Successfully inserted {len(result.inserted_ids)} samples")
-        
+
         # Create indexes for better performance
         samples_collection.create_index("id", unique=True)
         samples_collection.create_index("title")
         samples_collection.create_index("tags")
         samples_collection.create_index("author")
         print("Created database indexes")
-        
+
         # Print summary
         total_samples = samples_collection.count_documents({})
         microsoft_samples = samples_collection.count_documents({"tags": "msft"})
         unique_tags = samples_collection.distinct("tags")
-        
+
         print("\n=== Database Summary ===")
         print(f"Total samples: {total_samples}")
         print(f"Microsoft authored samples: {microsoft_samples}")
         print(f"Unique tags: {len(unique_tags)}")
         print(f"Tags: {', '.join(sorted(unique_tags))}")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Error populating samples collection: {e}")
         return False
+
 
 def main():
     """Main function to populate the database."""
     print("C# AI Buddy - Samples Database Populator")
     print("=" * 50)
-    
+
     # Connect to MongoDB
     client, db = connect_to_mongodb()
     if not client or not db:
         return False
-    
+
     try:
         # Populate samples collection
         success = populate_samples_collection(db)
-        
+
         if success:
             print("\n✅ Database population completed successfully!")
             print("\nYou can now test the samples gallery at:")
@@ -302,13 +414,14 @@ def main():
             print("  - Or open your frontend and click the 'Sample Gallery' tab")
         else:
             print("\n❌ Database population failed!")
-            
+
         return success
-        
+
     finally:
         # Close the connection
         client.close()
         print("\nMongoDB connection closed.")
+
 
 if __name__ == "__main__":
     success = main()

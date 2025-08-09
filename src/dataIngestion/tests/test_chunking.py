@@ -1,5 +1,7 @@
 import unittest
+
 from utils.chunking import chunk_markdown
+
 
 class TestMarkdownChunker(unittest.TestCase):
 
@@ -62,7 +64,7 @@ Text after code."""
             if "```python" in chunk:
                 code_chunk = chunk
                 break
-        
+
         self.assertIsNotNone(code_chunk)
         self.assertIn("def function():", code_chunk)
         self.assertIn('return "This code block', code_chunk)
@@ -83,7 +85,7 @@ Paragraph after list."""
             if "First list item" in chunk:
                 list_chunk = chunk
                 break
-        
+
         self.assertIsNotNone(list_chunk)
         self.assertIn("- First list item", list_chunk)
         self.assertIn("- Second list item", list_chunk)
@@ -102,17 +104,17 @@ Paragraph after list."""
 
 Text after table."""
         chunks = chunk_markdown(content, 100)  # Force table to split
-        
+
         # Count chunks containing table headers
         header_count = 0
         for chunk in chunks:
             if "Header 1" in chunk and "Header 2" in chunk:
                 header_count += 1
-        
+
         # Should have headers in multiple chunks if table was split
         if len(chunks) > 2:  # Section + table chunks + text after
             self.assertGreater(header_count, 1)
-    
+
     def test_table_header_not_duplicated_in_first_chunk(self):
         """Test that table headers are NOT duplicated in the first chunk."""
         content = """# Section
@@ -128,19 +130,22 @@ Some text before table.
 
 Text after table."""
         chunks = chunk_markdown(content, 80)  # Small size to force splitting
-        
+
         # Find the first chunk that contains table data
         first_table_chunk = None
         for chunk in chunks:
             if "Header 1" in chunk and "Row 1" in chunk:
                 first_table_chunk = chunk
                 break
-        
+
         if first_table_chunk:
             # Count occurrences of the header in the first table chunk
             header_occurrences = first_table_chunk.count("Header 1")
-            self.assertEqual(header_occurrences, 1, 
-                           "Table header should appear only once in the first chunk containing the table")
+            self.assertEqual(
+                header_occurrences,
+                1,
+                "Table header should appear only once in the first chunk containing the table",
+            )
 
     def test_table_rows_kept_together(self):
         """Test that individual table rows are not split."""
@@ -148,14 +153,14 @@ Text after table."""
 |-------------------|-------------------|-------------------|
 | Long data value 1 | Long data value 2 | Long data value 3 |"""
         chunks = chunk_markdown(content, 50)  # Very small to force splitting
-        
+
         # Each chunk should have complete table rows
         for chunk in chunks:
-            lines = chunk.split('\n')
+            lines = chunk.split("\n")
             for line in lines:
-                if '|' in line:
+                if "|" in line:
                     # Count pipes to ensure row integrity
-                    pipe_count = line.count('|')
+                    pipe_count = line.count("|")
                     if pipe_count > 0:
                         # Should have consistent number of columns
                         self.assertGreaterEqual(pipe_count, 2)  # At least start and end pipes
@@ -181,19 +186,19 @@ code_example = "test"
 | C     | D     |
 
 Conclusion paragraph."""
-        
+
         chunks = chunk_markdown(content, 200)
         self.assertGreater(len(chunks), 0)
-        
+
         # Verify that each chunk contains properly formatted content
         for chunk in chunks:
-            lines = chunk.split('\n')
+            lines = chunk.split("\n")
             # Basic validation - no hanging table separators
             for line in lines:
-                if line.strip().startswith('|---'):
+                if line.strip().startswith("|---"):
                     # Should have a header before separator
-                    prev_lines = [l for l in lines[:lines.index(line)] if l.strip()]
-                    self.assertTrue(any('|' in l for l in prev_lines[-2:]))
+                    prev_lines = [l for l in lines[: lines.index(line)] if l.strip()]
+                    self.assertTrue(any("|" in l for l in prev_lines[-2:]))
 
     def test_empty_content(self):
         """Test handling of empty or whitespace-only content."""
@@ -214,6 +219,6 @@ def very_long_function_name_that_makes_this_line_quite_long():
         self.assertIn("```python", chunks[0])
         self.assertIn("def very_long_function", chunks[0])
 
-if __name__ == '__main__':
-    unittest.main()
 
+if __name__ == "__main__":
+    unittest.main()
