@@ -216,7 +216,7 @@ async def search_knowledge_base(user_query: str) -> str:
         for i, doc in enumerate(documents):
             score = doc.get("score", "N/A")
             title = doc.get("title", "Untitled")
-            logger.debug(f"Document {i+1}: '{title}' (score: {score})")
+            logger.debug(f"Document {i + 1}: '{title}' (score: {score})")
 
         context = "\n\n".join(
             [f"{doc.get('title')}\n{doc.get('markdownContent')}" for doc in documents]

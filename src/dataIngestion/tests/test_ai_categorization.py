@@ -4,11 +4,10 @@ Tests for AI categorization logic using OpenAI evaluations.
 Simple validation tests to ensure core functionality works.
 """
 
-import json
 import os
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

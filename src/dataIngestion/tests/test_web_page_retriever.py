@@ -3,12 +3,10 @@
 Unit tests for WebPageRetriever functionality.
 """
 
-import json
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
-from document import Document
 from web_page_retriever import WebPageRetriever
 
 

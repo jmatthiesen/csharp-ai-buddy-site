@@ -4,10 +4,8 @@ RAG Data Ingestion Pipeline (Legacy Compatibility Layer)
 This module provides backward compatibility with the original interface while using the new refactored components.
 """
 
-import argparse
-import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # New refactored components

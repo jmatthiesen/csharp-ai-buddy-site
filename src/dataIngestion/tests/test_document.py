@@ -3,14 +3,12 @@
 Unit tests for Document data transfer object.
 """
 
-import json
 import unittest
 from datetime import datetime, timezone
-from typing import Any, Dict
-from unittest.mock import Mock
 
 # MongoDB ObjectId
 from bson.objectid import ObjectId
+
 # Document type
 from document import Document
 

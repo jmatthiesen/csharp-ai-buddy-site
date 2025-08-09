@@ -7,7 +7,6 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from document import Document
 from rss_feed_retriever import RSSFeedRetriever
 
 

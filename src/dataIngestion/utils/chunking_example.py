@@ -74,7 +74,7 @@ Machine learning is a powerful tool that continues to evolve and find new applic
                 print(f"│ {line:<48} │")
 
             if len(lines) > 5:
-                print(f"│ ... ({len(lines)-5} more lines) {'':<25} │")
+                print(f"│ ... ({len(lines) - 5} more lines) {'':<25} │")
 
             print("└" + "─" * 50 + "┘")
 

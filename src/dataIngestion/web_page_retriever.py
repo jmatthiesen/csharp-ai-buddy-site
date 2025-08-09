@@ -4,10 +4,9 @@ Web Page Retriever for RAG Data Pipeline
 Handles fetching and parsing content from web URLs.
 """
 
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
 import requests

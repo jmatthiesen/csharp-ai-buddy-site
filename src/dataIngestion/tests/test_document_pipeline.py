@@ -4,8 +4,7 @@ Unit tests for DocumentPipeline functionality.
 """
 
 import unittest
-from datetime import datetime, timezone
-from typing import List
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 from config import Config

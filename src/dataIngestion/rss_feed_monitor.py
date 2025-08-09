@@ -8,22 +8,24 @@ import argparse
 import hashlib
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 # RSS parsing
 import feedparser
 from bson.objectid import ObjectId
+
 # Configuration
 from config import Config
+
 # Document type
 from document import Document
+
 # Use new pipeline structure
 from document_pipeline import DocumentPipeline
 from feedparser import FeedParserDict
+
 # MongoDB
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError

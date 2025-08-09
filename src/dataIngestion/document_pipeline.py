@@ -11,15 +11,20 @@ from typing import Any, Dict, List, Optional
 
 # Configuration
 from config import Config
+
 # Document type
 from document import Document
+
 # MarkItDown for conversion
 from markitdown import MarkItDown, StreamInfo
+
 # OpenAI for embeddings
 from openai import OpenAI
+
 # MongoDB
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
+
 # Chunking utility
 from utils.chunking import chunk_markdown
 

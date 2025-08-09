@@ -5,7 +5,6 @@ Configuration management for RAG Data Ingestion Pipeline.
 import json
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 # Load environment variables from .env file if it exists
 try:

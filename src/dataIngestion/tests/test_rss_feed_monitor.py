@@ -3,15 +3,13 @@
 Unit tests for RSS Feed Monitor functionality.
 """
 
-import hashlib
-import json
 import unittest
 from datetime import datetime, timezone
-from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 # Configuration
 from config import Config
+
 # RSS feed monitor classes
 from rss_feed_monitor import RSSFeedItem, RSSFeedMonitor, RSSFeedSubscription
 

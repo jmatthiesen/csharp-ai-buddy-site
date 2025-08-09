@@ -4,15 +4,13 @@ Unit tests for Document Pipeline functionality.
 Tests document processing with various input sources including pre-parsed content.
 """
 
-import json
 import unittest
-from datetime import datetime, timezone
-from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 # Configuration
 from config import Config
 from document import Document
+
 # Pipeline components
 from document_pipeline import DocumentPipeline
 from web_page_retriever import WebPageRetriever
