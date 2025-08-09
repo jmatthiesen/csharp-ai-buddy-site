@@ -19,7 +19,7 @@ This repository contains a full-stack C# AI assistant application with a FastAPI
 ## Build & Development Instructions
 
 ### Prerequisites
-- Python 3.8+ (3.13.4 recommended for production)
+- Python 3.13.4
 - MongoDB instance (local or cloud)
 - OpenAI API key
 - Node.js/npm (for alternative frontend serving only)
@@ -222,6 +222,22 @@ src/
 4. Validate frontend loads correctly
 
 ## Development Workflow
+
+### Code Formatting
+**Black Formatter**: Use Black formatter with Preview mode for consistent Python code formatting:
+```bash
+# Install Black with preview features
+pip install black
+
+# Format code with preview mode
+black --preview src/
+
+# Format specific files
+black --preview src/api/main.py src/dataIngestion/rag_data_pipeline.py
+
+# Check formatting without making changes
+black --preview --check src/
+```
 
 ### Making Changes
 1. **Always** test locally before committing
