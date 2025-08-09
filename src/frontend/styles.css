@@ -447,6 +447,109 @@ body {
     cursor: not-allowed;
 }
 
+/* Options button and configuration */
+.options-container {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.options-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #718096;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.options-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    color: #4a5568;
+}
+
+.options-btn:focus {
+    outline: 2px solid #4299e1;
+    outline-offset: 2px;
+}
+
+.options-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Options modal */
+.options-modal-content {
+    max-width: 500px;
+    width: 90%;
+}
+
+.options-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.option-label {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 0.9rem;
+}
+
+.option-select,
+.option-input {
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+    transition: border-color 0.2s ease;
+}
+
+.option-select:focus,
+.option-input:focus {
+    outline: none;
+    border-color: #4299e1;
+}
+
+.option-input {
+    margin-top: 0.5rem;
+}
+
+/* Experimental warning */
+.experimental-notice {
+    margin-top: 1rem;
+}
+
+.experimental-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #fef5e7;
+    border: 1px solid #f6ad55;
+    border-radius: 8px;
+    color: #c05621;
+    font-size: 0.875rem;
+}
+
+.experimental-warning svg {
+    flex-shrink: 0;
+    color: #ed8936;
+}
+
 /* Loading animation */
 .loading {
     display: inline-flex;

@@ -11,6 +11,14 @@ class ChatApp {
         this.conversationHistory = [];
         this.isStreaming = false;
 
+        // AI configuration options
+        this.aiOptions = {
+            dotnetVersion: '.NET 9',
+            aiLibrary: 'OpenAI',
+            model: 'gpt-4o',
+            aiProvider: 'OpenAI'
+        };
+
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
@@ -71,6 +79,9 @@ class ChatApp {
                 this.autoResizeTextarea();
             }
         });
+
+        // Options modal
+        this.initializeOptionsModal();
     }
 
     initializeAccessibility() {
@@ -91,6 +102,117 @@ class ChatApp {
     autoResizeTextarea() {
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
+    }
+
+    initializeOptionsModal() {
+        const optionsBtn = document.getElementById('options-btn');
+        const optionsModal = document.getElementById('options-modal');
+        const optionsModalClose = document.getElementById('options-modal-close');
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const modelSelect = document.getElementById('model');
+        const aiProviderSelect = document.getElementById('ai-provider');
+        const experimentalNotice = document.querySelector('.experimental-notice');
+
+        // Open options modal
+        optionsBtn.addEventListener('click', () => {
+            this.openOptionsModal();
+        });
+
+        // Close options modal
+        optionsModalClose.addEventListener('click', () => {
+            this.closeOptionsModal();
+        });
+
+        // Close modal when clicking outside
+        optionsModal.addEventListener('click', (e) => {
+            if (e.target === optionsModal) {
+                this.closeOptionsModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && optionsModal.style.display !== 'none') {
+                this.closeOptionsModal();
+            }
+        });
+
+        // Handle custom library input
+        aiLibrarySelect.addEventListener('change', () => {
+            if (aiLibrarySelect.value === 'Other') {
+                customLibraryInput.style.display = 'block';
+                customLibraryInput.focus();
+            } else {
+                customLibraryInput.style.display = 'none';
+                customLibraryInput.value = '';
+            }
+            this.updateAiOptions();
+        });
+
+        // Update options when selects change
+        [dotnetVersionSelect, aiLibrarySelect, modelSelect, aiProviderSelect].forEach(select => {
+            select.addEventListener('change', () => {
+                this.updateAiOptions();
+            });
+        });
+
+        // Update options when custom library input changes
+        customLibraryInput.addEventListener('input', () => {
+            this.updateAiOptions();
+        });
+    }
+
+    openOptionsModal() {
+        const optionsModal = document.getElementById('options-modal');
+        optionsModal.style.display = 'flex';
+        optionsModal.setAttribute('aria-hidden', 'false');
+        
+        // Focus first element
+        const firstSelect = document.getElementById('dotnet-version');
+        firstSelect.focus();
+        
+        // Update experimental notice
+        this.updateExperimentalNotice();
+    }
+
+    closeOptionsModal() {
+        const optionsModal = document.getElementById('options-modal');
+        optionsModal.style.display = 'none';
+        optionsModal.setAttribute('aria-hidden', 'true');
+        
+        // Return focus to options button
+        document.getElementById('options-btn').focus();
+    }
+
+    updateAiOptions() {
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const modelSelect = document.getElementById('model');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        this.aiOptions = {
+            dotnetVersion: dotnetVersionSelect.value,
+            aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
+            model: modelSelect.value,
+            aiProvider: aiProviderSelect.value
+        };
+
+        this.updateExperimentalNotice();
+    }
+
+    updateExperimentalNotice() {
+        const experimentalNotice = document.querySelector('.experimental-notice');
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        const isExperimental = 
+            dotnetVersionSelect.selectedOptions[0]?.dataset.experimental === 'true' ||
+            aiProviderSelect.selectedOptions[0]?.dataset.experimental === 'true';
+
+        experimentalNotice.style.display = isExperimental ? 'block' : 'none';
     }
 
     async handleSubmit() {
@@ -268,7 +390,8 @@ class ChatApp {
                 },
                 body: JSON.stringify({
                     message: question,
-                    history: this.conversationHistory
+                    history: this.conversationHistory,
+                    filters: this.aiOptions
                 })
             });
             
