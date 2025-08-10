@@ -135,13 +135,13 @@ def generate_embedding(text: str) -> List[float]:
         raise
 
 @function_tool
-async def search_knowledge_base(user_query: str, filters: Optional[str] = None) -> str:
+async def search_knowledge_base(user_query: str, filters: Optional[Dict[str, str]] = None) -> str:
     """
     Retrieve relevant documents for a user query using vector search.
 
     Args:
         user_query (str): The user's query.
-        filters (str, optional): JSON string containing filter options like dotnetVersion, aiLibrary, etc.
+        filters (Dict[str, str], optional): Dictionary containing filter options like dotnetVersion, aiLibrary, etc.
 
     Returns:
         str: The retrieved documents as a string.
@@ -149,15 +149,9 @@ async def search_knowledge_base(user_query: str, filters: Optional[str] = None) 
     try:
         logger.info(f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'")
         
-        # Parse filters if provided
-        filter_dict = None
+        # Use filters directly if provided
         if filters:
-            try:
-                import json
-                filter_dict = json.loads(filters)
-                logger.info(f"Using filters: {filter_dict}")
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse filters: {filters}")
+            logger.info(f"Using filters: {filters}")
         
         # Check environment variables
         mongodb_uri = os.getenv("MONGODB_URI")
@@ -267,17 +261,17 @@ async def get_agent(filters: Optional[Dict[str, str]] = None) -> Agent:
 
     # Add filter-specific context if filters are provided
     if filters:
-        filter_context = "\n\n**Current User Configuration:**\n"
+        filter_context = "\n\n**User selected filters:**\n"
         
         dotnet_version = filters.get('dotnetVersion', '.NET 9')
         ai_library = filters.get('aiLibrary', 'OpenAI')
         model = filters.get('model', 'gpt-4o')
         ai_provider = filters.get('aiProvider', 'OpenAI')
         
-        filter_context += f"- Target .NET Version: {dotnet_version}\n"
-        filter_context += f"- Preferred AI Library: {ai_library}\n"
-        filter_context += f"- AI Model: {model}\n"
-        filter_context += f"- AI Provider: {ai_provider}\n"
+        filter_context += f"dotnet_version:{dotnet_version}\n"
+        filter_context += f"ai_library:{ai_library}\n"
+        filter_context += f"model:{model}\n"
+        filter_context += f"ai_provider:{ai_provider}\n"
         
         # Check for experimental options
         experimental_options = []
@@ -295,15 +289,6 @@ async def get_agent(filters: Optional[Dict[str, str]] = None) -> Agent:
         filter_context += f"using {model} via {ai_provider} when providing specific examples and code samples.\n"
         
         base_instructions += filter_context
-    
-    # Create agent with knowledge base search tool
-    def create_search_tool_with_filters():
-        async def search_with_context(user_query: str) -> str:
-            import json
-            filters_json = json.dumps(filters) if filters else None
-            return await search_knowledge_base(user_query, filters_json)
-        
-        return search_with_context
     
     agent = Agent(
         name="C# AI Buddy",
