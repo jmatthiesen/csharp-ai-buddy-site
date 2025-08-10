@@ -73,10 +73,16 @@ class Message(BaseModel):
     role: str
     content: str
 
+class AIFilters(BaseModel):
+    dotnetVersion: Optional[str] = None
+    aiLibrary: Optional[str] = None
+    model: Optional[str] = None
+    aiProvider: Optional[str] = None
+
 class ChatRequest(BaseModel):
     message: str
     history: List[Message] = []
-    filters: Optional[Dict[str, str]] = None
+    filters: Optional[AIFilters] = None
 
 class HealthResponse(BaseModel):
     status: str
@@ -135,13 +141,13 @@ def generate_embedding(text: str) -> List[float]:
         raise
 
 @function_tool
-async def search_knowledge_base(user_query: str, filters: Optional[Dict[str, str]] = None) -> str:
+async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = None) -> str:
     """
     Retrieve relevant documents for a user query using vector search.
 
     Args:
         user_query (str): The user's query.
-        filters (Dict[str, str], optional): Dictionary containing filter options like dotnetVersion, aiLibrary, etc.
+        filters (AIFilters, optional): Object containing filter options like dotnetVersion, aiLibrary, etc.
 
     Returns:
         str: The retrieved documents as a string.
@@ -237,7 +243,7 @@ async def build_mcp_servers() -> List[MCPServerStreamableHttp]:
     await asyncio.gather(*(server.connect() for server in servers))
     return servers
 
-async def get_agent(filters: Optional[Dict[str, str]] = None) -> Agent:
+async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
 
     mcp_servers = await build_mcp_servers()
     
@@ -263,10 +269,10 @@ async def get_agent(filters: Optional[Dict[str, str]] = None) -> Agent:
     if filters:
         filter_context = "\n\n**User selected filters:**\n"
         
-        dotnet_version = filters.get('dotnetVersion', '.NET 9')
-        ai_library = filters.get('aiLibrary', 'OpenAI')
-        model = filters.get('model', 'gpt-4o')
-        ai_provider = filters.get('aiProvider', 'OpenAI')
+        dotnet_version = filters.dotnetVersion or '.NET 9'
+        ai_library = filters.aiLibrary or 'OpenAI'
+        model = filters.model or 'gpt-4o'
+        ai_provider = filters.aiProvider or 'OpenAI'
         
         filter_context += f"dotnet_version:{dotnet_version}\n"
         filter_context += f"ai_library:{ai_library}\n"
@@ -302,7 +308,7 @@ async def get_agent(filters: Optional[Dict[str, str]] = None) -> Agent:
                 
     return agent
 
-async def generate_streaming_response(message: str, history: List[Message], filters: Optional[Dict[str, str]] = None) -> AsyncGenerator[str, None]:
+async def generate_streaming_response(message: str, history: List[Message], filters: Optional[AIFilters] = None) -> AsyncGenerator[str, None]:
     """Generate streaming response using OpenAI agents SDK."""
     
     try:
