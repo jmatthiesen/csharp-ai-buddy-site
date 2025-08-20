@@ -217,7 +217,7 @@ class ChatApp {
         const optionsSummary = document.getElementById('options-summary');
         if (optionsSummary) {
             // Create a condensed summary of current options (without model)
-            const summary = `${this.aiOptions.dotnetVersion} | ${this.aiOptions.aiLibrary} | ${this.aiOptions.aiProvider}`;
+            const summary = `${this.aiOptions.dotnetVersion} | ${this.aiOptions.aiLibrary} | Provider: ${this.aiOptions.aiProvider}`;
             optionsSummary.textContent = summary;
         }
     }
