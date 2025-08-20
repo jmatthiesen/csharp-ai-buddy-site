@@ -102,6 +102,9 @@
                     </button>
                 </div>
                 <div class="options-container">
+                    <div class="options-summary" id="options-summary" aria-label="Current AI configuration">
+                        .NET 9 | OpenAI | gpt-4o | OpenAI
+                    </div>
                     <button type="button" class="options-btn" id="options-btn" aria-label="Configure AI settings">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"></circle>
@@ -216,7 +219,9 @@
                             <option value="claude-3-haiku">Claude 3 Haiku</option>
                             <option value="gemini-pro">Gemini Pro</option>
                             <option value="llama-2">Llama 2</option>
+                            <option value="Other">Other (Specify)</option>
                         </select>
+                        <input type="text" id="custom-model" class="option-input" placeholder="Specify custom model..." style="display: none;" aria-label="Specify custom AI model">
                     </div>
                     
                     <div class="option-group">

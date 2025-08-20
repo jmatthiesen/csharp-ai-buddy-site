@@ -22,6 +22,7 @@ class ChatApp {
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
+        this.updateOptionsSummary(); // Initialize the options summary
 
         // Initialize markdown and syntax highlighting when libraries are loaded
         this.initializeMarkdownSupport();
@@ -151,6 +152,19 @@ class ChatApp {
             this.updateAiOptions();
         });
 
+        // Handle custom model input
+        const customModelInput = document.getElementById('custom-model');
+        modelSelect.addEventListener('change', () => {
+            if (modelSelect.value === 'Other') {
+                customModelInput.style.display = 'block';
+                customModelInput.focus();
+            } else {
+                customModelInput.style.display = 'none';
+                customModelInput.value = '';
+            }
+            this.updateAiOptions();
+        });
+
         // Update options when selects change
         [dotnetVersionSelect, aiLibrarySelect, modelSelect, aiProviderSelect].forEach(select => {
             select.addEventListener('change', () => {
@@ -158,8 +172,12 @@ class ChatApp {
             });
         });
 
-        // Update options when custom library input changes
+        // Update options when custom inputs change
         customLibraryInput.addEventListener('input', () => {
+            this.updateAiOptions();
+        });
+        
+        customModelInput.addEventListener('input', () => {
             this.updateAiOptions();
         });
     }
@@ -191,16 +209,18 @@ class ChatApp {
         const aiLibrarySelect = document.getElementById('ai-library');
         const customLibraryInput = document.getElementById('custom-library');
         const modelSelect = document.getElementById('model');
+        const customModelInput = document.getElementById('custom-model');
         const aiProviderSelect = document.getElementById('ai-provider');
 
         this.aiOptions = {
             dotnetVersion: dotnetVersionSelect.value,
             aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
-            model: modelSelect.value,
+            model: modelSelect.value === 'Other' ? customModelInput.value || 'Other' : modelSelect.value,
             aiProvider: aiProviderSelect.value
         };
 
         this.updateExperimentalNotice();
+        this.updateOptionsSummary();
     }
 
     updateExperimentalNotice() {
@@ -213,6 +233,15 @@ class ChatApp {
             aiProviderSelect.selectedOptions[0]?.dataset.experimental === 'true';
 
         experimentalNotice.style.display = isExperimental ? 'block' : 'none';
+    }
+
+    updateOptionsSummary() {
+        const optionsSummary = document.getElementById('options-summary');
+        if (optionsSummary) {
+            // Create a condensed summary of current options
+            const summary = `${this.aiOptions.dotnetVersion} | ${this.aiOptions.aiLibrary} | ${this.aiOptions.model} | ${this.aiOptions.aiProvider}`;
+            optionsSummary.textContent = summary;
+        }
     }
 
     async handleSubmit() {
