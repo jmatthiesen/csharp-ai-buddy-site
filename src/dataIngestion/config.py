@@ -24,13 +24,11 @@ class Config:
     mongodb_connection_string: str
     mongodb_database: str
     mongodb_collection: str
-    mongodb_chunks_collection: str = "document_chunks"
-    
-    # OpenAI settings
     openai_api_key: str
-    embedding_model: str = "text-embedding-3-small"
     
-    # Pipeline settings
+    # Optional fields with defaults
+    mongodb_chunks_collection: str = "document_chunks"
+    embedding_model: str = "text-embedding-3-small"
     max_content_length: int = 8192  # Maximum content length for embeddings
     batch_size: int = 10  # Batch size for bulk operations
     
