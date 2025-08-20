@@ -73,9 +73,15 @@ class Message(BaseModel):
     role: str
     content: str
 
+class AIFilters(BaseModel):
+    dotnetVersion: Optional[str] = None
+    aiLibrary: Optional[str] = None
+    aiProvider: Optional[str] = None
+
 class ChatRequest(BaseModel):
     message: str
     history: List[Message] = []
+    filters: Optional[AIFilters] = None
 
 class HealthResponse(BaseModel):
     status: str
@@ -134,18 +140,23 @@ def generate_embedding(text: str) -> List[float]:
         raise
 
 @function_tool
-async def search_knowledge_base(user_query: str) -> str:
+async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = None) -> str:
     """
     Retrieve relevant documents for a user query using vector search.
 
     Args:
         user_query (str): The user's query.
+        filters (AIFilters, optional): Object containing filter options like dotnetVersion, aiLibrary, etc.
 
     Returns:
         str: The retrieved documents as a string.
     """
     try:
         logger.info(f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'")
+        
+        # Use filters directly if provided
+        if filters:
+            logger.info(f"Using filters: {filters}")
         
         # Check environment variables
         mongodb_uri = os.getenv("MONGODB_URI")
@@ -231,14 +242,12 @@ async def build_mcp_servers() -> List[MCPServerStreamableHttp]:
     await asyncio.gather(*(server.connect() for server in servers))
     return servers
 
-async def get_agent() -> Agent:
+async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
 
     mcp_servers = await build_mcp_servers()
     
-    # Create agent with knowledge base search tool
-    agent = Agent(
-        name="C# AI Buddy",
-        instructions="""You are an AI assistant specialized in helping developers learn and implement AI solutions using C# and .NET. Your expertise includes:
+    # Build context-aware instructions based on filters
+    base_instructions = """You are an AI assistant specialized in helping developers learn and implement AI solutions using C# and .NET. Your expertise includes:
 
 **Core Responsibilities:**
 - Guide developers through AI/ML concepts using .NET frameworks (ML.NET, Semantic Kernel, Azure AI services)
@@ -253,7 +262,40 @@ async def get_agent() -> Agent:
 4. Only answer questions based on the context provided by the above instructions
 5. Answer succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details
 6. Provide links to relevant content using a markdown format like [link text](url)
-""",
+"""
+
+    # Add filter-specific context if filters are provided
+    if filters:
+        filter_context = "\n\n**User selected filters:**\n"
+        
+        dotnet_version = filters.dotnetVersion or '.NET 9'
+        ai_library = filters.aiLibrary or 'OpenAI'
+        ai_provider = filters.aiProvider or 'OpenAI'
+        
+        filter_context += f"dotnet_version:{dotnet_version}\n"
+        filter_context += f"ai_library:{ai_library}\n"
+        filter_context += f"ai_provider:{ai_provider}\n"
+        
+        # Check for experimental options
+        experimental_options = []
+        if ".NET Framework" in dotnet_version:
+            experimental_options.append(".NET Framework")
+        if ai_provider in ["Amazon Bedrock", "Google Cloud"]:
+            experimental_options.append(ai_provider)
+            
+        if experimental_options:
+            filter_context += f"\n**Important:** The user has selected experimental options: {', '.join(experimental_options)}. "
+            filter_context += "Include a friendly warning that these options are experimental and results may be less accurate. "
+            filter_context += "Use fun, engaging language like '🧪 Heads up!' or '⚗️ Experimental zone ahead!' when mentioning this.\n"
+        
+        filter_context += f"\nTailor your responses to focus on {ai_library} with {dotnet_version}, "
+        filter_context += f"using {ai_provider} when providing specific examples and code samples.\n"
+        
+        base_instructions += filter_context
+    
+    agent = Agent(
+        name="C# AI Buddy",
+        instructions=base_instructions,
         tools=[
             search_knowledge_base,
             WebSearchTool(search_context_size="medium")
@@ -263,14 +305,14 @@ async def get_agent() -> Agent:
                 
     return agent
 
-async def generate_streaming_response(message: str, history: List[Message]) -> AsyncGenerator[str, None]:
+async def generate_streaming_response(message: str, history: List[Message], filters: Optional[AIFilters] = None) -> AsyncGenerator[str, None]:
     """Generate streaming response using OpenAI agents SDK."""
     
     try:
         logger.info(f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}")
         
-        # Get the agent instance
-        agent = await get_agent()
+        # Get the agent instance with filters
+        agent = await get_agent(filters)
         
         # Convert history to a format the agent can understand
         # For now, we'll focus on the current message and let the agent handle context
@@ -567,7 +609,7 @@ async def chat_endpoint(request: ChatRequest):
             raise HTTPException(status_code=500, detail="Knowledge base is not configured")
         
         return StreamingResponse(
-            generate_streaming_response(request.message, request.history),
+            generate_streaming_response(request.message, request.history, request.filters),
             media_type="application/x-ndjson",
             headers={
                 "Cache-Control": "no-cache",
