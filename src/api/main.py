@@ -587,11 +587,8 @@ async def get_news(
             db = mongoClient[database_name]
             documents_collection = db["documents"]
             
-            # Build query to get only RSS items
-            query = {
-                "rss_feed_url": {"$exists": True, "$ne": None},
-                "rss_item_id": {"$exists": True, "$ne": None}
-            }
+            # Build query to get all articles (not limited to RSS items)
+            query = {}
             
             # Add search functionality
             if search:
@@ -620,9 +617,11 @@ async def get_news(
             # Convert MongoDB documents to NewsItem models
             news_items = []
             for doc in news_data:
-                # Create a summary (first 140 characters of content)
-                content = doc.get("content", "")
-                summary = content[:140] + "..." if len(content) > 140 else content
+                # Use pre-generated summary, fall back to content truncation if not available
+                summary = doc.get("summary")
+                if not summary:
+                    content = doc.get("content", "")
+                    summary = content[:140] + "..." if len(content) > 140 else content
                 
                 # Parse published date
                 published_date = doc.get("rss_published_date") or doc.get("createdDate", "")

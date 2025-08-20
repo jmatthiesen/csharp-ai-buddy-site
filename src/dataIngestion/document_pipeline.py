@@ -41,6 +41,7 @@ class DocumentPipeline:
         self.mongo_client = MongoClient(config.mongodb_connection_string)
         self.db = self.mongo_client[config.mongodb_database]
         self.documents_collection = self.db[config.mongodb_collection]
+        self.chunks_collection = self.db[config.mongodb_chunks_collection]
         
         # Initialize MarkItDown
         self.markitdown = MarkItDown()
@@ -55,17 +56,16 @@ class DocumentPipeline:
     def _create_indexes(self):
         """Create MongoDB indexes for efficient querying."""
         try:
-            # Index on document_id for fast lookups
+            # Indexes for documents collection
             self.documents_collection.create_index("documentId", unique=True)
-            
-            # Index on tags for filtering
             self.documents_collection.create_index("tags")
-            
-            # Index on source_url for deduplication
             self.documents_collection.create_index("sourceUrl")
-            
-            # Index on created_at for time-based queries
             self.documents_collection.create_index("createdDate")
+            
+            # Indexes for chunks collection
+            self.chunks_collection.create_index("documentId")
+            self.chunks_collection.create_index("original_document_id")
+            self.chunks_collection.create_index("createdDate")
             
             logger.info("MongoDB indexes created successfully")
         except Exception as e:
@@ -124,6 +124,52 @@ class DocumentPipeline:
             logger.error(f"Error generating embeddings: {e}")
             raise
     
+    def generate_summary(self, content: str, max_length: int = 140) -> str:
+        """
+        Generate a summary of the content using OpenAI.
+        
+        Args:
+            content: Content to summarize
+            max_length: Maximum length of the summary
+            
+        Returns:
+            str: Generated summary
+        """
+        try:
+            # If content is short enough, return as-is
+            if len(content) <= max_length:
+                return content
+            
+            # Use OpenAI to generate a summary
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": f"You are a helpful assistant that creates concise summaries. Generate a summary that is exactly {max_length} characters or less."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Please summarize this article in {max_length} characters or less:\n\n{content[:2000]}"  # Limit input to avoid token limits
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.3
+            )
+            
+            summary = response.choices[0].message.content.strip()
+            
+            # Ensure summary doesn't exceed max_length
+            if len(summary) > max_length:
+                summary = summary[:max_length-3] + "..."
+            
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"Error generating AI summary, falling back to truncation: {e}")
+            # Fallback to simple truncation
+            return content[:max_length-3] + "..." if len(content) > max_length else content
+    
     def categorize_document(self, markdown_content: str, existing_tags: Optional[List[str]] = None) -> List[str]:
         """
         Categorize document using AI or simple keyword matching.
@@ -158,8 +204,111 @@ class DocumentPipeline:
         
         return final_tags
     
-    def process_document_with_chunking(self, 
-                                     document: Document,
+    def process_document_with_summary_and_chunks(self, 
+                                           document: Document,
+                                           use_ai_categorization: bool = True,
+                                           additional_metadata: Optional[Dict[str, Any]] = None) -> str:
+        """
+        Process a document using the new architecture: store summary in documents collection 
+        and chunks in document_chunks collection.
+        
+        Args:
+            document: Document to process
+            use_ai_categorization: Whether to use AI for automatic categorization
+            additional_metadata: Additional metadata to merge
+            
+        Returns:
+            str: Document ID of the stored summary document
+        """
+        try:
+            # Step 1: Convert content to markdown
+            markdown_content = self.convert_to_markdown(document)
+            
+            # Step 2: Generate AI summary for the main document
+            document.summary = self.generate_summary(markdown_content)
+            logger.info(f"Generated summary for document {document.documentId}: {document.summary[:50]}...")
+            
+            # Step 3: Auto-categorize with AI if enabled
+            if use_ai_categorization:
+                categorized_tags = self.categorize_document(markdown_content, document.tags)
+                document.tags = categorized_tags
+            
+            # Step 4: Merge additional metadata
+            if additional_metadata:
+                if document.metadata is None:
+                    document.metadata = {}
+                document.metadata.update(additional_metadata)
+            
+            # Step 5: Set processing timestamp
+            document.indexedDate = datetime.now(timezone.utc)
+            
+            # Step 6: Store the summary document in documents collection (without chunks)
+            summary_doc = Document(
+                documentId=document.documentId,
+                title=document.title,
+                content=document.content,  # Keep original content for search
+                sourceUrl=document.sourceUrl,
+                summary=document.summary,
+                tags=document.tags,
+                metadata=document.metadata,
+                createdDate=document.createdDate,
+                indexedDate=document.indexedDate,
+                rss_feed_url=getattr(document, 'rss_feed_url', None),
+                rss_item_id=getattr(document, 'rss_item_id', None),
+                rss_title=getattr(document, 'rss_title', None),
+                rss_published_date=getattr(document, 'rss_published_date', None),
+                rss_author=getattr(document, 'rss_author', None),
+                json_url=getattr(document, 'json_url', None)
+            )
+            
+            # Store summary document
+            self.documents_collection.insert_one(summary_doc.to_dict())
+            logger.info(f"Stored summary document: {document.documentId}")
+            
+            # Step 7: Create and store chunks in chunks collection
+            chunks = chunk_markdown(markdown_content, self.chunk_size)
+            
+            # If no chunks or content is small enough, treat as single chunk
+            if not chunks:
+                chunks = [markdown_content] if markdown_content.strip() else [""]
+            
+            # Process each chunk
+            for i, chunk_content in enumerate(chunks):
+                # Create a chunk document
+                chunk_document = Document(
+                    documentId=f"{document.documentId}#chunk_{i}" if len(chunks) > 1 else f"{document.documentId}#chunk_0",
+                    title=document.title,
+                    content=chunk_content,
+                    sourceUrl=document.sourceUrl,
+                    tags=document.tags.copy() if document.tags else [],
+                    metadata={
+                        "chunk_index": i,
+                        "total_chunks": len(chunks),
+                        "chunk_size": len(chunk_content),
+                        "original_document_id": document.documentId
+                    },
+                    createdDate=document.createdDate,
+                    indexedDate=document.indexedDate
+                )
+                
+                # Generate embeddings for this chunk
+                if chunk_content.strip():
+                    embeddings = self.generate_embeddings(chunk_content)
+                    chunk_document.embeddings = embeddings
+                else:
+                    chunk_document.embeddings = []
+                
+                # Store chunk in chunks collection
+                self.chunks_collection.insert_one(chunk_document.to_dict())
+            
+            logger.info(f"Successfully processed document into {len(chunks)} chunks: {document.documentId}")
+            return document.documentId
+            
+        except Exception as e:
+            logger.error(f"Error processing document {document.documentId}: {e}")
+            raise
+    
+    def process_document_with_chunking(self,
                                      use_ai_categorization: bool = True,
                                      additional_metadata: Optional[Dict[str, Any]] = None) -> List[Document]:
         """
@@ -349,32 +498,31 @@ class DocumentPipeline:
                                  document: Document,
                                  use_ai_categorization: bool = True,
                                  additional_metadata: Optional[Dict[str, Any]] = None,
-                                 use_chunking: bool = True) -> List[str]:
+                                 use_new_architecture: bool = True) -> List[str]:
         """
-        Process and store a document, with optional chunking support.
+        Process and store a document. Uses new architecture by default (summary in documents, chunks in document_chunks).
         
         Args:
             document: Document to process and store
             use_ai_categorization: Whether to use AI for automatic categorization
             additional_metadata: Additional metadata to merge
-            use_chunking: Whether to use chunking (default: True)
+            use_new_architecture: Whether to use new architecture (default: True)
             
         Returns:
             List[str]: List of document IDs of the stored documents/chunks
         """
-        if use_chunking:
-            # Process with chunking
+        if use_new_architecture:
+            # Use new architecture: summary in documents, chunks in document_chunks
+            document_id = self.process_document_with_summary_and_chunks(
+                document, use_ai_categorization, additional_metadata
+            )
+            return [document_id]
+        else:
+            # Legacy behavior: process with chunking and store all in documents collection
             processed_chunks = self.process_document_with_chunking(
                 document, use_ai_categorization, additional_metadata
             )
             return self.store_document_chunks(processed_chunks)
-        else:
-            # Process without chunking (legacy behavior)
-            processed_document = self.process_document(
-                document, use_ai_categorization, additional_metadata
-            )
-            stored_id = self.store_document(processed_document)
-            return [stored_id]
     
     def update_document(self, document: Document) -> bool:
         """
@@ -446,6 +594,7 @@ class DocumentPipeline:
                         limit: int = 10) -> List[Dict[str, Any]]:
         """
         Search documents using vector similarity and optional tag filtering.
+        Searches in chunks collection for embeddings and returns corresponding documents.
         
         Args:
             query: Search query text
@@ -459,14 +608,14 @@ class DocumentPipeline:
             # Generate embeddings for the query
             query_embeddings = self.generate_embeddings(query)
             
-            # Build aggregation pipeline
+            # Build aggregation pipeline for chunks collection
             pipeline = []
             
             # Filter by tags if provided
             if tags:
                 pipeline.append({"$match": {"tags": {"$in": tags}}})
             
-            # Add vector similarity search
+            # Add vector similarity search on chunks
             pipeline.extend([
                 {
                     "$addFields": {
@@ -490,11 +639,38 @@ class DocumentPipeline:
                     }
                 },
                 {"$sort": {"similarity": -1}},
+                {"$limit": limit * 3},  # Get more chunks to deduplicate documents
+                {
+                    "$group": {
+                        "_id": "$metadata.original_document_id",
+                        "max_similarity": {"$max": "$similarity"},
+                        "chunk_data": {"$first": "$$ROOT"}
+                    }
+                },
+                {"$sort": {"max_similarity": -1}},
                 {"$limit": limit},
+                {"$replaceRoot": {"newRoot": {
+                    "$mergeObjects": [
+                        "$chunk_data",
+                        {"similarity": "$max_similarity"}
+                    ]
+                }}},
                 {"$project": {"_id": 0}}
             ])
             
-            results = list(self.documents_collection.aggregate(pipeline))
+            # Search in chunks collection
+            chunk_results = list(self.chunks_collection.aggregate(pipeline))
+            
+            # Get corresponding documents from documents collection
+            results = []
+            for chunk_result in chunk_results:
+                original_doc_id = chunk_result.get("metadata", {}).get("original_document_id")
+                if original_doc_id:
+                    doc_data = self.documents_collection.find_one({"documentId": original_doc_id})
+                    if doc_data:
+                        doc_data["similarity"] = chunk_result["similarity"]
+                        results.append(doc_data)
+            
             logger.info(f"Found {len(results)} documents matching query")
             return results
             
