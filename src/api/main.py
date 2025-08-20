@@ -76,7 +76,6 @@ class Message(BaseModel):
 class AIFilters(BaseModel):
     dotnetVersion: Optional[str] = None
     aiLibrary: Optional[str] = None
-    model: Optional[str] = None
     aiProvider: Optional[str] = None
 
 class ChatRequest(BaseModel):
@@ -271,12 +270,10 @@ async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
         
         dotnet_version = filters.dotnetVersion or '.NET 9'
         ai_library = filters.aiLibrary or 'OpenAI'
-        model = filters.model or 'gpt-4o'
         ai_provider = filters.aiProvider or 'OpenAI'
         
         filter_context += f"dotnet_version:{dotnet_version}\n"
         filter_context += f"ai_library:{ai_library}\n"
-        filter_context += f"model:{model}\n"
         filter_context += f"ai_provider:{ai_provider}\n"
         
         # Check for experimental options
@@ -292,7 +289,7 @@ async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
             filter_context += "Use fun, engaging language like '🧪 Heads up!' or '⚗️ Experimental zone ahead!' when mentioning this.\n"
         
         filter_context += f"\nTailor your responses to focus on {ai_library} with {dotnet_version}, "
-        filter_context += f"using {model} via {ai_provider} when providing specific examples and code samples.\n"
+        filter_context += f"using {ai_provider} when providing specific examples and code samples.\n"
         
         base_instructions += filter_context
     

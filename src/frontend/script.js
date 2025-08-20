@@ -15,7 +15,6 @@ class ChatApp {
         this.aiOptions = {
             dotnetVersion: '.NET 9',
             aiLibrary: 'OpenAI',
-            model: 'gpt-4o',
             aiProvider: 'OpenAI'
         };
 
@@ -112,7 +111,6 @@ class ChatApp {
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiLibrarySelect = document.getElementById('ai-library');
         const customLibraryInput = document.getElementById('custom-library');
-        const modelSelect = document.getElementById('model');
         const aiProviderSelect = document.getElementById('ai-provider');
         const experimentalNotice = document.querySelector('.experimental-notice');
 
@@ -152,32 +150,15 @@ class ChatApp {
             this.updateAiOptions();
         });
 
-        // Handle custom model input
-        const customModelInput = document.getElementById('custom-model');
-        modelSelect.addEventListener('change', () => {
-            if (modelSelect.value === 'Other') {
-                customModelInput.style.display = 'block';
-                customModelInput.focus();
-            } else {
-                customModelInput.style.display = 'none';
-                customModelInput.value = '';
-            }
-            this.updateAiOptions();
-        });
-
         // Update options when selects change
-        [dotnetVersionSelect, aiLibrarySelect, modelSelect, aiProviderSelect].forEach(select => {
+        [dotnetVersionSelect, aiLibrarySelect, aiProviderSelect].forEach(select => {
             select.addEventListener('change', () => {
                 this.updateAiOptions();
             });
         });
 
-        // Update options when custom inputs change
+        // Update options when custom library input changes
         customLibraryInput.addEventListener('input', () => {
-            this.updateAiOptions();
-        });
-        
-        customModelInput.addEventListener('input', () => {
             this.updateAiOptions();
         });
     }
@@ -208,14 +189,11 @@ class ChatApp {
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiLibrarySelect = document.getElementById('ai-library');
         const customLibraryInput = document.getElementById('custom-library');
-        const modelSelect = document.getElementById('model');
-        const customModelInput = document.getElementById('custom-model');
         const aiProviderSelect = document.getElementById('ai-provider');
 
         this.aiOptions = {
             dotnetVersion: dotnetVersionSelect.value,
             aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
-            model: modelSelect.value === 'Other' ? customModelInput.value || 'Other' : modelSelect.value,
             aiProvider: aiProviderSelect.value
         };
 
@@ -238,8 +216,8 @@ class ChatApp {
     updateOptionsSummary() {
         const optionsSummary = document.getElementById('options-summary');
         if (optionsSummary) {
-            // Create a condensed summary of current options
-            const summary = `${this.aiOptions.dotnetVersion} | ${this.aiOptions.aiLibrary} | ${this.aiOptions.model} | Provider: ${this.aiOptions.aiProvider}`;
+            // Create a condensed summary of current options (without model)
+            const summary = `${this.aiOptions.dotnetVersion} | ${this.aiOptions.aiLibrary} | ${this.aiOptions.aiProvider}`;
             optionsSummary.textContent = summary;
         }
     }
