@@ -780,7 +780,6 @@ class ChatApp {
                     <h3><a href="${item.url}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(item.title)}</a></h3>
                 </div>
                 <div class="news-item-meta">
-                    <span class="news-item-source">${this.escapeHtml(item.source)}</span>
                     <span class="news-item-date">${publishedDate}</span>
                     ${item.author ? `<span class="news-item-author">by ${this.escapeHtml(item.author)}</span>` : ''}
                 </div>

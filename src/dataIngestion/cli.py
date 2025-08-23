@@ -103,7 +103,7 @@ class RAGDataPipelineCLI:
             deleted_count = 0
             for chunk in chunks:
                 try:
-                    result = self.pipeline.documents_collection.delete_one({"chunk_id": chunk.chunk_id})
+                    result = self.pipeline.chunks_collection.delete_one({"chunk_id": chunk.chunk_id})
                     if result.deleted_count > 0:
                         deleted_count += 1
                 except Exception as e:
@@ -137,7 +137,7 @@ class RAGDataPipelineCLI:
             if tags:
                 filter_query["tags"] = {"$in": tags}
             
-            cursor = self.pipeline.documents_collection.find(filter_query).sort("indexed_date", -1).limit(limit)
+            cursor = self.pipeline.chunks_collection.find(filter_query).sort("indexed_date", -1).limit(limit)
             
             results = []
             for chunk_data in cursor:
@@ -162,14 +162,14 @@ class RAGDataPipelineCLI:
         """Get pipeline statistics."""
         try:
             # Get basic statistics from the chunks collection
-            total_chunks = self.pipeline.documents_collection.count_documents({})
+            total_chunks = self.pipeline.chunks_collection.count_documents({})
             
             # Get unique document count
-            unique_docs = len(self.pipeline.documents_collection.distinct("original_document_id"))
+            unique_docs = len(self.pipeline.chunks_collection.distinct("original_document_id"))
             
             # Get tag statistics
             all_tags = []
-            for doc in self.pipeline.documents_collection.find({}, {"tags": 1}):
+            for doc in self.pipeline.chunks_collection.find({}, {"tags": 1}):
                 all_tags.extend(doc.get("tags", []))
             
             tag_counts = {}

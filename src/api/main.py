@@ -111,7 +111,7 @@ class NewsItem(BaseModel):
     summary: str
     source: str
     author: Optional[str] = None
-    published_date: str
+    published_date: datetime
     url: str
 
 class NewsResponse(BaseModel):
@@ -679,7 +679,7 @@ async def get_news(
                     summary = content[:140] + "..." if len(content) > 140 else content
                 
                 # Parse published date
-                published_date = doc.get("rss_published_date") or doc.get("createdDate", "")
+                published_date = doc.get("publishedDate") or doc.get("createdDate", "")
                 if isinstance(published_date, str):
                     # Try to parse and reformat if it's a string
                     try:

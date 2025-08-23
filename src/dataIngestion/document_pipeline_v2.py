@@ -27,7 +27,6 @@ from utils.chunking import chunk_markdown
 
 logger = logging.getLogger(__name__)
 
-
 class DocumentPipeline:
     """Refactored document processing pipeline with clear stages and source enrichment"""
     
@@ -65,7 +64,7 @@ class DocumentPipeline:
             self.documents_collection.create_index("documentId")
             self.documents_collection.create_index("sourceUrl") 
             self.documents_collection.create_index("tags")
-            self.documents_collection.create_index("indexedDate")
+            self.documents_collection.create_index("publishedDate")
             self.documents_collection.create_index([("tags", 1), ("indexedDate", -1)])
             
             # Create indexes for chunks collection  
@@ -101,6 +100,9 @@ class DocumentPipeline:
             
             self._stage_markdown_conversion(context)
             self._check_for_errors(context, "markdown conversion")
+
+            self._stage_summary_creation(context)
+            self._check_for_errors(context, "summary creation")
             
             self._stage_chunking(context)
             self._check_for_errors(context, "chunking")
@@ -150,6 +152,62 @@ class DocumentPipeline:
             
         except Exception as e:
             error_msg = f"Error in source enrichment: {e}"
+            context.add_error(error_msg)
+            logger.error(error_msg)
+    
+    def _generate_summary(self, content: str, max_length: int = 140) -> str:
+        """
+        Generate a summary of the content using OpenAI.
+        
+        Args:
+            content: Content to summarize
+            max_length: Maximum length of the summary
+            
+        Returns:
+            str: Generated summary
+        """
+        try:
+            # If content is short enough, return as-is
+            if len(content) <= max_length:
+                return content
+            
+            # Use OpenAI to generate a summary
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": f"You are a helpful assistant that creates concise summaries. Generate a summary that is exactly {max_length} characters or less."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Please summarize this article in {max_length} characters or less:\n\n{content[:2000]}"  # Limit input to avoid token limits
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.3
+            )
+            
+            summary = response.choices[0].message.content.strip()
+            
+            # Ensure summary doesn't exceed max_length
+            if len(summary) > max_length:
+                summary = summary[:max_length-3] + "..."
+            
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"Error generating AI summary, falling back to truncation: {e}")
+            # Fallback to simple truncation
+            return content[:max_length-3] + "..." if len(content) > max_length else content
+
+    def _stage_summary_creation(self, context: ProcessingContext) -> None:
+        """Creates a summary version of the document"""
+        try:
+            context.raw_document.summary = self._generate_summary(context.markdown_content, 140)
+            context.mark_stage_complete("summary_generation")
+        except Exception as e:
+            error_msg = f"Error in summary creation: {e}"
             context.add_error(error_msg)
             logger.error(error_msg)
     
@@ -317,59 +375,28 @@ class DocumentPipeline:
         """Create and store both document summary and chunks"""
         try:
             stored_chunk_ids = []
-            
-            # Clean up any existing data for this document to avoid duplicates
+            doc = context.raw_document
+
+            summary_doc = {
+                "documentId": doc.source_url,
+                "title": doc.title,
+                "summary": doc.summary,
+                "tags": doc.tags,
+                "createdDate": doc.created_date,
+                "indexedDate": datetime.now(timezone.utc),
+                "sourceUrl": doc.source_url
+            }
+
+            self.documents_collection.insert_one(summary_doc)
+            logger.info(f"Stored summary document: {summary_doc["documentId"]}")
+
+            # Clean up any existing chunks for this document to avoid duplicates
             original_doc_id = context.raw_document.source_url
             
-            # Clean up existing chunks
-            chunks_result = self.chunks_collection.delete_many({"original_document_id": original_doc_id})
-            if chunks_result.deleted_count > 0:
-                logger.info(f"Cleaned up {chunks_result.deleted_count} existing chunks for document before processing")
-            
-            # Clean up existing document summary
-            docs_result = self.documents_collection.delete_many({"documentId": original_doc_id})
-            if docs_result.deleted_count > 0:
-                logger.info(f"Cleaned up {docs_result.deleted_count} existing document summaries for document before processing")
-            
-            # Generate AI summary for the document
-            summary = ""
-            if context.markdown_content:
-                summary = self.generate_summary(context.markdown_content)
-                logger.info(f"Generated summary for document {original_doc_id}: {summary[:50]}...")
-            
-            # Create and store main document summary
-            document = Document(
-                documentId=original_doc_id,
-                title=context.raw_document.title or "Untitled",
-                content=context.markdown_content or "",
-                sourceUrl=context.raw_document.source_url,
-                summary=summary,
-                tags=list(set(context.final_tags)),  # Remove duplicates
-                createdDate=context.raw_document.created_date,
-                indexedDate=datetime.now(timezone.utc),
-                metadata=dict(context.processing_metadata, **context.user_metadata)
-            )
-            
-            # Add RSS-specific metadata if available
-            source_metadata = context.raw_document.source_metadata
-            if source_metadata.get('rss_feed_url'):
-                document.rss_feed_url = source_metadata.get('rss_feed_url')
-                document.rss_item_id = source_metadata.get('rss_item_id')
-                document.rss_title = source_metadata.get('rss_title')
-                document.rss_published_date = source_metadata.get('rss_published_date')
-                document.rss_author = source_metadata.get('rss_author')
-            
-            # Add WordPress-specific metadata if available  
-            if source_metadata.get('json_url'):
-                document.json_url = source_metadata.get('json_url')
-            
-            try:
-                self.documents_collection.insert_one(document.to_dict())
-                logger.info(f"Stored document summary: {original_doc_id}")
-            except Exception as e:
-                error_msg = f"Failed to store document summary {original_doc_id}: {e}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
+            # Simple cleanup by original document ID
+            result = self.chunks_collection.delete_many({"original_document_id": original_doc_id})
+            if result.deleted_count > 0:
+                logger.info(f"Cleaned up {result.deleted_count} existing chunks for document before processing")
             
             # Determine total chunks
             total_chunks = len(context.chunks)
@@ -573,7 +600,7 @@ class DocumentPipeline:
                 if index_name in ['documentId_1', 'chunk_id_1'] and index.get('unique'):
                     logger.info(f"Dropping old index from documents collection: {index_name}")
                     try:
-                        self.documents_collection.drop_index(index_name)
+                        self.chunks_collection.drop_index(index_name)
                     except Exception as e:
                         logger.warning(f"Could not drop index {index_name}: {e}")
             
