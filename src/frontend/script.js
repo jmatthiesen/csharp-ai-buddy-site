@@ -30,7 +30,7 @@ class ChatApp {
     detectApiUrl() {
         // Check if we're running in development (localhost)
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            return 'http://localhost:8000';
+            return 'http://localhost:8000/api';
         }
 
         // Check for environment variable or meta tag with API URL
@@ -40,7 +40,7 @@ class ChatApp {
         }
 
         // Default to production API URL (you'll need to update this with your Render URL)
-        return 'https://csharp-ai-buddy-api.onrender.com/';
+        return 'https://csharp-ai-buddy-api.onrender.com/api';
     }
 
     initializeEventListeners() {

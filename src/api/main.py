@@ -22,6 +22,7 @@ from agents import Agent, Runner, function_tool, WebSearchTool
 from agents.mcp import MCPServerStreamableHttp
 from openai import OpenAI
 from openai.types.responses import ResponseTextDeltaEvent
+from nuget_search import search_nuget_packages, get_nuget_package_details
 
 # Load environment variables
 load_dotenv()
@@ -40,11 +41,8 @@ if otlp_endpoint:
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('ai_buddy_api.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("ai_buddy_api.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -142,7 +140,7 @@ def generate_embedding(text: str) -> List[float]:
     try:
         logger.debug(f"Generating embedding for text of length: {len(text)}")
         client = OpenAI()
-        
+     
         response = client.embeddings.create(
             input=text,
             model="text-embedding-3-small"  # Specify the embedding model
@@ -169,7 +167,9 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
         str: The retrieved documents as a string.
     """
     try:
-        logger.info(f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'")
+        logger.info(
+            f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'"
+        )
         
         # Use filters directly if provided
         if filters:
@@ -212,35 +212,40 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
             {
                 # Project only the fields we need
                 "$project": {
-                    "_id": 0,                  # Exclude document ID
+                    "_id": 0,  # Exclude document ID
                     "documentId": 1,
                     "title": 1,
-                    "markdownContent": 1,                 # Include the document body
-                    "score": {"$meta": "vectorSearchScore"},  # Include the similarity score
+                    "markdownContent": 1,  # Include the document body
+                    "score": {
+                        "$meta": "vectorSearchScore"
+                    },  # Include the similarity score
                 }
             },
         ]
-        
         logger.debug("Executing vector search pipeline")
         results = collection.aggregate(pipeline)
 
         # Process results
         documents = list(results)
         logger.info(f"Found {len(documents)} relevant documents")
-        
+       
         if not documents:
             logger.warning("No documents found for the query")
             return "No relevant documents found for your query."
 
         # Log search scores for debugging
         for i, doc in enumerate(documents):
-            score = doc.get('score', 'N/A')
-            title = doc.get('title', 'Untitled')
+            score = doc.get("score", "N/A")
+            title = doc.get("title", "Untitled")
             logger.debug(f"Document {i+1}: '{title}' (score: {score})")
 
-        context = "\n\n".join([f"{doc.get('title')}\n{doc.get('markdownContent')}" for doc in documents])
-        
-        logger.info(f"Successfully retrieved {len(documents)} documents, total context length: {len(context)} characters")
+        context = "\n\n".join(
+            [f"{doc.get('title')}\n{doc.get('markdownContent')}" for doc in documents]
+        )
+
+        logger.info(
+            f"Successfully retrieved {len(documents)} documents, total context length: {len(context)} characters"
+        )
         return context
 
     except Exception as e:
@@ -319,23 +324,31 @@ async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
         ],
         mcp_servers=mcp_servers
     )
-                
     return agent
 
-async def generate_streaming_response(message: str, history: List[Message], filters: Optional[AIFilters] = None) -> AsyncGenerator[str, None]:
+async def generate_streaming_response(
+    message: str,
+    history: List[Message],
+    filters: Optional[AIFilters] = None
+) -> AsyncGenerator[str, None]:
     """Generate streaming response using OpenAI agents SDK."""
-    
+
     try:
-        logger.info(f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}")
-        
+        logger.info(
+            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
+        )
+
         # Get the agent instance with filters
         agent = await get_agent(filters)
         
-        # Convert history to a format the agent can understand
-        # For now, we'll focus on the current message and let the agent handle context
-        
+        # Include history in the input for now, to keep things simple
+        if history:
+            input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+        else:
+            input = f"user: {message}\n"
+
         # Run the agent with streaming
-        result = Runner.run_streamed(agent, input=message)
+        result = Runner.run_streamed(agent, input)
         
         # Stream the response events
         async for event in result.stream_events():
@@ -815,19 +828,25 @@ async def chat_endpoint(request: ChatRequest):
     try:
         if not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
-        
+
         # Log the request
-        logger.info(f"Received chat request: {request.message[:100]}{'...' if len(request.message) > 100 else ''}")
-        
+        logger.info(
+            f"Received chat request: {request.message[:100]}{'...' if len(request.message) > 100 else ''}"
+        )
+
         # Validate that required environment variables are set
         if not os.getenv("MONGODB_URI"):
             logger.error("MONGODB_URI environment variable is not set")
-            raise HTTPException(status_code=500, detail="Knowledge base is not configured")
-            
+            raise HTTPException(
+                status_code=500, detail="Knowledge base is not configured"
+            )
+
         if not os.getenv("DATABASE_NAME"):
             logger.error("DATABASE_NAME environment variable is not set")
-            raise HTTPException(status_code=500, detail="Knowledge base is not configured")
-        
+            raise HTTPException(
+                status_code=500, detail="Knowledge base is not configured"
+            )
+
         return StreamingResponse(
             generate_streaming_response(request.message, request.history, request.filters),
             media_type="application/x-ndjson",
@@ -837,7 +856,6 @@ async def chat_endpoint(request: ChatRequest):
                 "X-Accel-Buffering": "no"  # Disable nginx buffering
             }
         )
-        
     except HTTPException:
         raise
     except Exception as e:
@@ -861,10 +879,10 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Get port from environment variable (Render requirement)
     port = int(os.getenv("PORT", 8000))
-    
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

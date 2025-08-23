@@ -12,7 +12,7 @@ from datetime import datetime
 import feedparser
 from feedparser import FeedParserDict
 
-from document import Document
+from pipeline_types import RawDocument
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +23,15 @@ class RSSFeedRetriever:
     def __init__(self):
         pass
     
-    def fetch_feed_items(self, feed_url: str) -> List[Document]:
+    def fetch_feed_items(self, feed_url: str) -> List[RawDocument]:
         """
-        Fetch all items from an RSS feed and convert them to Document objects.
+        Fetch all items from an RSS feed and convert them to RawDocument objects.
         
         Args:
             feed_url: URL of the RSS feed
             
         Returns:
-            List[Document]: List of documents created from feed items
+            List[RawDocument]: List of raw documents created from feed items
         """
         try:
             logger.info(f"Fetching RSS feed: {feed_url}")
@@ -57,16 +57,16 @@ class RSSFeedRetriever:
             logger.error(f"Error fetching RSS feed {feed_url}: {e}")
             return []
     
-    def _create_document_from_feed_item(self, feed_item: FeedParserDict, feed_url: str) -> Optional[Document]:
+    def _create_document_from_feed_item(self, feed_item: FeedParserDict, feed_url: str) -> Optional[RawDocument]:
         """
-        Create a Document from an RSS feed item.
+        Create a RawDocument from an RSS feed item.
         
         Args:
             feed_item: Parsed feed item from feedparser
             feed_url: URL of the RSS feed
             
         Returns:
-            Document: Document created from the feed item, or None if creation fails
+            RawDocument: Raw document created from the feed item, or None if creation fails
         """
         try:
             # Generate a unique ID for the item
@@ -106,28 +106,26 @@ class RSSFeedRetriever:
             rss_metadata = {
                 "rss_feed_url": feed_url,
                 "rss_item_id": item_id,
-                "rss_title": feed_item.get('title', ''),
-                "rss_published_date": published_date.isoformat() if published_date else None,
                 "rss_author": author,
+                "rss_published_date": published_date.isoformat() if published_date else None,
                 "rss_categories": categories
             }
             
-            # Create the document
-            document = Document(
-                documentId=feed_item.get('link', item_id),
-                title=feed_item.get('title', ''),
+            # Remove None values
+            rss_metadata = {k: v for k, v in rss_metadata.items() if v is not None}
+            
+            # Create the raw document
+            raw_document = RawDocument(
                 content=content or '',
-                sourceUrl=feed_item.get('link', ''),
-                createdDate=published_date,
-                metadata=rss_metadata,
-                rss_feed_url=feed_url,
-                rss_item_id=item_id,
-                rss_title=feed_item.get('title', ''),
-                rss_published_date=published_date.isoformat() if published_date else None,
-                rss_author=author
+                source_url=feed_item.get('link', ''),
+                title=feed_item.get('title', ''),
+                content_type="rss",
+                source_metadata=rss_metadata,
+                tags=categories,
+                created_date=published_date
             )
             
-            return document
+            return raw_document
             
         except Exception as e:
             logger.error(f"Error creating document from RSS item: {e}")

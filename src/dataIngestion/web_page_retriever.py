@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from urllib.parse import urljoin
 
-from document import Document
+from pipeline_types import RawDocument
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class WebPageRetriever:
                     return None
         return None
     
-    def fetch(self, url: str) -> Document:
+    def fetch(self, url: str) -> RawDocument:
         """
         Fetch content from a URL, attempting to find WordPress JSON API if available.
         
@@ -44,16 +44,39 @@ class WebPageRetriever:
             url: URL to fetch content from
             
         Returns:
-            Document: Document with fetched content and metadata
+            RawDocument: Raw document with fetched content and metadata
         """
         if not (url.startswith('http://') or url.startswith('https://')):
-            return Document.create_from_url(url)
+            # For non-HTTP URLs, return a basic raw document
+            return RawDocument(
+                content="",
+                source_url=url,
+                title="",
+                content_type="html"
+            )
             
         try:
             # First, try to get the HTML page
             resp = requests.get(url, timeout=self.timeout)
             resp.raise_for_status()
             
+            # Check if the URL is a markdown file
+            if url.endswith('.md') or url.endswith('.markdown'):
+                title = ""
+                lines = resp.text.splitlines()
+                if lines and lines[0].strip().startswith("#"):
+                    title = lines[0].lstrip("#").strip()
+                content = resp.text
+                raw_document = RawDocument(
+                        content=content,
+                        source_url=url,
+                        title=title,
+                        content_type="markdown"
+                    )
+                    
+                logger.info(f"Successfully fetched structured content from Markdown file: {url}")
+                return raw_document
+
             soup = BeautifulSoup(resp.text, 'html.parser')
             
             # Look for WordPress JSON API link
@@ -79,20 +102,32 @@ class WebPageRetriever:
                     title = data.get('title', {}).get('rendered', '')
                     content = data.get('content', {}).get('rendered', '')
                     created_date = self._get_iso_date(data.get('date_gmt'))
-                    updated_date = self._get_iso_date(data.get('modified_gmt'))
                     
-                    document = Document(
-                        documentId=url,
-                        title=title,
+                    # Extract WordPress metadata
+                    wp_metadata = {
+                        "wordpress_post_id": data.get('id'),
+                        "wordpress_author": data.get('author'),
+                        "wordpress_categories": [cat.get('name', '') for cat in data.get('categories', [])],
+                        "wordpress_tags": [tag.get('name', '') for tag in data.get('tags', [])],
+                        "wordpress_json_url": json_url,
+                        "wordpress_modified_date": self._get_iso_date(data.get('modified_gmt'))
+                    }
+                    
+                    # Remove None values
+                    wp_metadata = {k: v for k, v in wp_metadata.items() if v is not None}
+                    
+                    raw_document = RawDocument(
                         content=content,
-                        sourceUrl=url,
-                        createdDate=created_date,
-                        updatedDate=updated_date,
-                        json_url=json_url
+                        source_url=url,
+                        title=title,
+                        content_type="wordpress",
+                        source_metadata=wp_metadata,
+                        tags=wp_metadata.get("wordpress_categories", []) + wp_metadata.get("wordpress_tags", []),
+                        created_date=created_date
                     )
                     
                     logger.info(f"Successfully fetched structured content from WordPress JSON API: {json_url}")
-                    return document
+                    return raw_document
                     
                 except Exception as e:
                     logger.warning(f"Failed to fetch from JSON API {json_url}, falling back to HTML: {e}")
@@ -103,16 +138,23 @@ class WebPageRetriever:
             if title_tag:
                 title = title_tag.get_text().strip()
             
-            document = Document(
-                documentId=url,
-                title=title,
+            raw_document = RawDocument(
                 content=resp.text,
-                sourceUrl=url
+                source_url=url,
+                title=title,
+                content_type="html",
+                created_date=datetime.now()
             )
             
-            return document
+            return raw_document
                 
         except Exception as e:
             logger.error(f"Error fetching content from URL {url}: {e}")
             # Return empty document on error
-            return Document.create_from_url(url)
+
+            return RawDocument(
+                content="",
+                source_url=url,
+                title="Error fetching content",
+                content_type="html"
+            )

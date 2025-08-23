@@ -1,0 +1,112 @@
+[
+  {
+    "id": "semantic_kernel_detection",
+    "input": "# Getting Started with Semantic Kernel\n\nSemantic Kernel is Microsoft's AI orchestration library for .NET. Learn how to build AI applications with Semantic Kernel.\n\n```csharp\nvar kernel = Kernel.CreateBuilder()\n    .AddOpenAIChatCompletion(\"gpt-4\", \"your-api-key\")\n    .Build();\n```",
+    "expected": "Semantic Kernel",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": ["Semantic Kernel"]
+    }
+  },
+  {
+    "id": "ml_net_detection",
+    "input": "# ML.NET Tutorial\n\nML.NET is Microsoft's machine learning framework for .NET developers. Build custom ML models with C# and F#.\n\n```csharp\nvar mlContext = new MLContext();\nvar dataView = mlContext.Data.LoadFromTextFile<SentimentData>(\"data.csv\");\n```",
+    "expected": "ML.NET",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": ["ML.NET"]
+    }
+  },
+  {
+    "id": "semantic_kernel_agents_detection",
+    "input": "# Semantic Kernel Agents\n\nBuild intelligent agents with Semantic Kernel Agents framework. Create multi-agent conversations and workflows.\n\n```csharp\nvar agent = new ChatCompletionAgent(kernel, \"You are a helpful assistant.\");\nvar result = await agent.InvokeAsync(\"What is the weather?\");\n```",
+    "expected": "Semantic Kernel Agents, Semantic Kernel",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "intermediate",
+      "expected_tags": ["Semantic Kernel Agents", "Semantic Kernel"]
+    }
+  },
+  {
+    "id": "microsoft_extensions_ai_detection",
+    "input": "# Microsoft.Extensions.AI\n\nMicrosoft.Extensions.AI provides a unified abstraction layer for AI services in .NET applications. It supports dependency injection and configuration patterns.\n\n```csharp\nservices.AddAIServices()\n    .AddOpenAI(config => config.ApiKey = \"your-key\");\n```",
+    "expected": "Microsoft.Extensions.AI",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": ["Microsoft.Extensions.AI"]
+    }
+  },
+  {
+    "id": "multiple_frameworks_detection",
+    "input": "# Building AI Applications with Multiple Frameworks\n\nThis guide covers using both Semantic Kernel and ML.NET together. You can use ML.NET for model training and Semantic Kernel for AI orchestration.\n\n```csharp\n// ML.NET for training\nvar mlContext = new MLContext();\nvar model = mlContext.Auto().CreateBinaryClassificationExperiment(60).Execute(dataView);\n\n// Semantic Kernel for orchestration\nvar kernel = Kernel.CreateBuilder().Build();\n```",
+    "expected": "Semantic Kernel, ML.NET",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "advanced",
+      "expected_tags": ["Semantic Kernel", "ML.NET"]
+    }
+  },
+  {
+    "id": "azure_ai_services_detection",
+    "input": "# Azure AI Services Integration\n\nIntegrate Azure Cognitive Services with your .NET application for advanced AI capabilities.\n\n```csharp\nvar client = new TextAnalyticsClient(endpoint, credential);\nvar response = await client.AnalyzeSentimentAsync(\"This is a great product!\");\n```",
+    "expected": "Azure AI Services",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": ["Azure AI Services"]
+    }
+  },
+  {
+    "id": "openai_dotnet_detection",
+    "input": "# OpenAI .NET SDK\n\nUse the official OpenAI .NET SDK to integrate GPT models into your applications.\n\n```csharp\nvar client = new OpenAIClient(\"your-api-key\");\nvar response = await client.GetChatCompletionsAsync(\"gpt-4\", messages);\n```",
+    "expected": "OpenAI SDK",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": ["OpenAI SDK"]
+    }
+  },
+  {
+    "id": "azure_ai_search_detection", 
+    "input": "# Azure AI Search Integration\n\nImplement vector search capabilities using Azure AI Search and .NET for RAG applications.\n\n```csharp\nvar searchClient = new SearchClient(endpoint, indexName, credential);\nvar results = await searchClient.SearchAsync<Document>(query, options);\n```",
+    "expected": "Azure AI Services",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "intermediate", 
+      "expected_tags": ["Azure AI Services"]
+    }
+  },
+  {
+    "id": "no_ai_framework_detection",
+    "input": "# Basic C# Programming\n\nThis is a simple C# console application that prints Hello World.\n\n```csharp\nusing System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello World!\");\n    }\n}\n```",
+    "expected": "None",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "basic",
+      "expected_tags": []
+    }
+  },
+  {
+    "id": "ml_net_with_onnx_detection",
+    "input": "# ML.NET with ONNX Integration\n\nUse ML.NET to work with ONNX models for machine learning inference in .NET applications.\n\n```csharp\nvar mlContext = new MLContext();\nvar pipeline = mlContext.Transforms.ApplyOnnxModel(\"model.onnx\");\nvar model = pipeline.Fit(emptyDataView);\n```",
+    "expected": "ML.NET",
+    "criteria": "categorization_accuracy",
+    "metadata": {
+      "category": "categorization",
+      "difficulty": "intermediate",
+      "expected_tags": ["ML.NET"]
+    }
+  }
+]
