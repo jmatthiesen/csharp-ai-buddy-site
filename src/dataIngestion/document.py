@@ -19,6 +19,7 @@ class Document:
     title: str
     content: str
     sourceUrl: str
+    summary: Optional[str] = None  # AI-generated summary for news display
         
     # Vector embeddings for similarity search
     embeddings: Optional[List[float]] = None

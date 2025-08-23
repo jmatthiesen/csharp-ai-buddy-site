@@ -14,6 +14,7 @@ class RawDocument:
     content: str  # Raw content (HTML, text, markdown, etc.)
     source_url: str
     title: Optional[str] = None
+    summary: Optional[str] = None
     content_type: str = "html"  # html, markdown, text, rss
     source_metadata: Dict[str, Any] = field(default_factory=dict)
     tags: List[str] = field(default_factory=list)

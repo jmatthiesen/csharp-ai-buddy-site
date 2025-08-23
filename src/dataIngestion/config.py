@@ -24,12 +24,11 @@ class Config:
     mongodb_connection_string: str
     mongodb_database: str
     mongodb_collection: str
-    
-    # OpenAI settings
     openai_api_key: str
-    embedding_model: str = "text-embedding-3-small"
     
-    # Pipeline settings
+    # Optional fields with defaults
+    mongodb_chunks_collection: str = "document_chunks"
+    embedding_model: str = "text-embedding-3-small"
     max_content_length: int = 8192  # Maximum content length for embeddings
     batch_size: int = 10  # Batch size for bulk operations
     
@@ -52,6 +51,7 @@ class Config:
             mongodb_connection_string=os.getenv("MONGODB_CONNECTION_STRING", "mongodb://localhost:27017"),
             mongodb_database=os.getenv("MONGODB_DATABASE", "rag_pipeline"),
             mongodb_collection=os.getenv("MONGODB_COLLECTION", "documents"),
+            mongodb_chunks_collection=os.getenv("MONGODB_CHUNKS_COLLECTION", "document_chunks"),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
             max_content_length=int(os.getenv("MAX_CONTENT_LENGTH", "8192")),
@@ -75,6 +75,7 @@ class Config:
             "mongodb_connection_string": self.mongodb_connection_string,
             "mongodb_database": self.mongodb_database,
             "mongodb_collection": self.mongodb_collection,
+            "mongodb_chunks_collection": self.mongodb_chunks_collection,
             "openai_api_key": self.openai_api_key,
             "embedding_model": self.embedding_model,
             "max_content_length": self.max_content_length,

@@ -123,11 +123,8 @@ jobs:
         python -m py_compile document.py
         echo "✅ Data Ingestion document.py syntax is valid"
         
-        python -m py_compile document_pipeline.py
+        python -m py_compile document_pipeline_v2.py
         echo "✅ Data Ingestion document_pipeline.py syntax is valid"
-        
-        python -m py_compile rag_data_pipeline.py
-        echo "✅ Data Ingestion rag_data_pipeline.py syntax is valid"
         
         # Validate test files syntax
         if [ -d "tests" ]; then
@@ -140,8 +137,7 @@ jobs:
           source .venv/bin/activate
           python -c "import config; print('✅ Data Ingestion config module imports successfully')" 2>/dev/null || echo "⚠️ Data Ingestion config module import failed (likely due to missing dependencies)"
           python -c "import document; print('✅ Data Ingestion document module imports successfully')" 2>/dev/null || echo "⚠️ Data Ingestion document module import failed (likely due to missing dependencies)"
-          python -c "import document_pipeline; print('✅ Data Ingestion document_pipeline module imports successfully')" 2>/dev/null || echo "⚠️ Data Ingestion document_pipeline module import failed (likely due to missing dependencies)"
-          python -c "import rag_data_pipeline; print('✅ Data Ingestion rag_data_pipeline module imports successfully')" 2>/dev/null || echo "⚠️ Data Ingestion rag_data_pipeline module import failed (likely due to missing dependencies)"
+          python -c "import document_pipeline_v2; print('✅ Data Ingestion document_pipeline_v2 module imports successfully')" 2>/dev/null || echo "⚠️ Data Ingestion document_pipeline module import failed (likely due to missing dependencies)"
         else
           echo "⚠️ Virtual environment not available, skipping import tests"
         fi
@@ -150,9 +146,9 @@ jobs:
       run: |
         cd src/dataIngestion
         source .venv/bin/activate
-        if [ -d "tests" ] && [ -f "tests/run_tests.py" ]; then
+        if [ -d "tests2" ] && [ -f "tests2/run_tests.py" ]; then
           echo "Running Data Ingestion test suite..."
-          python tests/run_tests.py --verbose || echo "⚠️ Data Ingestion tests failed but build passed"
+          python tests2/run_tests.py --verbose || echo "⚠️ Data Ingestion tests failed but build passed"
         else
           echo "No test runner found, skipping Data Ingestion tests"
         fi
