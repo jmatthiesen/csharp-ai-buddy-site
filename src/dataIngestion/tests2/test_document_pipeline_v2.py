@@ -25,6 +25,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
         self.mock_config.mongodb_connection_string = "mongodb://localhost:27017"
         self.mock_config.mongodb_database = "test_db"
         self.mock_config.mongodb_collection = "test_collection"
+        self.mock_config.mongodb_chunks_collection = "test_chunks_collection"
         self.mock_config.embedding_model = "text-embedding-3-small"
 
     @patch('document_pipeline_v2.MongoClient')
@@ -34,8 +35,16 @@ class TestDocumentPipelineV2(unittest.TestCase):
         """Test that pipeline initializes with all required components."""
         # Setup mocks
         mock_documents_collection = Mock()
+        mock_chunks_collection = Mock()
         mock_db = MagicMock()
-        mock_db.__getitem__.return_value = mock_documents_collection
+        # Return appropriate collection based on the collection name accessed
+        def mock_getitem(key):
+            if key == "test_collection":
+                return mock_documents_collection
+            elif key == "test_chunks_collection":
+                return mock_chunks_collection
+            return Mock()
+        mock_db.__getitem__.side_effect = mock_getitem
         mock_mongo_client = MagicMock()
         mock_mongo_client.__getitem__.return_value = mock_db
         mock_mongo_client_class.return_value = mock_mongo_client
@@ -47,6 +56,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
         self.assertIsNotNone(pipeline.client)
         self.assertIsNotNone(pipeline.mongo_client)
         self.assertIsNotNone(pipeline.documents_collection)
+        self.assertIsNotNone(pipeline.chunks_collection)
         self.assertEqual(pipeline.default_chunk_size, 4000)
         self.assertEqual(len(pipeline.source_enrichers), 5)  # All enrichers loaded
 

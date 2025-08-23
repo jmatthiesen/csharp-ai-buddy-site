@@ -18,6 +18,7 @@ from markitdown import MarkItDown, StreamInfo
 # Internal dependencies
 from config import Config
 from pipeline_types import RawDocument, ProcessingContext, Chunk
+from document import Document
 from source_enrichers import (
     SourceEnricher, RSSSourceEnricher, WordPressSourceEnricher, 
     HTMLSourceEnricher, PlainTextSourceEnricher, FallbackSourceEnricher
@@ -36,7 +37,8 @@ class DocumentPipeline:
         self.client = OpenAI(api_key=config.openai_api_key)
         self.mongo_client = MongoClient(config.mongodb_connection_string)
         self.db = self.mongo_client[config.mongodb_database]
-        self.documents_collection = self.db[config.mongodb_collection]
+        self.documents_collection = self.db[config.mongodb_collection]  # For document summaries
+        self.chunks_collection = self.db[config.mongodb_chunks_collection]  # For document chunks
         
         # Initialize MarkItDown for content conversion
         self.markitdown = MarkItDown()
@@ -59,13 +61,20 @@ class DocumentPipeline:
     def _create_indexes(self):
         """Create MongoDB indexes for efficient querying."""
         try:
-            # Create indexes (these are safe to create multiple times)
-            self.documents_collection.create_index("chunk_id")  # Non-unique index for ObjectIDs
-            self.documents_collection.create_index("original_document_id")
-            self.documents_collection.create_index("source_url") 
+            # Create indexes for documents collection
+            self.documents_collection.create_index("documentId")
+            self.documents_collection.create_index("sourceUrl") 
             self.documents_collection.create_index("tags")
-            self.documents_collection.create_index("indexed_date")
-            self.documents_collection.create_index([("tags", 1), ("indexed_date", -1)])
+            self.documents_collection.create_index("indexedDate")
+            self.documents_collection.create_index([("tags", 1), ("indexedDate", -1)])
+            
+            # Create indexes for chunks collection  
+            self.chunks_collection.create_index("chunk_id")  # Non-unique index for ObjectIDs
+            self.chunks_collection.create_index("original_document_id")
+            self.chunks_collection.create_index("source_url") 
+            self.chunks_collection.create_index("tags")
+            self.chunks_collection.create_index("indexed_date")
+            self.chunks_collection.create_index([("tags", 1), ("indexed_date", -1)])
             
             logger.info("Document pipeline indexes created successfully")
         except Exception as e:
@@ -226,6 +235,52 @@ class DocumentPipeline:
             context.add_error(error_msg)
             logger.error(error_msg)
     
+    def generate_summary(self, content: str, max_length: int = 140) -> str:
+        """
+        Generate a summary of the content using OpenAI.
+        
+        Args:
+            content: Content to summarize
+            max_length: Maximum length of the summary
+            
+        Returns:
+            str: Generated summary
+        """
+        try:
+            # If content is short enough, return as-is
+            if len(content) <= max_length:
+                return content
+            
+            # Use OpenAI to generate a summary
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": f"You are a helpful assistant that creates concise summaries. Generate a summary that is exactly {max_length} characters or less."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Please summarize this article in {max_length} characters or less:\n\n{content[:2000]}"  # Limit input to avoid token limits
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.3
+            )
+            
+            summary = response.choices[0].message.content.strip()
+            
+            # Ensure summary doesn't exceed max_length
+            if len(summary) > max_length:
+                summary = summary[:max_length-3] + "..."
+            
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"Error generating AI summary, falling back to truncation: {e}")
+            # Fallback to simple truncation
+            return content[:max_length-3] + "..." if len(content) > max_length else content
+    
     def _stage_ai_categorization(self, context: ProcessingContext) -> None:
         """AI-based tagging and categorization"""
         try:
@@ -259,17 +314,62 @@ class DocumentPipeline:
             logger.error(error_msg)
     
     def _stage_finalization_and_storage(self, context: ProcessingContext) -> List[str]:
-        """Create chunks and immediately store them"""
+        """Create and store both document summary and chunks"""
         try:
             stored_chunk_ids = []
             
-            # Clean up any existing chunks for this document to avoid duplicates
+            # Clean up any existing data for this document to avoid duplicates
             original_doc_id = context.raw_document.source_url
             
-            # Simple cleanup by original document ID
-            result = self.documents_collection.delete_many({"original_document_id": original_doc_id})
-            if result.deleted_count > 0:
-                logger.info(f"Cleaned up {result.deleted_count} existing chunks for document before processing")
+            # Clean up existing chunks
+            chunks_result = self.chunks_collection.delete_many({"original_document_id": original_doc_id})
+            if chunks_result.deleted_count > 0:
+                logger.info(f"Cleaned up {chunks_result.deleted_count} existing chunks for document before processing")
+            
+            # Clean up existing document summary
+            docs_result = self.documents_collection.delete_many({"documentId": original_doc_id})
+            if docs_result.deleted_count > 0:
+                logger.info(f"Cleaned up {docs_result.deleted_count} existing document summaries for document before processing")
+            
+            # Generate AI summary for the document
+            summary = ""
+            if context.markdown_content:
+                summary = self.generate_summary(context.markdown_content)
+                logger.info(f"Generated summary for document {original_doc_id}: {summary[:50]}...")
+            
+            # Create and store main document summary
+            document = Document(
+                documentId=original_doc_id,
+                title=context.raw_document.title or "Untitled",
+                content=context.markdown_content or "",
+                sourceUrl=context.raw_document.source_url,
+                summary=summary,
+                tags=list(set(context.final_tags)),  # Remove duplicates
+                createdDate=context.raw_document.created_date,
+                indexedDate=datetime.now(timezone.utc),
+                metadata=dict(context.processing_metadata, **context.user_metadata)
+            )
+            
+            # Add RSS-specific metadata if available
+            source_metadata = context.raw_document.source_metadata
+            if source_metadata.get('rss_feed_url'):
+                document.rss_feed_url = source_metadata.get('rss_feed_url')
+                document.rss_item_id = source_metadata.get('rss_item_id')
+                document.rss_title = source_metadata.get('rss_title')
+                document.rss_published_date = source_metadata.get('rss_published_date')
+                document.rss_author = source_metadata.get('rss_author')
+            
+            # Add WordPress-specific metadata if available  
+            if source_metadata.get('json_url'):
+                document.json_url = source_metadata.get('json_url')
+            
+            try:
+                self.documents_collection.insert_one(document.to_dict())
+                logger.info(f"Stored document summary: {original_doc_id}")
+            except Exception as e:
+                error_msg = f"Failed to store document summary {original_doc_id}: {e}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
             # Determine total chunks
             total_chunks = len(context.chunks)
@@ -279,6 +379,7 @@ class DocumentPipeline:
                 logger.error(f"LENGTH MISMATCH: chunks={len(context.chunks)}, embeddings={len(context.chunk_embeddings)}")
                 raise ValueError(f"Chunk/embedding length mismatch: {len(context.chunks)} vs {len(context.chunk_embeddings)}")
             
+            # Create and store chunks
             for i, (chunk_content, embeddings) in enumerate(zip(context.chunks, context.chunk_embeddings)):
                 # Generate unique ObjectID for chunk
                 chunk_id = str(ObjectId())
@@ -313,9 +414,9 @@ class DocumentPipeline:
                     indexed_date=datetime.now(timezone.utc)
                 )
                 
-                # Store chunk (ObjectID ensures uniqueness)
+                # Store chunk in chunks collection
                 try:
-                    self.documents_collection.insert_one(chunk.to_dict())
+                    self.chunks_collection.insert_one(chunk.to_dict())
                     stored_chunk_ids.append(chunk_id)
                     logger.debug(f"Stored chunk: {chunk_id}")
                     
@@ -325,6 +426,7 @@ class DocumentPipeline:
                     raise ValueError(error_msg)
             
             context.mark_stage_complete("finalization_and_storage")
+            logger.info(f"Successfully stored document summary and {len(stored_chunk_ids)} chunks for: {original_doc_id}")
             return stored_chunk_ids
             
         except Exception as e:
@@ -337,7 +439,7 @@ class DocumentPipeline:
     def get_chunk(self, chunk_id: str) -> Optional[Chunk]:
         """Retrieve a specific chunk by ID"""
         try:
-            chunk_data = self.documents_collection.find_one({"chunk_id": chunk_id}, {"_id": 0})  # Exclude MongoDB _id
+            chunk_data = self.chunks_collection.find_one({"chunk_id": chunk_id}, {"_id": 0})  # Exclude MongoDB _id
             if chunk_data:
                 # Convert ISO strings back to datetime objects
                 if chunk_data.get('created_date') and isinstance(chunk_data['created_date'], str):
@@ -355,7 +457,7 @@ class DocumentPipeline:
         """Retrieve all chunks for a document"""
         try:
             chunks = []
-            cursor = self.documents_collection.find(
+            cursor = self.chunks_collection.find(
                 {"original_document_id": original_document_id}, 
                 {"_id": 0}  # Exclude MongoDB _id
             ).sort("chunk_index", 1)
@@ -372,6 +474,50 @@ class DocumentPipeline:
             return chunks
         except Exception as e:
             logger.error(f"Error retrieving chunks for document {original_document_id}: {e}")
+            return []
+    
+    def get_document(self, document_id: str) -> Optional[Document]:
+        """Retrieve a specific document by ID"""
+        try:
+            doc_data = self.documents_collection.find_one({"documentId": document_id}, {"_id": 0})  # Exclude MongoDB _id
+            if doc_data:
+                return Document.from_dict(doc_data)
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving document {document_id}: {e}")
+            return None
+    
+    def search_documents(self, 
+                        query: str, 
+                        tags: Optional[List[str]] = None,
+                        limit: int = 10) -> List[Document]:
+        """Search for documents (summaries) by text and tags"""
+        try:
+            # Build search filter
+            filter_query = {}
+            
+            if query:
+                search_regex = {"$regex": query, "$options": "i"}
+                filter_query["$or"] = [
+                    {"title": search_regex},
+                    {"content": search_regex},
+                    {"summary": search_regex}
+                ]
+            
+            if tags:
+                filter_query["tags"] = {"$in": tags}
+            
+            cursor = self.documents_collection.find(filter_query).sort("indexedDate", -1).limit(limit)
+            
+            documents = []
+            for doc_data in cursor:
+                documents.append(Document.from_dict(doc_data))
+            
+            logger.info(f"Found {len(documents)} documents matching query")
+            return documents
+            
+        except Exception as e:
+            logger.error(f"Error searching documents: {e}")
             return []
     
     def search_chunks(self, 
@@ -394,7 +540,7 @@ class DocumentPipeline:
             if tags:
                 filter_query["tags"] = {"$in": tags}
             
-            cursor = self.documents_collection.find(filter_query).sort("indexed_date", -1).limit(limit)
+            cursor = self.chunks_collection.find(filter_query).sort("indexed_date", -1).limit(limit)
             
             results = []
             for chunk_data in cursor:
@@ -418,49 +564,60 @@ class DocumentPipeline:
     def cleanup_old_documents(self) -> Dict[str, int]:
         """Clean up old documents and indexes from previous architecture"""
         try:
-            # Drop old indexes that might be causing conflicts
+            total_deleted = 0
+            
+            # Drop old indexes that might be causing conflicts in documents collection
             existing_indexes = list(self.documents_collection.list_indexes())
             for index in existing_indexes:
                 index_name = index.get('name', '')
                 if index_name in ['documentId_1', 'chunk_id_1'] and index.get('unique'):
-                    logger.info(f"Dropping old index: {index_name}")
+                    logger.info(f"Dropping old index from documents collection: {index_name}")
                     try:
                         self.documents_collection.drop_index(index_name)
                     except Exception as e:
                         logger.warning(f"Could not drop index {index_name}: {e}")
             
-            # Count documents without chunk_id (old documents)
-            old_docs_count = self.documents_collection.count_documents({"chunk_id": None})
+            # Drop old indexes that might be causing conflicts in chunks collection  
+            existing_chunk_indexes = list(self.chunks_collection.list_indexes())
+            for index in existing_chunk_indexes:
+                index_name = index.get('name', '')
+                if index_name in ['documentId_1', 'chunk_id_1'] and index.get('unique'):
+                    logger.info(f"Dropping old index from chunks collection: {index_name}")
+                    try:
+                        self.chunks_collection.drop_index(index_name)
+                    except Exception as e:
+                        logger.warning(f"Could not drop index {index_name}: {e}")
             
-            # Count documents with documentId field (old documents)
-            old_docs_with_documentId = self.documents_collection.count_documents({"documentId": {"$exists": True}})
+            # Count old documents in documents collection (chunks stored with documentId instead of being in separate collection)
+            old_chunks_in_docs = self.documents_collection.count_documents({"chunk_id": {"$exists": True}})
             
-            total_old_docs = old_docs_count + old_docs_with_documentId
+            # Count old documents in chunks collection that should be documents (no chunk_id field)
+            old_docs_in_chunks = self.chunks_collection.count_documents({"chunk_id": None})
             
-            if total_old_docs == 0:
-                return {"deleted": 0, "message": "No old documents found"}
+            logger.info(f"Found {old_chunks_in_docs} chunks incorrectly stored in documents collection")
+            logger.info(f"Found {old_docs_in_chunks} documents incorrectly stored in chunks collection")
             
-            logger.info(f"Found {old_docs_count} documents without chunk_id and {old_docs_with_documentId} with old documentId field")
-            
-            # Delete old documents
-            deleted_count = 0
-            
-            if old_docs_count > 0:
-                result = self.documents_collection.delete_many({"chunk_id": None})
-                deleted_count += result.deleted_count
+            # Delete chunks incorrectly stored in documents collection
+            if old_chunks_in_docs > 0:
+                result = self.documents_collection.delete_many({"chunk_id": {"$exists": True}})
+                total_deleted += result.deleted_count
+                logger.info(f"Deleted {result.deleted_count} chunks from documents collection")
                 
-            if old_docs_with_documentId > 0:
-                result = self.documents_collection.delete_many({"documentId": {"$exists": True}})
-                deleted_count += result.deleted_count
-            
-            logger.info(f"Deleted {deleted_count} old documents")
+            # Delete documents incorrectly stored in chunks collection
+            if old_docs_in_chunks > 0:
+                result = self.chunks_collection.delete_many({"chunk_id": None})
+                total_deleted += result.deleted_count
+                logger.info(f"Deleted {result.deleted_count} documents from chunks collection")
             
             # Recreate clean indexes
             self._create_indexes()
             
+            if total_deleted == 0:
+                return {"deleted": 0, "message": "No old documents found"}
+            
             return {
-                "deleted": deleted_count,
-                "message": f"Successfully deleted {deleted_count} old documents and cleaned up indexes"
+                "deleted": total_deleted,
+                "message": f"Successfully deleted {total_deleted} misplaced documents and cleaned up indexes"
             }
             
         except Exception as e:
