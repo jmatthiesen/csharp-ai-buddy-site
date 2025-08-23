@@ -10,9 +10,9 @@ import logging
 from typing import Optional, List, Dict, Any
 
 from config import Config
-from document_pipeline import DocumentPipeline
+from document_pipeline_v2 import DocumentPipeline
 from web_page_retriever import WebPageRetriever
-from document import Document
+from pipeline_types import RawDocument
 
 logger = logging.getLogger(__name__)
 
@@ -44,20 +44,17 @@ class RAGDataPipelineCLI:
         """
         try:
             # Fetch content from URL
-            document = self.web_retriever.fetch(source_url)
+            raw_document = self.web_retriever.fetch(source_url)
             
             # Add any provided tags
             if tags:
-                if document.tags is None:
-                    document.tags = []
-                document.tags.extend(tags)
+                raw_document.tags.extend(tags)
             
             # Process and store through pipeline with chunking
-            stored_ids = self.pipeline.process_and_store_document(
-                document=document,
+            stored_ids = self.pipeline.process_document(
+                raw_doc=raw_document,
                 use_ai_categorization=use_ai_categorization,
-                additional_metadata=metadata,
-                use_chunking=True
+                additional_metadata=metadata
             )
             
             document_id = stored_ids[0] if stored_ids else None
@@ -85,76 +82,114 @@ class RAGDataPipelineCLI:
             bool: True if update was successful
         """
         try:
-            # Get existing document
-            existing_doc = self.pipeline.get_document(document_id)
-            if not existing_doc:
-                logger.error(f"Document {document_id} not found")
-                return False
-            
-            # Re-fetch content from source URL
-            updated_document = self.web_retriever.fetch(existing_doc.sourceUrl)
-            
-            # Preserve original document ID and dates
-            updated_document.documentId = existing_doc.documentId
-            updated_document.createdDate = existing_doc.createdDate
-            
-            # Update tags if provided
-            if tags is not None:
-                updated_document.tags = tags
-            else:
-                updated_document.tags = existing_doc.tags
-            
-            # Merge metadata
-            if metadata is not None:
-                if updated_document.metadata is None:
-                    updated_document.metadata = {}
-                updated_document.metadata.update(metadata)
-            elif existing_doc.metadata:
-                updated_document.metadata = existing_doc.metadata
-            
-            # For updates, use non-chunking approach to maintain document integrity
-            processed_document = self.pipeline.process_document(
-                document=updated_document,
-                use_ai_categorization=True
-            )
-            
-            # Update in database
-            success = self.pipeline.update_document(processed_document)
-            
-            if success:
-                logger.info(f"Successfully updated document: {document_id}")
-            
-            return success
+            logger.warning("Update functionality not supported in new architecture")
+            logger.info("To update a document, delete the old chunks and re-add the document")
+            return False
             
         except Exception as e:
             logger.error(f"Error updating document {document_id}: {e}")
             raise
     
     def delete_document(self, document_id: str) -> bool:
-        """Delete a document."""
-        return self.pipeline.delete_document(document_id)
+        """Delete all chunks for a document."""
+        try:
+            # Delete all chunks for this document
+            chunks = self.pipeline.get_document_chunks(document_id)
+            if not chunks:
+                logger.warning(f"No chunks found for document: {document_id}")
+                return False
+            
+            # Delete each chunk
+            deleted_count = 0
+            for chunk in chunks:
+                try:
+                    result = self.pipeline.documents_collection.delete_one({"chunk_id": chunk.chunk_id})
+                    if result.deleted_count > 0:
+                        deleted_count += 1
+                except Exception as e:
+                    logger.error(f"Error deleting chunk {chunk.chunk_id}: {e}")
+            
+            logger.info(f"Deleted {deleted_count} chunks for document: {document_id}")
+            return deleted_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deleting document {document_id}: {e}")
+            return False
     
-    def get_document(self, document_id: str) -> Optional[Document]:
-        """Get a document by ID."""
-        return self.pipeline.get_document(document_id)
+    def get_document_chunks(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all chunks for a document."""
+        chunks = self.pipeline.get_document_chunks(document_id)
+        return [chunk.to_dict() for chunk in chunks]
     
     def search_documents(self, 
                         query: str,
                         tags: Optional[List[str]] = None,
                         limit: int = 10) -> List[Dict[str, Any]]:
-        """Search documents."""
-        return self.pipeline.search_documents(query=query, tags=tags, limit=limit)
+        """Search document chunks."""
+        return self.pipeline.search_chunks(query=query, tags=tags, limit=limit)
     
-    def list_documents(self, 
-                      tags: Optional[List[str]] = None,
-                      limit: int = 50) -> List[Document]:
-        """List documents."""
-        return self.pipeline.list_documents(tags=tags, limit=limit)
+    def list_document_chunks(self, 
+                          tags: Optional[List[str]] = None,
+                          limit: int = 50) -> List[Dict[str, Any]]:
+        """List recent document chunks."""
+        try:
+            filter_query = {}
+            if tags:
+                filter_query["tags"] = {"$in": tags}
+            
+            cursor = self.pipeline.documents_collection.find(filter_query).sort("indexed_date", -1).limit(limit)
+            
+            results = []
+            for chunk_data in cursor:
+                results.append({
+                    "chunk_id": chunk_data["chunk_id"],
+                    "original_document_id": chunk_data["original_document_id"],
+                    "title": chunk_data["title"],
+                    "source_url": chunk_data["source_url"],
+                    "tags": chunk_data["tags"],
+                    "indexed_date": chunk_data["indexed_date"],
+                    "chunk_index": chunk_data.get("chunk_index", 0),
+                    "total_chunks": chunk_data.get("total_chunks", 1)
+                })
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error listing chunks: {e}")
+            return []
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get pipeline statistics."""
-        return self.pipeline.get_statistics()
-
+        try:
+            # Get basic statistics from the chunks collection
+            total_chunks = self.pipeline.documents_collection.count_documents({})
+            
+            # Get unique document count
+            unique_docs = len(self.pipeline.documents_collection.distinct("original_document_id"))
+            
+            # Get tag statistics
+            all_tags = []
+            for doc in self.pipeline.documents_collection.find({}, {"tags": 1}):
+                all_tags.extend(doc.get("tags", []))
+            
+            tag_counts = {}
+            for tag in all_tags:
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+            
+            return {
+                "total_chunks": total_chunks,
+                "unique_documents": unique_docs,
+                "total_tags": len(tag_counts),
+                "most_common_tags": sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting statistics: {e}")
+            return {"error": str(e)}
+    
+    def cleanup_old_documents(self) -> Dict[str, Any]:
+        """Clean up old documents from previous architecture."""
+        return self.pipeline.cleanup_old_documents()
 
 def main():
     """Main function for command-line interface."""

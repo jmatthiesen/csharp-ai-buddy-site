@@ -27,11 +27,11 @@ from bson.objectid import ObjectId
 from config import Config
 
 # Use new pipeline structure
-from document_pipeline import DocumentPipeline
+from document_pipeline_v2 import DocumentPipeline
 from rss_feed_retriever import RSSFeedRetriever
 
 # Document type
-from document import Document
+from pipeline_types import RawDocument
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -288,80 +288,79 @@ class RSSFeedMonitor:
                 logger.debug(f"Item already processed: {feed_item.get('title', '')}")
                 return True
             
-            # Create document from RSS feed item using the RSS retriever
-            documents = self.rss_retriever.fetch_feed_items(subscription.feed_url)
+            # Create raw document directly from the feed item
+            # Extract categories from feed item
+            categories = []
+            if hasattr(feed_item, 'tags'):
+                categories = [tag.term for tag in feed_item.tags if hasattr(tag, 'term')]
             
-            # Find the matching document for this feed item
-            item_link = feed_item.get('link', '')
-            matching_document = None
-            for doc in documents:
-                if doc.documentId == item_link or doc.rss_item_id == item_id:
-                    matching_document = doc
-                    break
+            # Parse published date
+            published_date = None
+            if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
+                published_date = datetime(*feed_item.published_parsed[:6])
             
-            if not matching_document:
-                # Create document manually if not found in batch
-                # Extract categories from feed item
-                categories = []
-                if hasattr(feed_item, 'tags'):
-                    categories = [tag.term for tag in feed_item.tags if hasattr(tag, 'term')]
-                
-                # Parse published date
-                published_date = None
-                if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
-                    published_date = datetime(*feed_item.published_parsed[:6])
-                
-                # Extract author
-                author = None
-                if hasattr(feed_item, 'creator'):
-                    author = feed_item.creator
-                elif hasattr(feed_item, 'author'):
-                    author = feed_item.author
-                
-                # Extract content
-                content = None
-                if hasattr(feed_item, 'content') and feed_item.content:
-                    if isinstance(feed_item.content, list) and len(feed_item.content) > 0:
-                        content = feed_item.content[0].get('value', '')
-                    else:
-                        content = feed_item.content
-                elif hasattr(feed_item, 'summary'):
-                    content = feed_item.summary
-                elif hasattr(feed_item, 'description'):
-                    content = feed_item.description
-                
-                matching_document = Document.create_from_rss_item(
-                    item_url=item_link,
-                    title=feed_item.get('title', ''),
-                    content=content or '',
-                    feed_url=subscription.feed_url,
-                    item_id=item_id,
-                    author=author,
-                    published_date=published_date,
-                    tags=categories
-                )
+            # Extract author
+            author = None
+            if hasattr(feed_item, 'creator'):
+                author = feed_item.creator
+            elif hasattr(feed_item, 'author'):
+                author = feed_item.author
+            
+            # Extract content
+            content = None
+            if hasattr(feed_item, 'content') and feed_item.content:
+                if isinstance(feed_item.content, list) and len(feed_item.content) > 0:
+                    content = feed_item.content[0].get('value', '')
+                else:
+                    content = feed_item.content
+            elif hasattr(feed_item, 'summary'):
+                content = feed_item.summary
+            elif hasattr(feed_item, 'description'):
+                content = feed_item.description
+            
+            # Create RSS metadata
+            rss_metadata = {
+                "rss_feed_url": subscription.feed_url,
+                "rss_item_id": item_id,
+                "rss_author": author,
+                "rss_published_date": published_date.isoformat() if published_date else None,
+                "rss_categories": categories,
+                "rss_feed_name": subscription.name,
+                "rss_feed_description": subscription.description
+            }
+            
+            # Remove None values
+            rss_metadata = {k: v for k, v in rss_metadata.items() if v is not None}
             
             # Combine subscription tags with item categories
             subscription_tags = subscription.tags or []
-            item_tags = matching_document.tags or []
-            combined_tags = subscription_tags + item_tags
-            matching_document.tags = combined_tags
+            combined_tags = subscription_tags + categories
+            
+            # Create raw document
+            raw_document = RawDocument(
+                content=content or '',
+                source_url=feed_item.get('link', ''),
+                title=feed_item.get('title', ''),
+                content_type="rss",
+                source_metadata=rss_metadata,
+                tags=combined_tags,
+                created_date=published_date
+            )
             
             # Process and store through document pipeline with chunking
-            stored_ids = self.document_pipeline.process_and_store_document(
-                document=matching_document,
+            stored_ids = self.document_pipeline.process_document(
+                raw_doc=raw_document,
                 use_ai_categorization=True,
                 additional_metadata={
                     "rss_feed_name": subscription.name,
                     "rss_feed_description": subscription.description
-                },
-                use_chunking=True
+                }
             )
             
             # Mark as processed
             self._mark_item_processed(subscription.feed_url, item_id)
             
-            logger.info(f"Processed RSS item: {matching_document.title}")
+            logger.info(f"Processed RSS item into {len(stored_ids)} chunks: {raw_document.title}")
             return True
             
         except Exception as e:

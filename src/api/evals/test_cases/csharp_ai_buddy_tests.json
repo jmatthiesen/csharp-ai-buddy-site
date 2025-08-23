@@ -1,0 +1,134 @@
+[
+  {
+    "id": "semantic_kernel_basic_setup",
+    "input": "How do I create a basic Semantic Kernel application in C#?",
+    "expected": "To create a basic Semantic Kernel application, you need to install the Microsoft.SemanticKernel NuGet package and set up a kernel with a chat completion service.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "semantic_kernel",
+      "difficulty": "beginner",
+      "tags": ["setup", "getting_started"]
+    }
+  },
+  {
+    "id": "semantic_kernel_agent_creation",
+    "input": "Show me how to create a chat agent using Semantic Kernel Agents in C#",
+    "expected": "Use ChatCompletionAgent class to create agents with specific roles and instructions.",
+    "criteria": "code_correctness",
+    "metadata": {
+      "category": "semantic_kernel_agents",
+      "difficulty": "intermediate",
+      "tags": ["agents", "chat", "code_example"]
+    }
+  },
+  {
+    "id": "ml_net_sentiment_analysis",
+    "input": "How do I build a sentiment analysis model using ML.NET?",
+    "expected": "Create an MLContext, load data, create a training pipeline with text featurization and binary classification.",
+    "criteria": "code_correctness",
+    "metadata": {
+      "category": "ml_net",
+      "difficulty": "intermediate",
+      "tags": ["sentiment_analysis", "classification", "pipeline"]
+    }
+  },
+  {
+    "id": "azure_ai_integration",
+    "input": "What are the steps to integrate Azure AI services with a .NET application?",
+    "expected": "Install Azure.AI SDK packages, configure authentication, create service clients, and implement API calls.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "azure_ai",
+      "difficulty": "intermediate",
+      "tags": ["azure", "integration", "authentication"]
+    }
+  },
+  {
+    "id": "python_to_csharp_translation",
+    "input": "Translate this Python OpenAI API call to C#: openai.ChatCompletion.create(model='gpt-4', messages=[{'role': 'user', 'content': 'Hello'}])",
+    "expected": "Use OpenAI .NET SDK with ChatCompletionOptions and provide equivalent C# syntax.",
+    "criteria": "code_correctness",
+    "metadata": {
+      "category": "translation",
+      "difficulty": "beginner",
+      "tags": ["python_translation", "openai", "api_call"]
+    }
+  },
+  {
+    "id": "security_best_practices",
+    "input": "What security considerations should I keep in mind when building AI applications in .NET?",
+    "expected": "Secure API key storage, input validation, output sanitization, rate limiting, and proper authentication.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "security",
+      "difficulty": "advanced",
+      "tags": ["security", "best_practices", "api_keys"]
+    }
+  },
+  {
+    "id": "error_handling_patterns",
+    "input": "Show me proper error handling patterns for AI service calls in C#",
+    "expected": "Use try-catch blocks, handle specific exceptions, implement retry logic, and log appropriately.",
+    "criteria": "code_correctness",
+    "metadata": {
+      "category": "error_handling",
+      "difficulty": "intermediate",
+      "tags": ["exceptions", "retry", "logging"]
+    }
+  },
+  {
+    "id": "microsoft_extensions_ai",
+    "input": "How do I use Microsoft.Extensions.AI for building AI applications?",
+    "expected": "Microsoft.Extensions.AI provides abstractions for AI services with dependency injection support.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "microsoft_extensions_ai",
+      "difficulty": "intermediate",
+      "tags": ["abstractions", "dependency_injection", "framework"]
+    }
+  },
+  {
+    "id": "async_programming_ai",
+    "input": "What are the best practices for async programming when working with AI APIs in C#?",
+    "expected": "Use async/await properly, avoid blocking calls, handle cancellation tokens, and consider parallel execution.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "async_programming",
+      "difficulty": "advanced",
+      "tags": ["async", "await", "performance", "cancellation"]
+    }
+  },
+  {
+    "id": "configuration_management",
+    "input": "How should I manage configuration and API keys in a .NET AI application?",
+    "expected": "Use IConfiguration, appsettings.json, environment variables, and Azure Key Vault for sensitive data.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "configuration",
+      "difficulty": "intermediate",
+      "tags": ["configuration", "secrets", "azure_key_vault"]
+    }
+  },
+  {
+    "id": "memory_optimization",
+    "input": "How can I optimize memory usage when processing large datasets with ML.NET?",
+    "expected": "Use streaming data views, lazy loading, data sampling, and proper disposal patterns.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "performance",
+      "difficulty": "advanced",
+      "tags": ["memory", "optimization", "datasets", "disposal"]
+    }
+  },
+  {
+    "id": "testing_ai_applications",
+    "input": "What strategies should I use for testing AI-powered .NET applications?",
+    "expected": "Unit testing with mocks, integration testing, model validation, and response evaluation.",
+    "criteria": "accuracy",
+    "metadata": {
+      "category": "testing",
+      "difficulty": "advanced",
+      "tags": ["unit_testing", "integration_testing", "mocking", "validation"]
+    }
+  }
+]
