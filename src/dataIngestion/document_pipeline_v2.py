@@ -103,7 +103,7 @@ class DocumentPipeline:
 
             self._stage_summary_creation(context)
             self._check_for_errors(context, "summary creation")
-            
+     
             self._stage_chunking(context)
             self._check_for_errors(context, "chunking")
             
@@ -293,52 +293,6 @@ class DocumentPipeline:
             context.add_error(error_msg)
             logger.error(error_msg)
     
-    def generate_summary(self, content: str, max_length: int = 140) -> str:
-        """
-        Generate a summary of the content using OpenAI.
-        
-        Args:
-            content: Content to summarize
-            max_length: Maximum length of the summary
-            
-        Returns:
-            str: Generated summary
-        """
-        try:
-            # If content is short enough, return as-is
-            if len(content) <= max_length:
-                return content
-            
-            # Use OpenAI to generate a summary
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": f"You are a helpful assistant that creates concise summaries. Generate a summary that is exactly {max_length} characters or less."
-                    },
-                    {
-                        "role": "user", 
-                        "content": f"Please summarize this article in {max_length} characters or less:\n\n{content[:2000]}"  # Limit input to avoid token limits
-                    }
-                ],
-                max_tokens=50,
-                temperature=0.3
-            )
-            
-            summary = response.choices[0].message.content.strip()
-            
-            # Ensure summary doesn't exceed max_length
-            if len(summary) > max_length:
-                summary = summary[:max_length-3] + "..."
-            
-            return summary
-            
-        except Exception as e:
-            logger.warning(f"Error generating AI summary, falling back to truncation: {e}")
-            # Fallback to simple truncation
-            return content[:max_length-3] + "..." if len(content) > max_length else content
-    
     def _stage_ai_categorization(self, context: ProcessingContext) -> None:
         """AI-based tagging and categorization"""
         try:
@@ -485,6 +439,7 @@ class DocumentPipeline:
         try:
             chunks = []
             cursor = self.chunks_collection.find(
+
                 {"original_document_id": original_document_id}, 
                 {"_id": 0}  # Exclude MongoDB _id
             ).sort("chunk_index", 1)
