@@ -1525,8 +1525,7 @@ class AppManager {
         div.textContent = text;
         return div.innerHTML;
     }
-}
-
+    
     initializePrivacyNotice() {
         const privacyNotice = document.getElementById('privacy-notice');
         const acceptBtn = document.getElementById('accept-privacy');
@@ -1575,7 +1574,7 @@ class AppManager {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new AppManager();
+    window.chatApp = new AppManager();
 });
 
 // Add screen reader only class for accessibility announcements
