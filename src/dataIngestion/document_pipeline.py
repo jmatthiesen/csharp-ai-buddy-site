@@ -158,6 +158,59 @@ class DocumentPipeline:
         
         return final_tags
     
+    def generate_summary(self, content: str, title: str = "") -> str:
+        """
+        Generate a 140-character summary of the document content using OpenAI.
+        
+        Args:
+            content: The content to summarize
+            title: Optional title to provide context
+            
+        Returns:
+            str: A 140-character summary suitable for news display
+        """
+        try:
+            # Prepare the content for summarization
+            text_to_summarize = f"Title: {title}\n\nContent: {content}" if title else content
+            
+            # Truncate content if too long to avoid token limits
+            max_content_length = 3000
+            if len(text_to_summarize) > max_content_length:
+                text_to_summarize = text_to_summarize[:max_content_length] + "..."
+            
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Create a concise 140-character summary suitable for social media. Focus on the key technical concept or news. Be engaging and informative."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Summarize this .NET AI content in exactly 140 characters:\n\n{text_to_summarize}"
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.3
+            )
+            
+            summary = response.choices[0].message.content.strip()
+            
+            # Ensure summary is within 140 characters
+            if len(summary) > 140:
+                summary = summary[:137] + "..."
+            
+            logger.debug(f"Generated summary ({len(summary)} chars): {summary}")
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"Error generating summary: {e}")
+            # Fallback to truncated title or content
+            fallback = title or content
+            if len(fallback) > 140:
+                return fallback[:137] + "..."
+            return fallback
+    
     def process_document_with_chunking(self, 
                                      document: Document,
                                      use_ai_categorization: bool = True,
@@ -231,11 +284,15 @@ class DocumentPipeline:
                     for doc in [chunk_document] + processed_documents:
                         doc.tags = categorized_tags
                 
-                # Step 6: Merge additional metadata
+                # Step 6: Generate summary for the first chunk (represents the full document)
+                if i == 0:
+                    chunk_document.summary = self.generate_summary(chunk_content, document.title)
+                
+                # Step 7: Merge additional metadata
                 if additional_metadata:
                     chunk_document.metadata.update(additional_metadata)
                 
-                # Step 7: Set processing timestamp
+                # Step 8: Set processing timestamp
                 chunk_document.indexedDate = datetime.now(timezone.utc)
                 
                 processed_documents.append(chunk_document)
@@ -276,13 +333,16 @@ class DocumentPipeline:
                 categorized_tags = self.categorize_document(markdown_content, document.tags)
                 document.tags = categorized_tags
             
-            # Step 4: Merge additional metadata
+            # Step 4: Generate summary for news display
+            document.summary = self.generate_summary(markdown_content, document.title)
+            
+            # Step 5: Merge additional metadata
             if additional_metadata:
                 if document.metadata is None:
                     document.metadata = {}
                 document.metadata.update(additional_metadata)
             
-            # Step 5: Set processing timestamp
+            # Step 6: Set processing timestamp
             document.indexedDate = datetime.now(timezone.utc)
             
             logger.info(f"Successfully processed document: {document.documentId}")

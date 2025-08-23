@@ -1085,8 +1085,10 @@ class AppManager {
     initializeNavigation() {
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
+        const newsTab = document.getElementById('news-tab');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
+        const newsSection = document.getElementById('news-section');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('sidebar');
 
@@ -1097,6 +1099,10 @@ class AppManager {
 
         samplesTab.addEventListener('click', () => {
             this.switchTab('samples');
+        });
+
+        newsTab.addEventListener('click', () => {
+            this.switchTab('news');
         });
 
         // Listen for New Chat button requests to switch to chat tab
@@ -1111,7 +1117,7 @@ class AppManager {
 
         // Auto-collapse sidebar on mobile when clicking nav items
         if (window.innerWidth <= 768) {
-            [chatTab, samplesTab].forEach(tab => {
+            [chatTab, samplesTab, newsTab].forEach(tab => {
                 tab.addEventListener('click', () => {
                     if (sidebar.classList.contains('expanded')) {
                         this.toggleSidebar();
@@ -1169,28 +1175,357 @@ class AppManager {
     switchTab(tab) {
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
+        const newsTab = document.getElementById('news-tab');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
+        const newsSection = document.getElementById('news-section');
 
         // Update tab states
         chatTab.classList.toggle('active', tab === 'chat');
         samplesTab.classList.toggle('active', tab === 'samples');
+        newsTab.classList.toggle('active', tab === 'news');
 
         // Update section visibility
         chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
         samplesSection.style.display = tab === 'samples' ? 'flex' : 'none';
+        newsSection.style.display = tab === 'news' ? 'flex' : 'none';
 
         this.currentTab = tab;
+        
+        // Initialize the news section if it's being shown for the first time
+        if (tab === 'news' && !this.newsInitialized) {
+            this.initializeNewsSection();
+            this.newsInitialized = true;
+        }
         
         // Update URL for deep linking
         const url = new URL(window.location);
         if (tab === 'samples') {
             url.searchParams.set('tab', 'samples');
+        } else if (tab === 'news') {
+            url.searchParams.set('tab', 'news');
         } else {
             url.searchParams.delete('tab');
         }
         window.history.replaceState({}, '', url);
     }
+    
+    // News Section Methods
+    initializeNewsSection() {
+        this.currentNewsPage = 1;
+        this.newsPageSize = 10;
+        this.newsSearch = '';
+        this.newsFilters = [];
+        
+        // Initialize event listeners for news section
+        this.initializeNewsEventListeners();
+        
+        // Load initial news
+        this.loadNews();
+    }
+    
+    initializeNewsEventListeners() {
+        const newsSearch = document.getElementById('news-search');
+        const newsSearchBtn = document.getElementById('news-search-btn');
+        const clearNewsSearchBtn = document.getElementById('clear-news-search-btn');
+        const newsFiltersToggle = document.getElementById('news-filters-toggle');
+        const newsFiltersPanel = document.getElementById('news-filters-panel');
+        const clearNewsFilters = document.getElementById('clear-news-filters');
+        
+        // Search functionality
+        if (newsSearch) {
+            newsSearch.addEventListener('input', (e) => {
+                this.newsSearch = e.target.value;
+                clearNewsSearchBtn.style.display = this.newsSearch ? 'block' : 'none';
+                // Debounced search
+                clearTimeout(this.newsSearchTimeout);
+                this.newsSearchTimeout = setTimeout(() => {
+                    this.currentNewsPage = 1;
+                    this.loadNews();
+                }, 300);
+            });
+            
+            newsSearch.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.currentNewsPage = 1;
+                    this.loadNews();
+                }
+            });
+        }
+        
+        if (newsSearchBtn) {
+            newsSearchBtn.addEventListener('click', () => {
+                this.currentNewsPage = 1;
+                this.loadNews();
+            });
+        }
+        
+        if (clearNewsSearchBtn) {
+            clearNewsSearchBtn.addEventListener('click', () => {
+                newsSearch.value = '';
+                this.newsSearch = '';
+                clearNewsSearchBtn.style.display = 'none';
+                this.currentNewsPage = 1;
+                this.loadNews();
+            });
+        }
+        
+        // Filters toggle
+        if (newsFiltersToggle && newsFiltersPanel) {
+            newsFiltersToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                newsFiltersPanel.style.display = newsFiltersPanel.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (!newsFiltersPanel.contains(e.target) && !newsFiltersToggle.contains(e.target)) {
+                    newsFiltersPanel.style.display = 'none';
+                }
+            });
+        }
+        
+        if (clearNewsFilters) {
+            clearNewsFilters.addEventListener('click', () => {
+                this.newsFilters = [];
+                this.currentNewsPage = 1;
+                this.updateNewsFilterDisplay();
+                this.loadNews();
+            });
+        }
+    }
+    
+    async loadNews() {
+        const newsLoading = document.getElementById('news-loading');
+        const newsList = document.getElementById('news-list');
+        const newsPagination = document.getElementById('news-pagination');
+        const noNewsResults = document.getElementById('no-news-results');
+        
+        try {
+            if (newsLoading) newsLoading.style.display = 'block';
+            if (newsList) newsList.innerHTML = '';
+            if (noNewsResults) noNewsResults.style.display = 'none';
+            
+            // Build API URL with parameters
+            const params = new URLSearchParams({
+                page: this.currentNewsPage,
+                page_size: this.newsPageSize
+            });
+            
+            if (this.newsSearch) {
+                params.append('search', this.newsSearch);
+            }
+            
+            if (this.newsFilters.length > 0) {
+                params.append('tags', this.newsFilters.join(','));
+            }
+            
+            const response = await fetch(`${this.apiBaseUrl}/news?${params}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.news && data.news.length > 0) {
+                this.renderNewsItems(data.news);
+                this.renderNewsPagination(data);
+                this.loadNewsFilters(data.news);
+            } else {
+                if (noNewsResults) noNewsResults.style.display = 'block';
+            }
+            
+        } catch (error) {
+            console.error('Error loading news:', error);
+            if (newsList) {
+                newsList.innerHTML = '<div class="error-message">Error loading news. Please try again later.</div>';
+            }
+        } finally {
+            if (newsLoading) newsLoading.style.display = 'none';
+        }
+    }
+    
+    renderNewsItems(newsItems) {
+        const newsList = document.getElementById('news-list');
+        if (!newsList) return;
+        
+        newsList.innerHTML = '';
+        
+        newsItems.forEach(item => {
+            const newsItemEl = document.createElement('div');
+            newsItemEl.className = 'news-item';
+            
+            // Format date
+            const publishedDate = new Date(item.publishedDate);
+            const formattedDate = publishedDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            
+            // Format time ago
+            const timeAgo = this.getTimeAgo(publishedDate);
+            
+            newsItemEl.innerHTML = `
+                <div class="news-item-header">
+                    <h3 class="news-item-title">
+                        <a href="${item.sourceUrl}" target="_blank" rel="noopener noreferrer">
+                            ${this.escapeHtml(item.title)}
+                        </a>
+                    </h3>
+                </div>
+                <div class="news-item-meta">
+                    <span class="news-item-source">${this.escapeHtml(item.source)}</span>
+                    <span class="news-item-date" title="${publishedDate.toLocaleString()}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12,6 12,12 16,14"></polyline>
+                        </svg>
+                        ${timeAgo}
+                    </span>
+                    ${item.author ? `<span class="news-item-author">by ${this.escapeHtml(item.author)}</span>` : ''}
+                </div>
+                <p class="news-item-summary">${this.escapeHtml(item.summary)}</p>
+                <div class="news-item-tags">
+                    ${item.tags.map(tag => 
+                        `<span class="news-tag" onclick="window.chatApp.addNewsFilter('${this.escapeHtml(tag)}')">${this.escapeHtml(tag)}</span>`
+                    ).join('')}
+                </div>
+            `;
+            
+            newsList.appendChild(newsItemEl);
+        });
+    }
+    
+    renderNewsPagination(data) {
+        const newsPagination = document.getElementById('news-pagination');
+        if (!newsPagination || data.pages <= 1) {
+            if (newsPagination) newsPagination.innerHTML = '';
+            return;
+        }
+        
+        let paginationHTML = '<div class="pagination-info">';
+        paginationHTML += `Showing ${Math.min((data.page - 1) * data.page_size + 1, data.total)}-${Math.min(data.page * data.page_size, data.total)} of ${data.total} articles`;
+        paginationHTML += '</div><div class="pagination-controls">';
+        
+        // Previous button
+        if (data.page > 1) {
+            paginationHTML += `<button class="pagination-btn" onclick="window.chatApp.goToNewsPage(${data.page - 1})">Previous</button>`;
+        }
+        
+        // Page numbers
+        const startPage = Math.max(1, data.page - 2);
+        const endPage = Math.min(data.pages, data.page + 2);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === data.page;
+            paginationHTML += `<button class="pagination-btn ${isActive ? 'active' : ''}" onclick="window.chatApp.goToNewsPage(${i})">${i}</button>`;
+        }
+        
+        // Next button
+        if (data.page < data.pages) {
+            paginationHTML += `<button class="pagination-btn" onclick="window.chatApp.goToNewsPage(${data.page + 1})">Next</button>`;
+        }
+        
+        paginationHTML += '</div>';
+        newsPagination.innerHTML = paginationHTML;
+    }
+    
+    loadNewsFilters(newsItems) {
+        const newsTagFilters = document.getElementById('news-tag-filters');
+        if (!newsTagFilters) return;
+        
+        // Extract unique tags from current news items
+        const allTags = new Set();
+        newsItems.forEach(item => {
+            item.tags.forEach(tag => allTags.add(tag));
+        });
+        
+        // Render filter tags
+        newsTagFilters.innerHTML = '';
+        Array.from(allTags).sort().forEach(tag => {
+            const filterEl = document.createElement('span');
+            filterEl.className = 'news-tag-filter';
+            filterEl.textContent = tag;
+            filterEl.addEventListener('click', () => this.toggleNewsFilter(tag));
+            
+            if (this.newsFilters.includes(tag)) {
+                filterEl.classList.add('active');
+            }
+            
+            newsTagFilters.appendChild(filterEl);
+        });
+    }
+    
+    toggleNewsFilter(tag) {
+        const index = this.newsFilters.indexOf(tag);
+        if (index > -1) {
+            this.newsFilters.splice(index, 1);
+        } else {
+            this.newsFilters.push(tag);
+        }
+        
+        this.currentNewsPage = 1;
+        this.updateNewsFilterDisplay();
+        this.loadNews();
+    }
+    
+    addNewsFilter(tag) {
+        if (!this.newsFilters.includes(tag)) {
+            this.newsFilters.push(tag);
+            this.currentNewsPage = 1;
+            this.updateNewsFilterDisplay();
+            this.loadNews();
+        }
+    }
+    
+    updateNewsFilterDisplay() {
+        const newsTagFilters = document.getElementById('news-tag-filters');
+        if (!newsTagFilters) return;
+        
+        const filterElements = newsTagFilters.querySelectorAll('.news-tag-filter');
+        filterElements.forEach(el => {
+            el.classList.toggle('active', this.newsFilters.includes(el.textContent));
+        });
+    }
+    
+    goToNewsPage(page) {
+        this.currentNewsPage = page;
+        this.loadNews();
+        
+        // Scroll to top of news section
+        const newsSection = document.getElementById('news-section');
+        if (newsSection) {
+            newsSection.scrollTop = 0;
+        }
+    }
+    
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) {
+            return 'Just now';
+        } else if (diffInSeconds < 3600) {
+            const minutes = Math.floor(diffInSeconds / 60);
+            return `${minutes}m ago`;
+        } else if (diffInSeconds < 86400) {
+            const hours = Math.floor(diffInSeconds / 3600);
+            return `${hours}h ago`;
+        } else if (diffInSeconds < 2592000) {
+            const days = Math.floor(diffInSeconds / 86400);
+            return `${days}d ago`;
+        } else {
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
 
     initializePrivacyNotice() {
         const privacyNotice = document.getElementById('privacy-notice');
@@ -1225,6 +1560,8 @@ class AppManager {
         
         if (initialTab === 'samples') {
             this.switchTab('samples');
+        } else if (initialTab === 'news') {
+            this.switchTab('news');
         }
         
         // Handle back/forward navigation

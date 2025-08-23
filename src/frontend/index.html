@@ -50,6 +50,16 @@
                     </svg>
                     <span class="sidebar-text">Sample Gallery</span>
                 </button>
+                
+                <button id="news-tab" class="sidebar-item nav-item" data-tab="news" aria-label="Latest News">
+                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2z"></path>
+                        <path d="M6 12h8"></path>
+                        <path d="M6 16h6"></path>
+                        <path d="M6 8h8"></path>
+                    </svg>
+                    <span class="sidebar-text">Latest News</span>
+                </button>
             </nav>
         </aside>
 
@@ -171,6 +181,67 @@
             <div id="pagination" class="pagination">
                 <!-- Pagination controls will be populated here -->
             </div>
+            </main>
+
+            <!-- News Section -->
+            <main id="news-section" class="news-container" style="display: none;">
+                <div class="news-header">
+                    <h2>Latest .NET AI News</h2>
+                    <div class="news-controls">
+                        <div class="search-container">
+                            <input type="text" id="news-search" class="news-search" placeholder="Search news articles..." aria-label="Search news">
+                            <button id="clear-news-search-btn" class="clear-search-btn" aria-label="Clear search" style="display: none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button id="news-search-btn" class="search-btn" aria-label="Search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="rss-container">
+                            <a href="/api/news/rss" class="rss-link" title="RSS Feed" aria-label="RSS Feed">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 11a9 9 0 0 1 9 9"></path>
+                                    <path d="M4 4a16 16 0 0 1 16 16"></path>
+                                    <circle cx="5" cy="19" r="1"></circle>
+                                </svg>
+                                RSS Feed
+                            </a>
+                        </div>
+                        <div class="news-filters-container">
+                            <button id="news-filters-toggle" class="filters-btn">Filters</button>
+                            <div id="news-filters-panel" class="filters-panel" style="display: none;">
+                                <div id="news-tag-filters" class="tag-filters">
+                                    <!-- Tag filters will be populated dynamically -->
+                                </div>
+                                <button id="clear-news-filters" class="clear-filters-btn">Clear All</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="news-loading" class="loading-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading news...</p>
+                </div>
+
+                <div id="news-list" class="news-list">
+                    <!-- News items will be populated here -->
+                </div>
+
+                <div id="news-pagination" class="pagination">
+                    <!-- Pagination will be populated here -->
+                </div>
+
+                <div id="no-news-results" class="no-results" style="display: none;">
+                    <h3>No news articles found</h3>
+                    <p>Try adjusting your search or filters.</p>
+                </div>
             </main>
         </div>
     </div>

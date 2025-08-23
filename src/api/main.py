@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import List, Dict, Any, AsyncGenerator, Optional
 import json
@@ -109,6 +109,24 @@ class TelemetryEvent(BaseModel):
     data: Dict[str, Any]
     timestamp: Optional[str] = None
     user_consent: bool = True
+
+# News-related models
+class NewsItem(BaseModel):
+    id: str
+    title: str
+    summary: str
+    sourceUrl: str
+    publishedDate: str
+    author: Optional[str] = None
+    source: str
+    tags: List[str]
+
+class NewsResponse(BaseModel):
+    news: List[NewsItem]
+    total: int
+    page: int
+    pages: int
+    page_size: int
 
 def generate_embedding(text: str) -> List[float]:
     """
@@ -597,6 +615,207 @@ async def get_available_tags():
         except Exception as e:
             logger.error(f"Error in get_available_tags: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/news", response_model=NewsResponse)
+async def get_news(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Number of news items per page"),
+    search: Optional[str] = Query(None, description="Search query"),
+    tags: Optional[str] = Query(None, description="Comma-separated list of tags to filter by")
+):
+    """
+    Get latest news articles with pagination, search, and filtering.
+    """
+    try:
+        with tracer.start_as_current_span("get_news") as span:
+            span.set_attribute("page", page)
+            span.set_attribute("page_size", page_size)
+            
+            # Get database configuration
+            mongodb_uri = os.getenv("MONGODB_URI")
+            database_name = os.getenv("DATABASE_NAME")
+            
+            if not mongodb_uri or not database_name:
+                raise HTTPException(status_code=500, detail="Database not configured")
+            
+            mongoClient = MongoClient(mongodb_uri)
+            db = mongoClient[database_name]
+            documents_collection = db["documents"]
+            
+            # Build query - only include documents with summaries (news items)
+            query = {"summary": {"$exists": True, "$ne": None, "$ne": ""}}
+            
+            # Add tag filtering
+            if tags:
+                tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                if tag_list:
+                    query["tags"] = {"$in": tag_list}
+            
+            # Add search functionality
+            if search:
+                search_regex = {"$regex": search, "$options": "i"}
+                query["$or"] = [
+                    {"title": search_regex},
+                    {"summary": search_regex},
+                    {"rss_author": search_regex},
+                    {"tags": search_regex}
+                ]
+            
+            # Count total documents
+            total = documents_collection.count_documents(query)
+            
+            # Calculate pagination
+            skip = (page - 1) * page_size
+            pages = (total + page_size - 1) // page_size
+            
+            # Get news items, sorted by newest first
+            cursor = documents_collection.find(query).sort([
+                ("rss_published_date", -1),  # Try RSS published date first
+                ("createdDate", -1),         # Fallback to created date
+                ("_id", -1)                  # Final fallback to ObjectId (insertion order)
+            ]).skip(skip).limit(page_size)
+            
+            news_data = list(cursor)
+            
+            # Convert MongoDB documents to NewsItem models
+            news_items = []
+            for doc in news_data:
+                # Determine published date
+                published_date = None
+                if doc.get("rss_published_date"):
+                    try:
+                        # Parse ISO format date
+                        from datetime import datetime
+                        published_date = doc["rss_published_date"]
+                        if isinstance(published_date, str):
+                            published_date = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                        published_date = published_date.isoformat()
+                    except:
+                        published_date = doc.get("rss_published_date", "")
+                elif doc.get("createdDate"):
+                    try:
+                        created_date = doc["createdDate"]
+                        if isinstance(created_date, str):
+                            created_date = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
+                        published_date = created_date.isoformat()
+                    except:
+                        published_date = doc.get("createdDate", "")
+                else:
+                    published_date = datetime.now().isoformat()
+                
+                # Extract source name from URL
+                source_url = doc.get("sourceUrl", "")
+                source_name = ""
+                if source_url:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(source_url)
+                    source_name = parsed.netloc or "Unknown Source"
+                
+                news_item = NewsItem(
+                    id=doc.get("documentId", str(doc.get("_id", ""))),
+                    title=doc.get("title", ""),
+                    summary=doc.get("summary", ""),
+                    sourceUrl=source_url,
+                    publishedDate=published_date,
+                    author=doc.get("rss_author"),
+                    source=source_name,
+                    tags=doc.get("tags", [])
+                )
+                news_items.append(news_item)
+            
+            response = NewsResponse(
+                news=news_items,
+                total=total,
+                page=page,
+                pages=pages,
+                page_size=page_size
+            )
+            
+            logger.info(f"Retrieved {len(news_items)} news items (page {page}/{pages})")
+            return response
+            
+    except Exception as e:
+        logger.error(f"Error in get_news: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/news/rss")
+async def get_news_rss():
+    """
+    Get latest news articles as RSS feed.
+    """
+    try:
+        # Get database configuration
+        mongodb_uri = os.getenv("MONGODB_URI")
+        database_name = os.getenv("DATABASE_NAME")
+        
+        if not mongodb_uri or not database_name:
+            raise HTTPException(status_code=500, detail="Database not configured")
+        
+        mongoClient = MongoClient(mongodb_uri)
+        db = mongoClient[database_name]
+        documents_collection = db["documents"]
+        
+        # Get latest 50 news items
+        query = {"summary": {"$exists": True, "$ne": None, "$ne": ""}}
+        cursor = documents_collection.find(query).sort([
+            ("rss_published_date", -1),
+            ("createdDate", -1),
+            ("_id", -1)
+        ]).limit(50)
+        
+        news_data = list(cursor)
+        
+        # Generate RSS XML
+        from datetime import datetime
+        now = datetime.now()
+        
+        rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>C# AI Buddy - Latest .NET AI News</title>
+        <link>https://csharp-ai-buddy.com</link>
+        <description>Latest .NET AI development news and articles</description>
+        <language>en-us</language>
+        <lastBuildDate>{now.strftime('%a, %d %b %Y %H:%M:%S')} GMT</lastBuildDate>
+"""
+        
+        for doc in news_data:
+            title = doc.get("title", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            summary = doc.get("summary", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            source_url = doc.get("sourceUrl", "")
+            
+            # Format published date for RSS
+            pub_date = ""
+            if doc.get("rss_published_date"):
+                try:
+                    if isinstance(doc["rss_published_date"], str):
+                        pub_date_obj = datetime.fromisoformat(doc["rss_published_date"].replace('Z', '+00:00'))
+                    else:
+                        pub_date_obj = doc["rss_published_date"]
+                    pub_date = pub_date_obj.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                except:
+                    pub_date = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
+            else:
+                pub_date = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
+            
+            rss_xml += f"""
+        <item>
+            <title>{title}</title>
+            <link>{source_url}</link>
+            <description>{summary}</description>
+            <pubDate>{pub_date}</pubDate>
+            <guid>{source_url}</guid>
+        </item>"""
+        
+        rss_xml += """
+    </channel>
+</rss>"""
+        
+        return Response(content=rss_xml, media_type="application/rss+xml")
+        
+    except Exception as e:
+        logger.error(f"Error in get_news_rss: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):

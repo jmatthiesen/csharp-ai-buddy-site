@@ -19,6 +19,9 @@ class Document:
     title: str
     content: str
     sourceUrl: str
+    
+    # Summary for news display (140 characters max)
+    summary: Optional[str] = None
         
     # Vector embeddings for similarity search
     embeddings: Optional[List[float]] = None
