@@ -191,7 +191,6 @@ class RAGDataPipelineCLI:
         """Clean up old documents from previous architecture."""
         return self.pipeline.cleanup_old_documents()
 
-
 def main():
     """Main function for command-line interface."""
     parser = argparse.ArgumentParser(description="RAG Data Ingestion Pipeline CLI")

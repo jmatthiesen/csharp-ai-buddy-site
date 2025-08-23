@@ -151,6 +151,7 @@ class WebPageRetriever:
         except Exception as e:
             logger.error(f"Error fetching content from URL {url}: {e}")
             # Return empty document on error
+
             return RawDocument(
                 content="",
                 source_url=url,

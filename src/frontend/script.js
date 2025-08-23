@@ -521,6 +521,7 @@ class ChatApp {
     generateFollowUpSuggestions(assistantResponse) {
         // Simple follow-up suggestion generation based on response content
         const suggestions = [];
+
         if (assistantResponse.toLowerCase().includes('class')) {
             suggestions.push('Can you show me an example?');
             suggestions.push('What about inheritance?');

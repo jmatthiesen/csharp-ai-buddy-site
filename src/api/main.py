@@ -51,7 +51,7 @@ app = FastAPI(
     description="Backend API for C# AI Buddy chat interface and samples gallery",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url="/redoc"
 )
 
 # Instrument FastAPI with OpenTelemetry
@@ -123,17 +123,16 @@ def generate_embedding(text: str) -> List[float]:
     try:
         logger.debug(f"Generating embedding for text of length: {len(text)}")
         client = OpenAI()
-
+     
         response = client.embeddings.create(
-            input=text, model="text-embedding-3-small"  # Specify the embedding model
+            input=text,
+            model="text-embedding-3-small"  # Specify the embedding model
         )
-
+        
         embedding = response.data[0].embedding
-        logger.debug(
-            f"Successfully generated embedding with {len(embedding)} dimensions"
-        )
+        logger.debug(f"Successfully generated embedding with {len(embedding)} dimensions")
         return embedding
-
+        
     except Exception as e:
         logger.error(f"Error generating embedding: {str(e)}", exc_info=True)
         raise
@@ -162,11 +161,11 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
         # Check environment variables
         mongodb_uri = os.getenv("MONGODB_URI")
         database_name = os.getenv("DATABASE_NAME")
-
+        
         if not mongodb_uri:
             logger.error("MONGODB_URI environment variable is not set")
             raise ValueError("MongoDB URI is not configured")
-
+            
         if not database_name:
             logger.error("DATABASE_NAME environment variable is not set")
             raise ValueError("Database name is not configured")
@@ -187,10 +186,10 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
                 # Use vector search to find similar documents
                 "$vectorSearch": {
                     "index": "vector_index",  # Name of the vector index
-                    "path": "embeddings",  # Field containing the embeddings
+                    "path": "embeddings",       # Field containing the embeddings
                     "queryVector": query_embedding,  # The query embedding to compare against
-                    "numCandidates": 150,  # Consider 150 candidates (wider search)
-                    "limit": 5,  # Return only top 5 matches
+                    "numCandidates": 150,      # Consider 150 candidates (wider search)
+                    "limit": 5,                # Return only top 5 matches
                 }
             },
             {
@@ -206,13 +205,13 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
                 }
             },
         ]
-
         logger.debug("Executing vector search pipeline")
         results = collection.aggregate(pipeline)
 
         # Process results
         documents = list(results)
         logger.info(f"Found {len(documents)} relevant documents")
+       
         if not documents:
             logger.warning("No documents found for the query")
             return "No relevant documents found for your query."
@@ -242,7 +241,7 @@ async def build_mcp_servers() -> List[MCPServerStreamableHttp]:
             name="Microsoft Learn Docs MCP Server",
             params={
                 "url": "https://learn.microsoft.com/api/mcp",
-            },
+            }
         )
     ]
     await asyncio.gather(*(server.connect() for server in servers))
@@ -308,7 +307,6 @@ async def get_agent(filters: Optional[AIFilters] = None) -> Agent:
         ],
         mcp_servers=mcp_servers
     )
-
     return agent
 
 async def generate_streaming_response(
@@ -338,17 +336,15 @@ async def generate_streaming_response(
         # Stream the response events
         async for event in result.stream_events():
             try:
-                if event.type == "raw_response_event" and isinstance(
-                    event.data, ResponseTextDeltaEvent
-                ):
+                if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                     # Stream text deltas as they come from the LLM
-                    if hasattr(event.data, "delta") and event.data.delta:
-                        json_response = (
-                            json.dumps({"type": "content", "content": event.data.delta})
-                            + "\n"
-                        )
+                    if hasattr(event.data, 'delta') and event.data.delta:
+                        json_response = json.dumps({
+                            "type": "content",
+                            "content": event.data.delta
+                        }) + "\n"
                         yield json_response
-
+                        
                 elif event.type == "run_item_stream_event":
                     # Handle completed items (messages, tool calls, etc.)
                     if event.item.type == "message_output_item":
@@ -357,57 +353,48 @@ async def generate_streaming_response(
                         pass
                     elif event.item.type == "tool_call_item":
                         # Optionally notify about tool usage
-                        json_response = (
-                            json.dumps({"type": "tool_call", "content": f"Tool called"})
-                            + "\n"
-                        )
+                        json_response = json.dumps({
+                            "type": "tool_call",
+                            "content": f"Tool called"
+                        }) + "\n"
                         yield json_response
                     elif event.item.type == "tool_call_output_item":
                         # Optionally show tool output
-                        json_response = (
-                            json.dumps(
-                                {
-                                    "type": "tool output",
-                                    "content": f"Tool called {event.item.output}",
-                                }
-                            )
-                            + "\n"
-                        )
+                        json_response = json.dumps({
+                            "type": "tool output",
+                            "content": f"Tool called {event.item.output}"
+                        }) + "\n"
                         yield json_response
 
             except Exception as e:
                 logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
                 # Continue processing other events
                 continue
-
+        
         # Send completion signal
-        completion_response = (
-            json.dumps({"type": "complete", "timestamp": datetime.utcnow().isoformat()})
-            + "\n"
-        )
+        completion_response = json.dumps({
+            "type": "complete",
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
         yield completion_response
-
+        
     except Exception as e:
         logger.error(f"Error in generate_streaming_response: {str(e)}", exc_info=True)
         # Send error response
-        error_response = (
-            json.dumps(
-                {
-                    "type": "error",
-                    "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
-            )
-            + "\n"
-        )
+        error_response = json.dumps({
+            "type": "error",
+            "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
         yield error_response
-
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint for monitoring."""
     return HealthResponse(
-        status="healthy", timestamp=datetime.utcnow().isoformat(), version="1.0.0"
+        status="healthy",
+        timestamp=datetime.utcnow().isoformat(),
+        version="1.0.0"
     )
 
 @app.get("/api/samples", response_model=SamplesResponse)
@@ -646,10 +633,9 @@ async def chat_endpoint(request: ChatRequest):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering
-            },
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
         )
-
     except HTTPException:
         raise
     except Exception as e:
@@ -669,7 +655,6 @@ async def root():
         "telemetry": "/api/telemetry"
     }
 
-
 if __name__ == "__main__":
     import uvicorn
 
@@ -681,5 +666,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=False,  # Disable in production
-        log_level="info",
+        log_level="info"
     )
