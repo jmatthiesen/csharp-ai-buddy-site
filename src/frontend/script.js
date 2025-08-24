@@ -712,7 +712,7 @@ class ChatApp {
                 params.append('search', this.newsSearchQuery);
             }
             
-            const response = await fetch(`${this.apiBaseUrl}/api/news?${params}`);
+            const response = await fetch(`${this.apiBaseUrl}/news?${params}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -1420,7 +1420,7 @@ class SamplesGallery {
                 params.append('search', this.newsSearchQuery);
             }
             
-            const response = await fetch(`${this.apiBaseUrl}/api/news?${params}`);
+            const response = await fetch(`${this.apiBaseUrl}/news?${params}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

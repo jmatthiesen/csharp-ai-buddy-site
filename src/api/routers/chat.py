@@ -16,12 +16,13 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @function_tool
-async def search_knowledge_base(user_query: str) -> str:
+async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = None) -> str:
     """
     Retrieve relevant documents for a user query using vector search.
 
     Args:
         user_query (str): The user's query.
+        filters (AIFilters, optional): Object containing filter options like dotnetVersion, aiLibrary, etc.
 
     Returns:
         str: The retrieved documents as a string.
@@ -30,15 +31,19 @@ async def search_knowledge_base(user_query: str) -> str:
         logger.info(
             f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'"
         )
-
+        
+        # Use filters directly if provided
+        if filters:
+            logger.info(f"Using filters: {filters}")
+        
         # Check environment variables
         mongodb_uri = os.getenv("MONGODB_URI")
         database_name = os.getenv("DATABASE_NAME")
-
+        
         if not mongodb_uri:
             logger.error("MONGODB_URI environment variable is not set")
             raise ValueError("MongoDB URI is not configured")
-
+            
         if not database_name:
             logger.error("DATABASE_NAME environment variable is not set")
             raise ValueError("Database name is not configured")
@@ -59,10 +64,10 @@ async def search_knowledge_base(user_query: str) -> str:
                 # Use vector search to find similar documents
                 "$vectorSearch": {
                     "index": "vector_index",  # Name of the vector index
-                    "path": "embeddings",  # Field containing the embeddings
+                    "path": "embeddings",       # Field containing the embeddings
                     "queryVector": query_embedding,  # The query embedding to compare against
-                    "numCandidates": 150,  # Consider 150 candidates (wider search)
-                    "limit": 5,  # Return only top 5 matches
+                    "numCandidates": 150,      # Consider 150 candidates (wider search)
+                    "limit": 5,                # Return only top 5 matches
                 }
             },
             {
@@ -78,14 +83,13 @@ async def search_knowledge_base(user_query: str) -> str:
                 }
             },
         ]
-
         logger.debug("Executing vector search pipeline")
         results = collection.aggregate(pipeline)
 
         # Process results
         documents = list(results)
         logger.info(f"Found {len(documents)} relevant documents")
-
+       
         if not documents:
             logger.warning("No documents found for the query")
             return "No relevant documents found for your query."
