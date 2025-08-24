@@ -1,0 +1,336 @@
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+from typing import List, AsyncGenerator, Optional
+import os
+import logging
+from datetime import datetime
+import json
+
+from models import ChatRequest, Message, AIFilters
+from agents import Agent, Runner, function_tool, WebSearchTool
+from agents.mcp import MCPServerStreamableHttp
+from openai.types.responses import ResponseTextDeltaEvent
+from nuget_search import search_nuget_packages, get_nuget_package_details
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+@function_tool
+async def search_knowledge_base(user_query: str) -> str:
+    """
+    Retrieve relevant documents for a user query using vector search.
+
+    Args:
+        user_query (str): The user's query.
+
+    Returns:
+        str: The retrieved documents as a string.
+    """
+    try:
+        logger.info(
+            f"Searching knowledge base for query: '{user_query[:50]}{'...' if len(user_query) > 50 else ''}'"
+        )
+
+        # Check environment variables
+        mongodb_uri = os.getenv("MONGODB_URI")
+        database_name = os.getenv("DATABASE_NAME")
+
+        if not mongodb_uri:
+            logger.error("MONGODB_URI environment variable is not set")
+            raise ValueError("MongoDB URI is not configured")
+
+        if not database_name:
+            logger.error("DATABASE_NAME environment variable is not set")
+            raise ValueError("Database name is not configured")
+
+        # Connect to MongoDB
+        logger.debug("Connecting to MongoDB")
+        mongoClient = MongoClient(mongodb_uri)
+        db = mongoClient[database_name]
+        collection = db["documents"]
+
+        # Generate embedding for the query
+        logger.debug("Generating embedding for user query")
+        query_embedding = generate_embedding(user_query)
+
+        # Prepare vector search pipeline
+        pipeline = [
+            {
+                # Use vector search to find similar documents
+                "$vectorSearch": {
+                    "index": "vector_index",  # Name of the vector index
+                    "path": "embeddings",  # Field containing the embeddings
+                    "queryVector": query_embedding,  # The query embedding to compare against
+                    "numCandidates": 150,  # Consider 150 candidates (wider search)
+                    "limit": 5,  # Return only top 5 matches
+                }
+            },
+            {
+                # Project only the fields we need
+                "$project": {
+                    "_id": 0,  # Exclude document ID
+                    "documentId": 1,
+                    "title": 1,
+                    "markdownContent": 1,  # Include the document body
+                    "score": {
+                        "$meta": "vectorSearchScore"
+                    },  # Include the similarity score
+                }
+            },
+        ]
+
+        logger.debug("Executing vector search pipeline")
+        results = collection.aggregate(pipeline)
+
+        # Process results
+        documents = list(results)
+        logger.info(f"Found {len(documents)} relevant documents")
+
+        if not documents:
+            logger.warning("No documents found for the query")
+            return "No relevant documents found for your query."
+
+        # Log search scores for debugging
+        for i, doc in enumerate(documents):
+            score = doc.get("score", "N/A")
+            title = doc.get("title", "Untitled")
+            logger.debug(f"Document {i+1}: '{title}' (score: {score})")
+
+        context = "\n\n".join(
+            [f"{doc.get('title')}\n{doc.get('markdownContent')}" for doc in documents]
+        )
+
+        logger.info(
+            f"Successfully retrieved {len(documents)} documents, total context length: {len(context)} characters"
+        )
+        return context
+
+    except Exception as e:
+        logger.error(f"Error in search_knowledge_base: {str(e)}", exc_info=True)
+        return f"Sorry, I encountered an error while searching the knowledge base: {str(e)}"
+
+async def get_agent(mcp_servers: List[MCPServerStreamableHttp], 
+                    filters: Optional[AIFilters] = None) -> Agent:
+
+    # mcp_servers = await build_mcp_servers()
+    
+    # Build context-aware instructions based on filters
+    base_instructions = """
+You are a C#/.NET development expert with deep knowledge about building AI-based applications using .NET 8 and later. When asked questions about how to build applications using AI, you give up to date guidance about official SDKs and documentation. You prioritize Microsoft documentation and blog posts.
+
+Tools available to use:
+* microsoft_docs_search: Use this when searching microsoft documentation 
+* search_knowledge_base: Search the knowledge base for relevant documents
+
+# System Instructions
+* Always start searches with Microsoft documentation
+* Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
+* When asked about AI topics, you prioritize generative AI topics unless asked specifically about machine learning.
+* Answer questions succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details.
+* Default to start discussions using the Microsoft.Extensions.AI library unless another library is mentioned.
+* When providing code examples, focus on the minimal implementation needed. For example, do not include dependency injection examples unless asked for it.
+* Provide answers that do not require cloud providers (Azure, Amazon Bedrock, Google Cloud, or others) unless specifically asked for it.
+* Cite sources as [Document Title](URL)
+* If you're asked to create a complex application, respond saying that you don't yet support that and recommend using a coding assistant, don't attempt to answer the question.
+"""
+#         instructions="""You are an AI assistant specialized in helping developers learn and implement AI solutions using C# and .NET. Your expertise includes:
+
+# **Core Responsibilities:**
+# - Guide developers through AI/ML concepts using .NET frameworks (ML.NET, Semantic Kernel, Azure AI services)
+# - Translate Python AI examples and tutorials into equivalent C#/.NET code
+# - Provide practical, working code examples with proper error handling and security best practices
+# - Explain AI concepts in the context of .NET development patterns and conventions
+# - Create and test .NET sample code in a sandboxed environment to verify code works
+
+# **Available Tools:**
+# - search_knowledge_base: Search Microsoft documentation and knowledge base
+# - search_nuget_packages: Search for NuGet packages
+# - get_nuget_package_details: Get detailed information about NuGet packages
+# - execute_dotnet_command: Execute .NET CLI commands and bash commands in a sandbox
+# - create_csharp_file: Create C# source files in the sandbox
+# - read_sandbox_file: Read files from the sandbox environment
+# - list_sandbox_directory: List directory contents in the sandbox
+
+# **When answering questions:**
+# 1. Always start by searching Microsoft documentation, starting with the learn.microsoft.com/*/dotnet/ai content
+# 2. Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
+# 3. If providing code examples, use the sandbox tools to create and test the code
+# 4. For project creation requests, use the sandbox to create actual working projects
+# 5. When showing code examples, you can verify they compile using the sandbox
+# 6. If no relevant documents are found, answer using a web search tool to find up-to-date information
+# 7. Only answer questions based on the context provided by the above instructions
+# 8. Answer succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details
+# 9. Provide links to relevant content using a markdown format like [link text](url)
+# 10. Format code using the latest C# syntax and .NET best practices, show console code using top-level statements
+
+# Do not make up answers or provide information outside the context of C# and .NET AI development. If you don't know the answer, say "I don't know" or suggest searching the knowledge base or web for more information.
+# """,
+
+    # Add filter-specific context if filters are provided
+    if filters:
+        filter_context = "\n\n**User selected filters:**\n"
+        
+        dotnet_version = filters.dotnetVersion or '.NET 9'
+        ai_library = filters.aiLibrary or 'OpenAI'
+        ai_provider = filters.aiProvider or 'OpenAI'
+        
+        filter_context += f"dotnet_version:{dotnet_version}\n"
+        filter_context += f"ai_library:{ai_library}\n"
+        filter_context += f"ai_provider:{ai_provider}\n"
+        
+        # Check for experimental options
+        experimental_options = []
+        if ".NET Framework" in dotnet_version:
+            experimental_options.append(".NET Framework")
+        if ai_provider in ["Amazon Bedrock", "Google Cloud"]:
+            experimental_options.append(ai_provider)
+            
+        if experimental_options:
+            filter_context += f"\n**Important:** The user has selected experimental options: {', '.join(experimental_options)}. "
+            filter_context += "Include a friendly warning that these options are experimental and results may be less accurate. "
+            filter_context += "Use fun, engaging language like '🧪 Heads up!' or '⚗️ Experimental zone ahead!' when mentioning this.\n"
+        
+        filter_context += f"\nTailor your responses to focus on {ai_library} with {dotnet_version}, "
+        filter_context += f"using {ai_provider} when providing specific examples and code samples.\n"
+        
+        base_instructions += filter_context
+    
+    agent = Agent(
+        name="C# AI Buddy",
+        instructions=base_instructions,
+        tools=[
+            search_knowledge_base,
+            WebSearchTool(search_context_size="medium")
+        ],
+        mcp_servers=mcp_servers
+    )
+    return agent
+
+async def generate_streaming_response(
+    message: str,
+    history: List[Message],
+    filters: Optional[AIFilters] = None
+) -> AsyncGenerator[str, None]:
+    """Generate streaming response using OpenAI agents SDK."""
+
+    try:
+        logger.info(
+            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
+        )
+
+        async with MCPServerStreamableHttp(
+            name="Microsoft Learn Docs MCP Server",
+            params={
+                "url": "https://learn.microsoft.com/api/mcp",
+            },
+        ) as docsserver:
+            # Get the agent instance with filters
+            agent = await get_agent([docsserver], filters)
+
+            # Include history in the input for now, to keep things simple
+            if history:
+                input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+            else:
+                input = f"user: {message}\n"
+
+            # Run the agent with streaming
+            result = Runner.run_streamed(agent, input)
+            
+            # Stream the response events
+            async for event in result.stream_events():
+                try:
+                    if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                        # Stream text deltas as they come from the LLM
+                        if hasattr(event.data, 'delta') and event.data.delta:
+                            json_response = json.dumps({
+                                "type": "content",
+                                "content": event.data.delta
+                            }) + "\n"
+                            yield json_response
+                            
+                    elif event.type == "run_item_stream_event":
+                        # Handle completed items (messages, tool calls, etc.)
+                        if event.item.type == "message_output_item":
+                            # This is a completed message - we can extract the full text if needed
+                            # But we're already streaming deltas above, so this might be redundant
+                            pass
+                        elif event.item.type == "tool_call_item":
+                            # Optionally notify about tool usage
+                            json_response = json.dumps({
+                                "type": "tool_call",
+                                "content": f"Tool called"
+                            }) + "\n"
+                            yield json_response
+                        elif event.item.type == "tool_call_output_item":
+                            # Optionally show tool output
+                            json_response = json.dumps({
+                                "type": "tool output",
+                                "content": f"Tool called {event.item.output}"
+                            }) + "\n"
+                            yield json_response
+
+                except Exception as e:
+                    logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
+                    # Continue processing other events
+                    continue
+            
+            # Send completion signal
+            completion_response = json.dumps({
+                "type": "complete",
+                "timestamp": datetime.utcnow().isoformat()
+            }) + "\n"
+            yield completion_response
+        
+    except Exception as e:
+        logger.error(f"Error in generate_streaming_response: {str(e)}", exc_info=True)
+        # Send error response
+        error_response = json.dumps({
+            "type": "error",
+            "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
+        yield error_response
+
+@router.post("/api/chat")
+async def chat_endpoint(request: ChatRequest):
+    """
+    Chat endpoint that handles streaming responses using OpenAI agents SDK.
+    Expects JSON with 'message' and optional 'history' fields.
+    Returns streaming JSON-L responses.
+    """
+    try:
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+        # Log the request
+        logger.info(
+            f"Received chat request: {request.message[:100]}{'...' if len(request.message) > 100 else ''}"
+        )
+
+        # Validate that required environment variables are set
+        if not os.getenv("MONGODB_URI"):
+            logger.error("MONGODB_URI environment variable is not set")
+            raise HTTPException(
+                status_code=500, detail="Knowledge base is not configured"
+            )
+
+        if not os.getenv("DATABASE_NAME"):
+            logger.error("DATABASE_NAME environment variable is not set")
+            raise HTTPException(
+                status_code=500, detail="Knowledge base is not configured"
+            )
+
+        return StreamingResponse(
+            generate_streaming_response(request.message, request.history, request.filters),
+            media_type="application/x-ndjson",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
