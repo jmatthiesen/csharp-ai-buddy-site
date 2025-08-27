@@ -36,7 +36,7 @@ elif choice == "Add Subscription":
     description = st.text_area("Description")
     tags = st.text_input("Tags (comma separated)")
     if st.button("Add Subscription"):
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        tag_list = [t.strip() for t in (tags or '').split(",") if t.strip()]
         success = monitor.add_subscription(feed_url, name, description, tag_list)
         if success:
             st.success("Subscription added successfully.")
