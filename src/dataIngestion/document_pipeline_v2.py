@@ -45,7 +45,7 @@ class DocumentPipeline:
         # Default chunk size for technical documentation
         self.default_chunk_size = 4000
 
-        # Default chunk size to use for document summaries
+        # Default size to use for summaries, set to 300 to mimic social media posts
         self.default_summary_size = 300
         
         # Initialize source enrichers (order matters - more specific first)
