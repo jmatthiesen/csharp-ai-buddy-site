@@ -44,6 +44,9 @@ class DocumentPipeline:
         
         # Default chunk size for technical documentation
         self.default_chunk_size = 4000
+
+        # Default chunk size to use for document summaries
+        self.default_summary_size = 300
         
         # Initialize source enrichers (order matters - more specific first)
         self.source_enrichers: List[SourceEnricher] = [
@@ -204,7 +207,8 @@ class DocumentPipeline:
     def _stage_summary_creation(self, context: ProcessingContext) -> None:
         """Creates a summary version of the document"""
         try:
-            context.raw_document.summary = self._generate_summary(context.markdown_content, 140)
+            context.raw_document.summary = self._generate_summary(context.markdown_content,
+                                                                  self.default_summary_size)
             context.mark_stage_complete("summary_generation")
         except Exception as e:
             error_msg = f"Error in summary creation: {e}"
@@ -332,11 +336,10 @@ class DocumentPipeline:
             doc = context.raw_document
 
             summary_doc = {
-                "documentId": doc.source_url,
                 "title": doc.title,
                 "summary": doc.summary,
                 "tags": doc.tags,
-                "createdDate": doc.created_date,
+                "publishedDate": doc.created_date,
                 "indexedDate": datetime.now(timezone.utc),
                 "sourceUrl": doc.source_url
             }

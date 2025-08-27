@@ -9,11 +9,41 @@ import json
 from models import ChatRequest, Message, AIFilters
 from agents import Agent, Runner, function_tool, WebSearchTool
 from agents.mcp import MCPServerStreamableHttp
+from openai import OpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 from nuget_search import search_nuget_packages, get_nuget_package_details
+from pymongo import MongoClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+def generate_embedding(text: str) -> List[float]:
+    """
+    Generate embedding for a piece of text.
+
+    Args:
+        text (str): The text to embed.
+
+    Returns:
+        List[float]: The embedding of the text.
+    """
+    try:
+        logger.debug(f"Generating embedding for text of length: {len(text)}")
+        client = OpenAI()
+     
+        response = client.embeddings.create(
+            input=text, model="text-embedding-3-small"  # Specify the embedding model
+        )
+
+        embedding = response.data[0].embedding
+        logger.debug(
+            f"Successfully generated embedding with {len(embedding)} dimensions"
+        )
+        return embedding
+
+    except Exception as e:
+        logger.error(f"Error generating embedding: {str(e)}", exc_info=True)
+        raise
 
 @function_tool
 async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = None) -> str:
@@ -22,7 +52,12 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
 
     Args:
         user_query (str): The user's query.
-        filters (AIFilters, optional): Object containing filter options like dotnetVersion, aiLibrary, etc.
+        filters (AIFilters, optional): Filters used to narrow results, with a schema similar to:
+            {
+            "dotnetVersion": ".NET 9",
+            "aiLibrary": "OpenAI",
+            "aiProvider": "OpenAI"
+            }
 
     Returns:
         str: The retrieved documents as a string.
@@ -52,7 +87,7 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
         logger.debug("Connecting to MongoDB")
         mongoClient = MongoClient(mongodb_uri)
         db = mongoClient[database_name]
-        collection = db["documents"]
+        collection = db["document_chunks"]
 
         # Generate embedding for the query
         logger.debug("Generating embedding for user query")
@@ -74,9 +109,9 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
                 # Project only the fields we need
                 "$project": {
                     "_id": 0,  # Exclude document ID
-                    "documentId": 1,
+                    "source_url": 1,
                     "title": 1,
-                    "markdownContent": 1,  # Include the document body
+                    "content": 1,  # Include the document body
                     "score": {
                         "$meta": "vectorSearchScore"
                     },  # Include the similarity score
@@ -101,7 +136,7 @@ async def search_knowledge_base(user_query: str, filters: Optional[AIFilters] = 
             logger.debug(f"Document {i+1}: '{title}' (score: {score})")
 
         context = "\n\n".join(
-            [f"{doc.get('title')}\n{doc.get('markdownContent')}" for doc in documents]
+            [f"{doc.get('title')}\n{doc.get('source_url')}\n{doc.get('content')}" for doc in documents]
         )
 
         logger.info(
@@ -119,83 +154,66 @@ async def get_agent(mcp_servers: List[MCPServerStreamableHttp],
     # mcp_servers = await build_mcp_servers()
     
     # Build context-aware instructions based on filters
-    base_instructions = """
-You are a C#/.NET development expert with deep knowledge about building AI-based applications using .NET 8 and later. When asked questions about how to build applications using AI, you give up to date guidance about official SDKs and documentation. You prioritize Microsoft documentation and blog posts.
+#     base_instructions = """
+# You are a C#/.NET development expert with deep knowledge about building AI-based applications using .NET 8 and later. When asked questions about how to build applications using AI, you give up to date guidance about official SDKs and documentation. You prioritize Microsoft documentation and blog posts.
 
-Tools available to use:
-* microsoft_docs_search: Use this when searching microsoft documentation 
-* search_knowledge_base: Search the knowledge base for relevant documents
+# # Available Tools
+# * microsoft_docs_search: Use this when searching microsoft documentation 
+# * search_knowledge_base: Search the knowledge base for relevant documents
 
-# System Instructions
-* Always start searches with Microsoft documentation
-* Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
-* When asked about AI topics, you prioritize generative AI topics unless asked specifically about machine learning.
-* Answer questions succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details.
-* Default to start discussions using the Microsoft.Extensions.AI library unless another library is mentioned.
-* When providing code examples, focus on the minimal implementation needed. For example, do not include dependency injection examples unless asked for it.
-* Provide answers that do not require cloud providers (Azure, Amazon Bedrock, Google Cloud, or others) unless specifically asked for it.
-* Cite sources as [Document Title](URL)
-* If you're asked to create a complex application, respond saying that you don't yet support that and recommend using a coding assistant, don't attempt to answer the question.
+# # System Instructions
+# * Always start searches with Microsoft documentation
+# * Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
+# * When asked about AI topics, you prioritize generative AI topics unless asked specifically about machine learning.
+# * Answer questions succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details.
+# * Default to start discussions using the Microsoft.Extensions.AI library unless another library is mentioned.
+# * When providing code examples, focus on the minimal implementation needed. For example, do not include dependency injection examples unless asked for it.
+# * Provide answers that do not require cloud providers (Azure, Amazon Bedrock, Google Cloud, or others) unless specifically asked for it.
+# * Cite sources as [Document Title](URL)
+# * If you're asked to create a complex application, respond saying that you don't yet support that and recommend using a coding assistant, don't attempt to answer the question.
+# """
+    base_instructions="""You are an AI assistant specialized in helping developers learn and implement AI solutions using C# and .NET. Your expertise includes:
+
+**Core Responsibilities:**
+- Guide developers through AI/ML concepts using .NET frameworks (ML.NET, Semantic Kernel, Azure AI services)
+- Translate Python AI examples and tutorials into equivalent C#/.NET code
+- Provide practical, working code examples with proper error handling and security best practices
+- Explain AI concepts in the context of .NET development patterns and conventions
+- Create and test .NET sample code in a sandboxed environment to verify code works
+
+**Available Tools:**
+- search_knowledge_base: Search Microsoft documentation and knowledge base
+- search_nuget_packages: Search for NuGet packages
+- get_nuget_package_details: Get detailed information about NuGet packages
+- execute_dotnet_command: Execute .NET CLI commands and bash commands in a sandbox
+- create_csharp_file: Create C# source files in the sandbox
+- read_sandbox_file: Read files from the sandbox environment
+- list_sandbox_directory: List directory contents in the sandbox
+
+**When answering questions:**
+1. Always start by searching Microsoft documentation, starting with the learn.microsoft.com/*/dotnet/ai content
+2. Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
+3. If providing code examples, use the sandbox tools to create and test the code
+4. For project creation requests, use the sandbox to create actual working projects
+5. When showing code examples, you can verify they compile using the sandbox
+6. If no relevant documents are found, answer using a web search tool to find up-to-date information
+7. Only answer questions based on the context provided by the above instructions
+8. Answer succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details
+9. Provide links to relevant content using a markdown format like [link text](url)
+10. Format code using the latest C# syntax and .NET best practices, show console code using top-level statements
+
+Do not make up answers or provide information outside the context of C# and .NET AI development. If you don't know the answer, say "I don't know" or suggest searching the knowledge base or web for more information.
 """
-#         instructions="""You are an AI assistant specialized in helping developers learn and implement AI solutions using C# and .NET. Your expertise includes:
-
-# **Core Responsibilities:**
-# - Guide developers through AI/ML concepts using .NET frameworks (ML.NET, Semantic Kernel, Azure AI services)
-# - Translate Python AI examples and tutorials into equivalent C#/.NET code
-# - Provide practical, working code examples with proper error handling and security best practices
-# - Explain AI concepts in the context of .NET development patterns and conventions
-# - Create and test .NET sample code in a sandboxed environment to verify code works
-
-# **Available Tools:**
-# - search_knowledge_base: Search Microsoft documentation and knowledge base
-# - search_nuget_packages: Search for NuGet packages
-# - get_nuget_package_details: Get detailed information about NuGet packages
-# - execute_dotnet_command: Execute .NET CLI commands and bash commands in a sandbox
-# - create_csharp_file: Create C# source files in the sandbox
-# - read_sandbox_file: Read files from the sandbox environment
-# - list_sandbox_directory: List directory contents in the sandbox
-
-# **When answering questions:**
-# 1. Always start by searching Microsoft documentation, starting with the learn.microsoft.com/*/dotnet/ai content
-# 2. Always search the knowledge base for relevant documents, prioritizing content from microsoft.com urls
-# 3. If providing code examples, use the sandbox tools to create and test the code
-# 4. For project creation requests, use the sandbox to create actual working projects
-# 5. When showing code examples, you can verify they compile using the sandbox
-# 6. If no relevant documents are found, answer using a web search tool to find up-to-date information
-# 7. Only answer questions based on the context provided by the above instructions
-# 8. Answer succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details
-# 9. Provide links to relevant content using a markdown format like [link text](url)
-# 10. Format code using the latest C# syntax and .NET best practices, show console code using top-level statements
-
-# Do not make up answers or provide information outside the context of C# and .NET AI development. If you don't know the answer, say "I don't know" or suggest searching the knowledge base or web for more information.
-# """,
 
     # Add filter-specific context if filters are provided
     if filters:
-        filter_context = "\n\n**User selected filters:**\n"
-        
-        dotnet_version = filters.dotnetVersion or '.NET 9'
-        ai_library = filters.aiLibrary or 'OpenAI'
-        ai_provider = filters.aiProvider or 'OpenAI'
-        
-        filter_context += f"dotnet_version:{dotnet_version}\n"
-        filter_context += f"ai_library:{ai_library}\n"
-        filter_context += f"ai_provider:{ai_provider}\n"
-        
-        # Check for experimental options
-        experimental_options = []
-        if ".NET Framework" in dotnet_version:
-            experimental_options.append(".NET Framework")
-        if ai_provider in ["Amazon Bedrock", "Google Cloud"]:
-            experimental_options.append(ai_provider)
-            
-        if experimental_options:
-            filter_context += f"\n**Important:** The user has selected experimental options: {', '.join(experimental_options)}. "
-            filter_context += "Include a friendly warning that these options are experimental and results may be less accurate. "
-            filter_context += "Use fun, engaging language like '🧪 Heads up!' or '⚗️ Experimental zone ahead!' when mentioning this.\n"
-        
-        filter_context += f"\nTailor your responses to focus on {ai_library} with {dotnet_version}, "
-        filter_context += f"using {ai_provider} when providing specific examples and code samples.\n"
+        # Serialize filters to JSON for clear context passing
+        filter_json = json.dumps(filters.dict(), indent=2)
+        filter_context = (
+            "\n\n**AIFilters (JSON):**\n"
+            f"{filter_json}\n"
+            "Please use these filter values to tailor your responses and code examples accordingly.\n"
+        )
         
         base_instructions += filter_context
     
