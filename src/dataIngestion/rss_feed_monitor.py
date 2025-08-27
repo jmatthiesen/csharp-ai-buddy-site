@@ -546,6 +546,9 @@ def main():
     # Cleanup command
     cleanup_parser = subparsers.add_parser("cleanup", help="Clean up old processed items")
     cleanup_parser.add_argument("--days", type=int, default=30, help="Days of processed items to keep")
+
+    # Launch Streamlit UI command
+    ui_parser = subparsers.add_parser("launch-ui", help="Launch the Streamlit UI for RSS Feed Monitor")
     
     args = parser.parse_args()
     
@@ -566,32 +569,38 @@ def main():
                 tags=args.tags
             )
             print(f"Subscription {'added' if success else 'failed to add'}")
-            
+
         elif args.command == "remove-subscription":
             success = monitor.remove_subscription(args.feed_url)
             print(f"Subscription {'removed' if success else 'failed to remove'}")
-            
+
         elif args.command == "list-subscriptions":
             subscriptions = monitor.list_subscriptions()
             for sub in subscriptions:
                 print(f"{sub.name}: {sub.feed_url} ({'enabled' if sub.enabled else 'disabled'})")
-            
+
         elif args.command == "check-feeds":
             stats = monitor.run_daily_check()
             print(json.dumps(stats, indent=2, default=str))
-            
+
         elif args.command == "daily-check":
             stats = monitor.run_daily_check()
             print(json.dumps(stats, indent=2, default=str))
-            
+
         elif args.command == "cleanup":
             deleted_count = monitor.cleanup_old_processed_items(args.days)
             print(f"Cleaned up {deleted_count} old processed item records")
-            
+
+        elif args.command == "launch-ui":
+            import subprocess
+            ui_path = os.path.join(os.path.dirname(__file__), "rss_feed_monitor_ui.py")
+            print("Launching Streamlit UI...")
+            subprocess.run(["streamlit", "run", ui_path])
+
     except Exception as e:
         logger.error(f"Error executing command: {e}")
         return 1
-    
+
     return 0
 
 

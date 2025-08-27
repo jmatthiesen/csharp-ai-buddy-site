@@ -1,0 +1,18 @@
+{
+    "database": "csharpAIBuddy",
+    "collectionName": "document_chunks",
+    "type": "vectorSearch",
+    "name": "vector_index",
+    "fields": [
+        {
+            "type": "vector",
+            "path": "embeddings",
+            "numDimensions": 1536,
+            "similarity": "cosine"
+        },
+        {
+            "type": "filter",
+            "path": "tags"
+        }
+    ]
+}
