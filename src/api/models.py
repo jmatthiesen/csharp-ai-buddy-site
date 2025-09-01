@@ -15,6 +15,7 @@ class ChatRequest(BaseModel):
     message: str
     history: List[Message] = []
     filters: Optional[AIFilters] = None
+    magic_key: Optional[str] = None
 
 class HealthResponse(BaseModel):
     status: str

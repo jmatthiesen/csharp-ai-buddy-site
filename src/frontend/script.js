@@ -10,6 +10,7 @@ class ChatApp {
 
         this.conversationHistory = [];
         this.isStreaming = false;
+        this.magicKey = null; // Store the magic key
 
         // AI configuration options
         this.aiOptions = {
@@ -25,6 +26,9 @@ class ChatApp {
 
         // Initialize markdown and syntax highlighting when libraries are loaded
         this.initializeMarkdownSupport();
+        
+        // Initialize magic key functionality
+        this.initializeMagicKey();
     }
 
     detectApiUrl() {
@@ -41,6 +45,18 @@ class ChatApp {
 
         // Default to production API URL (you'll need to update this with your Render URL)
         return 'https://csharp-ai-buddy-api.onrender.com/api';
+    }
+
+    isDevelopmentEnvironment() {
+        // Check if we're running in development (localhost, or GitHub Codespaces)
+        // Check for simulateProd query param to force production mode
+        const urlParams = new URLSearchParams(window.location.search);
+        return !urlParams.has('simulateProd') && (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.protocol === 'file:' ||
+            window.location.hostname.endsWith("github.dev")
+        );
     }
 
     initializeEventListeners() {
@@ -226,18 +242,29 @@ class ChatApp {
         const question = this.questionInput.value.trim();
         if (!question || this.isStreaming) return;
 
-        // Add user message
-        this.addMessage('user', question);
+        try {
+            // Add user message
+            this.addMessage('user', question);
 
-        // Clear input and reset height
-        this.questionInput.value = '';
-        this.questionInput.style.height = 'auto';
+            // Clear input and reset height
+            this.questionInput.value = '';
+            this.questionInput.style.height = 'auto';
 
-        // Hide suggestions temporarily
-        this.suggestionsContainer.style.display = 'none';
+            // Hide suggestions temporarily
+            this.suggestionsContainer.style.display = 'none';
 
-        // Send message to backend
-        await this.sendMessage(question);
+            // Send message to backend
+            await this.sendMessage(question);
+        } catch (error) {
+            // Handle magic key errors specifically
+            if (error.message.includes('Magic key required')) {
+                // Show a user-friendly message
+                this.addMessage('assistant', '🔑 A magic key is required to use the AI chat feature. Please provide a valid key to continue.');
+            } else {
+                console.error('Error in handleSubmit:', error);
+                this.addMessage('assistant', '❌ Sorry, something went wrong. Please try again.');
+            }
+        }
     }
 
     addMessage(role, content, isStreaming = false) {
@@ -380,6 +407,163 @@ class ChatApp {
         });
     }
 
+    initializeMagicKey() {
+        // Check URL parameters for magic key (works in both dev and production)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlMagicKey = urlParams.get('key');
+        
+        if (urlMagicKey) {
+            // Store the key from URL and remove it from URL for security
+            this.storeMagicKey(urlMagicKey);
+            // Remove the key from URL without reloading the page
+            const url = new URL(window.location);
+            url.searchParams.delete('key');
+            window.history.replaceState({}, '', url);
+            return; // Key loaded from URL, we're done
+        }
+        
+        // In development environment, skip magic key requirement
+        if (this.isDevelopmentEnvironment()) {
+            this.magicKey = null; // No key needed in development
+            console.log('Development environment detected - magic key not required');
+            return;
+        }
+        
+        // Check localStorage for existing valid key (production only)
+        const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
+        if (storedKeyData) {
+            try {
+                const keyData = JSON.parse(storedKeyData);
+                const now = new Date().getTime();
+                
+                // Check if key is still valid (not expired)
+                if (keyData.expiry && now < keyData.expiry) {
+                    this.magicKey = keyData.key;
+                    console.log('Valid magic key loaded from storage');
+                    return;
+                } else {
+                    // Key expired, remove it
+                    localStorage.removeItem('ai_buddy_magic_key');
+                    console.log('Stored magic key expired and removed');
+                }
+            } catch (e) {
+                // Invalid stored data, remove it
+                localStorage.removeItem('ai_buddy_magic_key');
+                console.log('Invalid stored magic key data removed');
+            }
+        }
+        
+        // If no valid key found, will prompt user when they try to chat (production only)
+        this.magicKey = null;
+    }
+
+    storeMagicKey(key) {
+        // Store key with 10-day expiration
+        const expiryTime = new Date().getTime() + (10 * 24 * 60 * 60 * 1000); // 10 days
+        const keyData = {
+            key: key,
+            expiry: expiryTime
+        };
+        
+        localStorage.setItem('ai_buddy_magic_key', JSON.stringify(keyData));
+        this.magicKey = key;
+        console.log('Magic key stored successfully');
+    }
+
+    async promptForMagicKey() {
+        return new Promise((resolve) => {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'magic-key-overlay';
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'magic-key-modal';
+
+            modal.innerHTML = `
+                <h2>Early Access Key Required</h2>
+                <p>This AI chat feature is currently in early testing. Please enter your magic key to continue.</p>
+                <input type="text" id="magic-key-input" placeholder="Enter your magic key">
+                <div class="button-container">
+                    <button id="magic-key-cancel" class="cancel-btn">Cancel</button>
+                    <button id="magic-key-submit" class="submit-btn">Continue</button>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            const input = modal.querySelector('#magic-key-input');
+            const submitBtn = modal.querySelector('#magic-key-submit');
+            const cancelBtn = modal.querySelector('#magic-key-cancel');
+
+            // Focus the input
+            input.focus();
+
+            const cleanup = () => {
+                document.body.removeChild(overlay);
+            };
+
+            // Handle submit
+            const handleSubmit = () => {
+                const key = input.value.trim();
+                if (key) {
+                    this.storeMagicKey(key);
+                    cleanup();
+                    resolve(key);
+                } else {
+                    input.focus();
+                    input.classList.add('error');
+                    setTimeout(() => {
+                        input.classList.remove('error');
+                    }, 2000);
+                }
+            };
+
+            // Handle cancel
+            const handleCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            // Event listeners
+            submitBtn.addEventListener('click', handleSubmit);
+            cancelBtn.addEventListener('click', handleCancel);
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSubmit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancel();
+                }
+            });
+
+            // Close on overlay click
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    handleCancel();
+                }
+            });
+        });
+    }
+
+    async ensureMagicKey() {
+        // Skip magic key requirement in development environment
+        if (this.isDevelopmentEnvironment()) {
+            return 'dev-bypass';
+        }
+        
+        if (!this.magicKey) {
+            const key = await this.promptForMagicKey();
+            if (!key) {
+                throw new Error('Magic key required to use AI chat');
+            }
+        }
+        return this.magicKey;
+    }
+
     async sendMessage(question) {
         this.isStreaming = true;
         const submitBtn = document.querySelector('.send-btn');
@@ -389,6 +573,8 @@ class ChatApp {
         const assistantMessageContent = this.addMessage('assistant', '', true);
 
         try {
+            // Ensure magic key is available
+            await this.ensureMagicKey();
             
             const response = await fetch(`${this.apiBaseUrl}/chat`, {
                 method: 'POST',
@@ -398,11 +584,29 @@ class ChatApp {
                 body: JSON.stringify({
                     message: question,
                     history: this.conversationHistory,
-                    filters: this.aiOptions
+                    filters: this.aiOptions,
+                    magic_key: this.magicKey
                 })
             });
             
             if (!response.ok) {
+                // Handle magic key validation errors specifically
+                if (response.status === 401 || response.status === 403) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Magic key validation failed' }));
+                    
+                    // Remove invalid key from storage
+                    localStorage.removeItem('ai_buddy_magic_key');
+                    this.magicKey = null;
+                    
+                    // Show error and prompt for new key
+                    assistantMessageContent.innerHTML = `
+                        <div class="error-message">
+                            <p>🔑 ${errorData.detail}</p>
+                            <p>Please try again with a valid magic key.</p>
+                        </div>
+                    `;
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
