@@ -1539,3 +1539,101 @@ body {
         width: 100%;
     }
 }
+
+/* Magic Key Modal */
+.magic-key-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.magic-key-modal {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 2px solid #e2e8f0;
+    color: #2d3748;
+    position: relative;
+}
+
+.magic-key-modal h2 {
+    margin: 0 0 1rem 0;
+    color: #2d3748;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.magic-key-modal p {
+    margin: 0 0 1.5rem 0;
+    color: #4a5568;
+    line-height: 1.5;
+}
+
+.magic-key-modal input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #2d3748;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.magic-key-modal input:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.magic-key-modal input.error {
+    border-color: #e74c3c;
+}
+
+.magic-key-modal .button-container {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.magic-key-modal button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.magic-key-modal .cancel-btn {
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    color: #4a5568;
+}
+
+.magic-key-modal .cancel-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.magic-key-modal .submit-btn {
+    border: none;
+    background: #4299e1;
+    color: white;
+}
+
+.magic-key-modal .submit-btn:hover {
+    background: #3182ce;
+}

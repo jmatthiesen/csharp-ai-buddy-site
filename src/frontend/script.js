@@ -470,68 +470,18 @@ class ChatApp {
             // Create modal overlay
             const overlay = document.createElement('div');
             overlay.className = 'magic-key-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.7);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
 
             // Create modal
             const modal = document.createElement('div');
             modal.className = 'magic-key-modal';
-            modal.style.cssText = `
-                background: var(--bg-secondary);
-                border-radius: 12px;
-                padding: 2rem;
-                max-width: 400px;
-                width: 90%;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-            `;
 
             modal.innerHTML = `
-                <h2 style="margin: 0 0 1rem 0; color: var(--text-primary);">Early Access Key Required</h2>
-                <p style="margin: 0 0 1.5rem 0; color: var(--text-secondary); line-height: 1.5;">
-                    This AI chat feature is currently in early testing. Please enter your magic key to continue.
-                </p>
-                <input type="text" id="magic-key-input" placeholder="Enter your magic key" style="
-                    width: 100%;
-                    padding: 0.75rem;
-                    border: 1px solid var(--border-color);
-                    border-radius: 6px;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                    font-size: 1rem;
-                    margin-bottom: 1rem;
-                    box-sizing: border-box;
-                ">
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <button id="magic-key-cancel" style="
-                        padding: 0.75rem 1.5rem;
-                        border: 1px solid var(--border-color);
-                        border-radius: 6px;
-                        background: var(--bg-secondary);
-                        color: var(--text-primary);
-                        cursor: pointer;
-                        font-size: 0.9rem;
-                    ">Cancel</button>
-                    <button id="magic-key-submit" style="
-                        padding: 0.75rem 1.5rem;
-                        border: none;
-                        border-radius: 6px;
-                        background: var(--accent-color);
-                        color: white;
-                        cursor: pointer;
-                        font-size: 0.9rem;
-                    ">Continue</button>
+                <h2>Early Access Key Required</h2>
+                <p>This AI chat feature is currently in early testing. Please enter your magic key to continue.</p>
+                <input type="text" id="magic-key-input" placeholder="Enter your magic key">
+                <div class="button-container">
+                    <button id="magic-key-cancel" class="cancel-btn">Cancel</button>
+                    <button id="magic-key-submit" class="submit-btn">Continue</button>
                 </div>
             `;
 
@@ -558,9 +508,9 @@ class ChatApp {
                     resolve(key);
                 } else {
                     input.focus();
-                    input.style.borderColor = '#e74c3c';
+                    input.classList.add('error');
                     setTimeout(() => {
-                        input.style.borderColor = 'var(--border-color)';
+                        input.classList.remove('error');
                     }, 2000);
                 }
             };
