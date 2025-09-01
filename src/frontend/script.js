@@ -407,33 +407,34 @@ class ChatApp {
             const url = new URL(window.location);
             url.searchParams.delete('key');
             window.history.replaceState({}, '', url);
-        } else {
-            // Check localStorage for existing valid key
-            const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
-            if (storedKeyData) {
-                try {
-                    const keyData = JSON.parse(storedKeyData);
-                    const now = new Date().getTime();
-                    
-                    // Check if key is still valid (not expired)
-                    if (keyData.expiry && now < keyData.expiry) {
-                        this.magicKey = keyData.key;
-                        console.log('Valid magic key loaded from storage');
-                        return;
-                    } else {
-                        // Key expired, remove it
-                        localStorage.removeItem('ai_buddy_magic_key');
-                        console.log('Stored magic key expired and removed');
-                    }
-                } catch (e) {
-                    // Invalid stored data, remove it
+            return; // Key loaded from URL, we're done
+        }
+        
+        // Check localStorage for existing valid key
+        const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
+        if (storedKeyData) {
+            try {
+                const keyData = JSON.parse(storedKeyData);
+                const now = new Date().getTime();
+                
+                // Check if key is still valid (not expired)
+                if (keyData.expiry && now < keyData.expiry) {
+                    this.magicKey = keyData.key;
+                    console.log('Valid magic key loaded from storage');
+                    return;
+                } else {
+                    // Key expired, remove it
                     localStorage.removeItem('ai_buddy_magic_key');
-                    console.log('Invalid stored magic key data removed');
+                    console.log('Stored magic key expired and removed');
                 }
+            } catch (e) {
+                // Invalid stored data, remove it
+                localStorage.removeItem('ai_buddy_magic_key');
+                console.log('Invalid stored magic key data removed');
             }
         }
         
-        // If no valid key found, prompt user before they try to chat
+        // If no valid key found, will prompt user when they try to chat
         this.magicKey = null;
     }
 
