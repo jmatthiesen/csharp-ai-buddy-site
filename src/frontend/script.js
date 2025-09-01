@@ -48,10 +48,15 @@ class ChatApp {
     }
 
     isDevelopmentEnvironment() {
-        // Check if we're running in development (localhost)
-        return window.location.hostname === 'localhost' || 
-               window.location.hostname === '127.0.0.1' || 
-               window.location.protocol === 'file:';
+        // Check if we're running in development (localhost, or GitHub Codespaces)
+        // Check for simulateProd query param to force production mode
+        const urlParams = new URLSearchParams(window.location.search);
+        return !urlParams.has('simulateProd') && (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.protocol === 'file:' ||
+            window.location.hostname.endsWith("github.dev")
+        );
     }
 
     initializeEventListeners() {
