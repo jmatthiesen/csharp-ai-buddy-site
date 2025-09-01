@@ -1,21 +1,122 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from typing import List, AsyncGenerator, Optional
+from typing import List, AsyncGenerator, Optional, Callable, TypeVar, Any
 import os
 import logging
 from datetime import datetime
 import json
+import asyncio
+import random
+import time
+from functools import wraps
 
 from models import ChatRequest, Message, AIFilters
 from agents import Agent, Runner, function_tool, WebSearchTool
 from agents.mcp import MCPServerStreamableHttp
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from openai.types.responses import ResponseTextDeltaEvent
 from nuget_search import search_nuget_packages, get_nuget_package_details
 from pymongo import MongoClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+def retry_on_rate_limit(max_attempts: int = 5, base_delay: float = 1.0):
+    """
+    Decorator for retrying OpenAI API calls on rate limit errors.
+    
+    Args:
+        max_attempts (int): Maximum number of retry attempts (default: 5)
+        base_delay (float): Base delay in seconds for exponential backoff (default: 1.0)
+    
+    Returns:
+        Decorated function that retries on RateLimitError with exponential backoff
+    """
+    def decorator(func):
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    if asyncio.iscoroutinefunction(func):
+                        return await func(*args, **kwargs)
+                    else:
+                        return func(*args, **kwargs)
+                        
+                except RateLimitError as e:
+                    last_exception = e
+                    attempt_num = attempt + 1
+                    
+                    logger.warning(
+                        f"Rate limit error on attempt {attempt_num}/{max_attempts} for {func.__name__}: {str(e)}"
+                    )
+                    
+                    if attempt_num >= max_attempts:
+                        logger.error(
+                            f"Max retry attempts ({max_attempts}) reached for {func.__name__}. "
+                            f"Final error: {str(e)}"
+                        )
+                        break
+                    
+                    # Calculate exponential backoff with jitter
+                    delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    logger.info(f"Retrying {func.__name__} in {delay:.2f} seconds (attempt {attempt_num + 1}/{max_attempts})")
+                    
+                    await asyncio.sleep(delay)
+                    
+                except Exception as e:
+                    # For non-rate-limit exceptions, don't retry
+                    logger.error(f"Non-retryable error in {func.__name__}: {str(e)}")
+                    raise
+            
+            # If we get here, all retries failed due to rate limiting
+            raise last_exception
+            
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                        
+                except RateLimitError as e:
+                    last_exception = e
+                    attempt_num = attempt + 1
+                    
+                    logger.warning(
+                        f"Rate limit error on attempt {attempt_num}/{max_attempts} for {func.__name__}: {str(e)}"
+                    )
+                    
+                    if attempt_num >= max_attempts:
+                        logger.error(
+                            f"Max retry attempts ({max_attempts}) reached for {func.__name__}. "
+                            f"Final error: {str(e)}"
+                        )
+                        break
+                    
+                    # Calculate exponential backoff with jitter
+                    delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    logger.info(f"Retrying {func.__name__} in {delay:.2f} seconds (attempt {attempt_num + 1}/{max_attempts})")
+                    
+                    time.sleep(delay)
+                    
+                except Exception as e:
+                    # For non-rate-limit exceptions, don't retry
+                    logger.error(f"Non-retryable error in {func.__name__}: {str(e)}")
+                    raise
+            
+            # If we get here, all retries failed due to rate limiting
+            raise last_exception
+        
+        # Return appropriate wrapper based on whether function is async
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+            
+    return decorator
 
 async def validate_magic_key(magic_key: str) -> bool:
     """
@@ -58,6 +159,7 @@ async def validate_magic_key(magic_key: str) -> bool:
         logger.error(f"Error validating magic key: {str(e)}", exc_info=True)
         return False
 
+@retry_on_rate_limit(max_attempts=5, base_delay=1.0)
 def generate_embedding(text: str) -> List[float]:
     """
     Generate embedding for a piece of text.
@@ -269,90 +371,143 @@ Do not make up answers or provide information outside the context of C# and .NET
     )
     return agent
 
+async def _generate_streaming_response_with_retry(
+    message: str,
+    history: List[Message],
+    filters: Optional[AIFilters] = None,
+    max_attempts: int = 5,
+    base_delay: float = 1.0
+) -> AsyncGenerator[str, None]:
+    """Internal function to generate streaming response with retry logic for rate limiting."""
+    
+    last_exception = None
+    
+    for attempt in range(max_attempts):
+        try:
+            logger.info(
+                f"Generating streaming response for message (attempt {attempt + 1}/{max_attempts}): "
+                f"{message[:100]}{'...' if len(message) > 100 else ''}"
+            )
+
+            async with MCPServerStreamableHttp(
+                name="Microsoft Learn Docs MCP Server",
+                params={
+                    "url": "https://learn.microsoft.com/api/mcp",
+                },
+            ) as docsserver:
+                # Get the agent instance with filters
+                agent = await get_agent([docsserver], filters)
+
+                # Include history in the input for now, to keep things simple
+                if history:
+                    input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+                else:
+                    input = f"user: {message}\n"
+
+                # Run the agent with streaming
+                result = Runner.run_streamed(agent, input)
+                
+                # Stream the response events
+                async for event in result.stream_events():
+                    try:
+                        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                            # Stream text deltas as they come from the LLM
+                            if hasattr(event.data, 'delta') and event.data.delta:
+                                json_response = json.dumps({
+                                    "type": "content",
+                                    "content": event.data.delta
+                                }) + "\n"
+                                yield json_response
+                                
+                        elif event.type == "run_item_stream_event":
+                            # Handle completed items (messages, tool calls, etc.)
+                            if event.item.type == "message_output_item":
+                                # This is a completed message - we can extract the full text if needed
+                                # But we're already streaming deltas above, so this might be redundant
+                                pass
+                            elif event.item.type == "tool_call_item":
+                                # Optionally notify about tool usage
+                                json_response = json.dumps({
+                                    "type": "tool_call",
+                                    "content": f"Tool called"
+                                }) + "\n"
+                                yield json_response
+                            elif event.item.type == "tool_call_output_item":
+                                # Optionally show tool output
+                                json_response = json.dumps({
+                                    "type": "tool output",
+                                    "content": f"Tool called {event.item.output}"
+                                }) + "\n"
+                                yield json_response
+
+                    except Exception as e:
+                        logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
+                        # Continue processing other events
+                        continue
+                
+                # Send completion signal
+                completion_response = json.dumps({
+                    "type": "complete",
+                    "timestamp": datetime.utcnow().isoformat()
+                }) + "\n"
+                yield completion_response
+                
+                # If we reach here, the streaming completed successfully
+                return
+                
+        except RateLimitError as e:
+            last_exception = e
+            attempt_num = attempt + 1
+            
+            logger.warning(
+                f"Rate limit error on attempt {attempt_num}/{max_attempts} for streaming response: {str(e)}"
+            )
+            
+            if attempt_num >= max_attempts:
+                logger.error(
+                    f"Max retry attempts ({max_attempts}) reached for streaming response. "
+                    f"Final error: {str(e)}"
+                )
+                break
+            
+            # Calculate exponential backoff with jitter
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            logger.info(f"Retrying streaming response in {delay:.2f} seconds (attempt {attempt_num + 1}/{max_attempts})")
+            
+            await asyncio.sleep(delay)
+            
+        except Exception as e:
+            # For non-rate-limit exceptions, don't retry
+            logger.error(f"Non-retryable error in streaming response: {str(e)}", exc_info=True)
+            error_response = json.dumps({
+                "type": "error",
+                "message": f"Sorry, I encountered an error while processing your request: {str(e)}",
+                "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat()
+            }) + "\n"
+            yield error_response
+            return
+    
+    # If we get here, all retries failed due to rate limiting
+    if last_exception:
+        logger.error(f"All retry attempts failed for streaming response due to rate limiting: {str(last_exception)}")
+        error_response = json.dumps({
+            "type": "error",
+            "message": f"Sorry, I'm currently experiencing high demand and couldn't process your request after multiple attempts. Please try again in a few minutes. Error: {str(last_exception)}",
+            "content": f"Sorry, I'm currently experiencing high demand and couldn't process your request after multiple attempts. Please try again in a few minutes. Error: {str(last_exception)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
+        yield error_response
+
 async def generate_streaming_response(
     message: str,
     history: List[Message],
     filters: Optional[AIFilters] = None
 ) -> AsyncGenerator[str, None]:
-    """Generate streaming response using OpenAI agents SDK."""
-
-    try:
-        logger.info(
-            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
-        )
-
-        async with MCPServerStreamableHttp(
-            name="Microsoft Learn Docs MCP Server",
-            params={
-                "url": "https://learn.microsoft.com/api/mcp",
-            },
-        ) as docsserver:
-            # Get the agent instance with filters
-            agent = await get_agent([docsserver], filters)
-
-            # Include history in the input for now, to keep things simple
-            if history:
-                input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
-            else:
-                input = f"user: {message}\n"
-
-            # Run the agent with streaming
-            result = Runner.run_streamed(agent, input)
-            
-            # Stream the response events
-            async for event in result.stream_events():
-                try:
-                    if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
-                        # Stream text deltas as they come from the LLM
-                        if hasattr(event.data, 'delta') and event.data.delta:
-                            json_response = json.dumps({
-                                "type": "content",
-                                "content": event.data.delta
-                            }) + "\n"
-                            yield json_response
-                            
-                    elif event.type == "run_item_stream_event":
-                        # Handle completed items (messages, tool calls, etc.)
-                        if event.item.type == "message_output_item":
-                            # This is a completed message - we can extract the full text if needed
-                            # But we're already streaming deltas above, so this might be redundant
-                            pass
-                        elif event.item.type == "tool_call_item":
-                            # Optionally notify about tool usage
-                            json_response = json.dumps({
-                                "type": "tool_call",
-                                "content": f"Tool called"
-                            }) + "\n"
-                            yield json_response
-                        elif event.item.type == "tool_call_output_item":
-                            # Optionally show tool output
-                            json_response = json.dumps({
-                                "type": "tool output",
-                                "content": f"Tool called {event.item.output}"
-                            }) + "\n"
-                            yield json_response
-
-                except Exception as e:
-                    logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
-                    # Continue processing other events
-                    continue
-            
-            # Send completion signal
-            completion_response = json.dumps({
-                "type": "complete",
-                "timestamp": datetime.utcnow().isoformat()
-            }) + "\n"
-            yield completion_response
-        
-    except Exception as e:
-        logger.error(f"Error in generate_streaming_response: {str(e)}", exc_info=True)
-        # Send error response
-        error_response = json.dumps({
-            "type": "error",
-            "content": f"Sorry, I encountered an error while processing your request: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
-        }) + "\n"
-        yield error_response
+    """Generate streaming response using OpenAI agents SDK with retry logic for rate limiting."""
+    
+    async for response_chunk in _generate_streaming_response_with_retry(message, history, filters):
+        yield response_chunk
 
 @router.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
