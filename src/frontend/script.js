@@ -10,6 +10,7 @@ class ChatApp {
 
         this.conversationHistory = [];
         this.isStreaming = false;
+        this.magicKey = null; // Store the magic key
 
         // AI configuration options
         this.aiOptions = {
@@ -25,6 +26,9 @@ class ChatApp {
 
         // Initialize markdown and syntax highlighting when libraries are loaded
         this.initializeMarkdownSupport();
+        
+        // Initialize magic key functionality
+        this.initializeMagicKey();
     }
 
     detectApiUrl() {
@@ -226,18 +230,29 @@ class ChatApp {
         const question = this.questionInput.value.trim();
         if (!question || this.isStreaming) return;
 
-        // Add user message
-        this.addMessage('user', question);
+        try {
+            // Add user message
+            this.addMessage('user', question);
 
-        // Clear input and reset height
-        this.questionInput.value = '';
-        this.questionInput.style.height = 'auto';
+            // Clear input and reset height
+            this.questionInput.value = '';
+            this.questionInput.style.height = 'auto';
 
-        // Hide suggestions temporarily
-        this.suggestionsContainer.style.display = 'none';
+            // Hide suggestions temporarily
+            this.suggestionsContainer.style.display = 'none';
 
-        // Send message to backend
-        await this.sendMessage(question);
+            // Send message to backend
+            await this.sendMessage(question);
+        } catch (error) {
+            // Handle magic key errors specifically
+            if (error.message.includes('Magic key required')) {
+                // Show a user-friendly message
+                this.addMessage('assistant', '🔑 A magic key is required to use the AI chat feature. Please provide a valid key to continue.');
+            } else {
+                console.error('Error in handleSubmit:', error);
+                this.addMessage('assistant', '❌ Sorry, something went wrong. Please try again.');
+            }
+        }
     }
 
     addMessage(role, content, isStreaming = false) {
@@ -380,6 +395,200 @@ class ChatApp {
         });
     }
 
+    initializeMagicKey() {
+        // Check URL parameters for magic key
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlMagicKey = urlParams.get('key');
+        
+        if (urlMagicKey) {
+            // Store the key from URL and remove it from URL for security
+            this.storeMagicKey(urlMagicKey);
+            // Remove the key from URL without reloading the page
+            const url = new URL(window.location);
+            url.searchParams.delete('key');
+            window.history.replaceState({}, '', url);
+        } else {
+            // Check localStorage for existing valid key
+            const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
+            if (storedKeyData) {
+                try {
+                    const keyData = JSON.parse(storedKeyData);
+                    const now = new Date().getTime();
+                    
+                    // Check if key is still valid (not expired)
+                    if (keyData.expiry && now < keyData.expiry) {
+                        this.magicKey = keyData.key;
+                        console.log('Valid magic key loaded from storage');
+                        return;
+                    } else {
+                        // Key expired, remove it
+                        localStorage.removeItem('ai_buddy_magic_key');
+                        console.log('Stored magic key expired and removed');
+                    }
+                } catch (e) {
+                    // Invalid stored data, remove it
+                    localStorage.removeItem('ai_buddy_magic_key');
+                    console.log('Invalid stored magic key data removed');
+                }
+            }
+        }
+        
+        // If no valid key found, prompt user before they try to chat
+        this.magicKey = null;
+    }
+
+    storeMagicKey(key) {
+        // Store key with 10-day expiration
+        const expiryTime = new Date().getTime() + (10 * 24 * 60 * 60 * 1000); // 10 days
+        const keyData = {
+            key: key,
+            expiry: expiryTime
+        };
+        
+        localStorage.setItem('ai_buddy_magic_key', JSON.stringify(keyData));
+        this.magicKey = key;
+        console.log('Magic key stored successfully');
+    }
+
+    async promptForMagicKey() {
+        return new Promise((resolve) => {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'magic-key-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'magic-key-modal';
+            modal.style.cssText = `
+                background: var(--bg-secondary);
+                border-radius: 12px;
+                padding: 2rem;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                border: 1px solid var(--border-color);
+                color: var(--text-primary);
+            `;
+
+            modal.innerHTML = `
+                <h2 style="margin: 0 0 1rem 0; color: var(--text-primary);">Early Access Key Required</h2>
+                <p style="margin: 0 0 1.5rem 0; color: var(--text-secondary); line-height: 1.5;">
+                    This AI chat feature is currently in early testing. Please enter your magic key to continue.
+                </p>
+                <input type="text" id="magic-key-input" placeholder="Enter your magic key" style="
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                    font-size: 1rem;
+                    margin-bottom: 1rem;
+                    box-sizing: border-box;
+                ">
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button id="magic-key-cancel" style="
+                        padding: 0.75rem 1.5rem;
+                        border: 1px solid var(--border-color);
+                        border-radius: 6px;
+                        background: var(--bg-secondary);
+                        color: var(--text-primary);
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">Cancel</button>
+                    <button id="magic-key-submit" style="
+                        padding: 0.75rem 1.5rem;
+                        border: none;
+                        border-radius: 6px;
+                        background: var(--accent-color);
+                        color: white;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">Continue</button>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            const input = modal.querySelector('#magic-key-input');
+            const submitBtn = modal.querySelector('#magic-key-submit');
+            const cancelBtn = modal.querySelector('#magic-key-cancel');
+
+            // Focus the input
+            input.focus();
+
+            const cleanup = () => {
+                document.body.removeChild(overlay);
+            };
+
+            // Handle submit
+            const handleSubmit = () => {
+                const key = input.value.trim();
+                if (key) {
+                    this.storeMagicKey(key);
+                    cleanup();
+                    resolve(key);
+                } else {
+                    input.focus();
+                    input.style.borderColor = '#e74c3c';
+                    setTimeout(() => {
+                        input.style.borderColor = 'var(--border-color)';
+                    }, 2000);
+                }
+            };
+
+            // Handle cancel
+            const handleCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            // Event listeners
+            submitBtn.addEventListener('click', handleSubmit);
+            cancelBtn.addEventListener('click', handleCancel);
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSubmit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancel();
+                }
+            });
+
+            // Close on overlay click
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    handleCancel();
+                }
+            });
+        });
+    }
+
+    async ensureMagicKey() {
+        if (!this.magicKey) {
+            const key = await this.promptForMagicKey();
+            if (!key) {
+                throw new Error('Magic key required to use AI chat');
+            }
+        }
+        return this.magicKey;
+    }
+
     async sendMessage(question) {
         this.isStreaming = true;
         const submitBtn = document.querySelector('.send-btn');
@@ -389,6 +598,8 @@ class ChatApp {
         const assistantMessageContent = this.addMessage('assistant', '', true);
 
         try {
+            // Ensure magic key is available
+            await this.ensureMagicKey();
             
             const response = await fetch(`${this.apiBaseUrl}/chat`, {
                 method: 'POST',
@@ -398,11 +609,29 @@ class ChatApp {
                 body: JSON.stringify({
                     message: question,
                     history: this.conversationHistory,
-                    filters: this.aiOptions
+                    filters: this.aiOptions,
+                    magic_key: this.magicKey
                 })
             });
             
             if (!response.ok) {
+                // Handle magic key validation errors specifically
+                if (response.status === 401 || response.status === 403) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Magic key validation failed' }));
+                    
+                    // Remove invalid key from storage
+                    localStorage.removeItem('ai_buddy_magic_key');
+                    this.magicKey = null;
+                    
+                    // Show error and prompt for new key
+                    assistantMessageContent.innerHTML = `
+                        <div class="error-message">
+                            <p>🔑 ${errorData.detail}</p>
+                            <p>Please try again with a valid magic key.</p>
+                        </div>
+                    `;
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             

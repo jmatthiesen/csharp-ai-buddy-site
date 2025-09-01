@@ -17,6 +17,47 @@ from pymongo import MongoClient
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+async def validate_magic_key(magic_key: str) -> bool:
+    """
+    Validate the magic key against the database configuration.
+    
+    Args:
+        magic_key (str): The magic key to validate.
+        
+    Returns:
+        bool: True if the key is valid, False otherwise.
+    """
+    try:
+        # Check environment variables
+        mongodb_uri = os.getenv("MONGODB_URI")
+        database_name = os.getenv("DATABASE_NAME")
+        
+        if not mongodb_uri or not database_name:
+            logger.error("MongoDB configuration not available for magic key validation")
+            return False
+            
+        # Connect to MongoDB
+        mongoClient = MongoClient(mongodb_uri)
+        db = mongoClient[database_name]
+        config_collection = db["chatFeatures"]
+        
+        # Look for the magic key configuration
+        config_doc = config_collection.find_one({"_id": "magic_key_config"})
+        
+        if not config_doc:
+            logger.warning("Magic key configuration not found in database")
+            return False
+            
+        valid_key = config_doc.get("magic_key")
+        is_valid = valid_key is not None and magic_key == valid_key
+        
+        logger.info(f"Magic key validation result: {is_valid}")
+        return is_valid
+        
+    except Exception as e:
+        logger.error(f"Error validating magic key: {str(e)}", exc_info=True)
+        return False
+
 def generate_embedding(text: str) -> List[float]:
     """
     Generate embedding for a piece of text.
@@ -323,6 +364,21 @@ async def chat_endpoint(request: ChatRequest):
     try:
         if not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+        # Validate magic key
+        if not request.magic_key:
+            raise HTTPException(
+                status_code=401, 
+                detail="Magic key required for early access. Please provide a valid magic key."
+            )
+            
+        # Check if the magic key is valid
+        is_valid_key = await validate_magic_key(request.magic_key)
+        if not is_valid_key:
+            raise HTTPException(
+                status_code=403, 
+                detail="Invalid magic key. Please check your key and try again."
+            )
 
         # Log the request
         logger.info(
