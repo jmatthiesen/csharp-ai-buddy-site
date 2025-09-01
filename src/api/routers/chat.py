@@ -365,20 +365,23 @@ async def chat_endpoint(request: ChatRequest):
         if not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-        # Validate magic key
-        if not request.magic_key:
-            raise HTTPException(
-                status_code=401, 
-                detail="Magic key required for early access. Please provide a valid magic key."
-            )
-            
-        # Check if the magic key is valid
-        is_valid_key = await validate_magic_key(request.magic_key)
-        if not is_valid_key:
-            raise HTTPException(
-                status_code=403, 
-                detail="Invalid magic key. Please check your key and try again."
-            )
+        # Skip magic key validation in development environment
+        environment = os.getenv("ENVIRONMENT", "production").lower()
+        if environment != "development":
+            # Validate magic key only in non-development environments
+            if not request.magic_key:
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Magic key required for early access. Please provide a valid magic key."
+                )
+                
+            # Check if the magic key is valid
+            is_valid_key = await validate_magic_key(request.magic_key)
+            if not is_valid_key:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Invalid magic key. Please check your key and try again."
+                )
 
         # Log the request
         logger.info(

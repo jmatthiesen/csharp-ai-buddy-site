@@ -47,6 +47,13 @@ class ChatApp {
         return 'https://csharp-ai-buddy-api.onrender.com/api';
     }
 
+    isDevelopmentEnvironment() {
+        // Check if we're running in development (localhost)
+        return window.location.hostname === 'localhost' || 
+               window.location.hostname === '127.0.0.1' || 
+               window.location.protocol === 'file:';
+    }
+
     initializeEventListeners() {
         // Form submission
         this.chatForm.addEventListener('submit', (e) => {
@@ -396,7 +403,7 @@ class ChatApp {
     }
 
     initializeMagicKey() {
-        // Check URL parameters for magic key
+        // Check URL parameters for magic key (works in both dev and production)
         const urlParams = new URLSearchParams(window.location.search);
         const urlMagicKey = urlParams.get('key');
         
@@ -410,7 +417,14 @@ class ChatApp {
             return; // Key loaded from URL, we're done
         }
         
-        // Check localStorage for existing valid key
+        // In development environment, skip magic key requirement
+        if (this.isDevelopmentEnvironment()) {
+            this.magicKey = null; // No key needed in development
+            console.log('Development environment detected - magic key not required');
+            return;
+        }
+        
+        // Check localStorage for existing valid key (production only)
         const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
         if (storedKeyData) {
             try {
@@ -434,7 +448,7 @@ class ChatApp {
             }
         }
         
-        // If no valid key found, will prompt user when they try to chat
+        // If no valid key found, will prompt user when they try to chat (production only)
         this.magicKey = null;
     }
 
@@ -581,6 +595,11 @@ class ChatApp {
     }
 
     async ensureMagicKey() {
+        // Skip magic key requirement in development environment
+        if (this.isDevelopmentEnvironment()) {
+            return 'dev-bypass';
+        }
+        
         if (!this.magicKey) {
             const key = await this.promptForMagicKey();
             if (!key) {
