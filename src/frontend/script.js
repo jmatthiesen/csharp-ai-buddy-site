@@ -1184,10 +1184,66 @@ class ChatApp {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    trackTelemetry(eventType, data) {
+        // Check if telemetry is enabled
+        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
+        
+        if (!telemetryEnabled) {
+            return;
+        }
+        
+        console.log('Telemetry:', eventType, data);
+        
+        // Send event to Goat Counter if available
+        if (window.goatcounter && window.goatcounter.count) {
+            try {
+                // Construct a meaningful path for Goat Counter
+                const eventPath = `/analytics/${eventType}`;
+                const title = `${eventType}: ${JSON.stringify(data)}`;
+                
+                window.goatcounter.count({
+                    path: eventPath,
+                    title: title,
+                    event: true
+                });
+            } catch (error) {
+                console.error('Error sending analytics event:', error);
+            }
+        }
+        
+        // Also send to backend telemetry endpoint if available
+        this.sendBackendTelemetry(eventType, data);
+    }
+
+    async sendBackendTelemetry(eventType, data) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: data,
+                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('Backend telemetry request failed:', response.status);
+            }
+        } catch (error) {
+            // Silently fail - telemetry should not break the user experience
+            console.debug('Backend telemetry not available:', error.message);
+        }
+    }
 }
 
 class SamplesGallery {
-    constructor() {
+    constructor(chatApp) {
+        this.chatApp = chatApp; // Store reference to ChatApp for telemetry
         this.apiBaseUrl = this.detectApiUrl();
         this.samplesGrid = document.getElementById('samples-grid');
         this.samplesSearch = document.getElementById('samples-search');
@@ -1425,7 +1481,7 @@ class SamplesGallery {
 
         if (filteredSamples.length === 0) {
             this.showNoResults();
-            this.trackTelemetry('search_no_results', { 
+            this.chatApp.trackTelemetry('search_no_results', { 
                 query: this.currentSearch, 
                 filters: this.currentFilters 
             });
@@ -1474,7 +1530,7 @@ class SamplesGallery {
         this.loadMockData();
         
         // Track filter usage
-        this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
+        this.chatApp.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
     }
 
     clearAllFilters() {
@@ -1562,7 +1618,7 @@ class SamplesGallery {
         this.currentSample = sample;
         
         // Track sample view
-        this.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
+        this.chatApp.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
         
         this.renderSampleModal(sample);
         this.sampleModal.style.display = 'flex';
@@ -1631,7 +1687,7 @@ class SamplesGallery {
                     sample._viewedSourceLinks = true;
                 }
                 
-                this.trackTelemetry('external_click', { 
+                this.chatApp.trackTelemetry('external_click', { 
                     url: link.href, 
                     sample_id: sample.id,
                     link_type: linkType
@@ -1643,7 +1699,7 @@ class SamplesGallery {
     closeSampleModal() {
         // Track modal close behavior
         if (this.currentSample) {
-            this.trackTelemetry('sample_modal_closed', { 
+            this.chatApp.trackTelemetry('sample_modal_closed', { 
                 sample_id: this.currentSample.id,
                 title: this.currentSample.title,
                 viewed_source_links: this.currentSample._viewedSourceLinks || false
@@ -1655,60 +1711,6 @@ class SamplesGallery {
         this.currentSample = null;
     }
 
-    trackTelemetry(eventType, data) {
-        // Check if telemetry is enabled
-        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        
-        if (!telemetryEnabled) {
-            return;
-        }
-        
-        console.log('Telemetry:', eventType, data);
-        
-        // Send event to Goat Counter if available
-        if (window.goatcounter && window.goatcounter.count) {
-            try {
-                // Construct a meaningful path for Goat Counter
-                const eventPath = `/analytics/${eventType}`;
-                const title = `${eventType}: ${JSON.stringify(data)}`;
-                
-                window.goatcounter.count({
-                    path: eventPath,
-                    title: title,
-                    event: true
-                });
-            } catch (error) {
-                console.error('Error sending analytics event:', error);
-            }
-        }
-        
-        // Also send to backend telemetry endpoint if available
-        this.sendBackendTelemetry(eventType, data);
-    }
-
-    async sendBackendTelemetry(eventType, data) {
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    event_type: eventType,
-                    data: data,
-                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
-                    timestamp: new Date().toISOString()
-                })
-            });
-            
-            if (!response.ok) {
-                console.warn('Backend telemetry request failed:', response.status);
-            }
-        } catch (error) {
-            // Silently fail - telemetry should not break the user experience
-            console.debug('Backend telemetry not available:', error.message);
-        }
-    }
 
     initializeNews() {
         this.newsCurrentPage = 1;
@@ -1826,6 +1828,14 @@ class SamplesGallery {
         if (!data.news || data.news.length === 0) {
             this.newsFeed.style.display = 'none';
             this.newsNoResults.style.display = 'block';
+            
+            // Track no results for news search
+            if (this.newsSearchQuery) {
+                this.chatApp.trackTelemetry('news_search_no_results', {
+                    search_query: this.newsSearchQuery,
+                    current_page: this.newsCurrentPage
+                });
+            }
             return;
         }
 
@@ -1835,6 +1845,14 @@ class SamplesGallery {
 
         data.news.forEach(item => {
             const newsCard = this.createNewsCard(item);
+        // Track successful news search results
+        if (this.newsSearchQuery && data.news.length > 0) {
+            this.chatApp.trackTelemetry('news_search_results_found', {
+                search_query: this.newsSearchQuery,
+                results_count: data.news.length,
+                current_page: this.newsCurrentPage
+            });
+        }
             this.newsFeed.appendChild(newsCard);
         });
     }
@@ -1868,7 +1886,7 @@ class SamplesGallery {
         const links = card.querySelectorAll('a[href]');
         links.forEach((link, index) => {
             link.addEventListener('click', () => {
-                this.trackTelemetry('news_item_clicked', {
+                this.chatApp.trackTelemetry('news_item_clicked', {
                     url: item.url,
                     title: item.title,
                     source: item.source,
@@ -1963,7 +1981,7 @@ class SamplesGallery {
 class AppManager {
     constructor() {
         this.chatApp = new ChatApp();
-        this.samplesGallery = new SamplesGallery();
+        this.samplesGallery = new SamplesGallery(this.chatApp);
         this.currentTab = 'chat';
         
         this.initializeSidebarState();
