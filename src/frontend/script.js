@@ -19,6 +19,9 @@ class ChatApp {
             aiProvider: 'OpenAI'
         };
 
+        // Initialize session tracking
+        this.initializeSessionTracking();
+
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.loadDefaultSuggestions();
@@ -29,6 +32,25 @@ class ChatApp {
         
         // Initialize magic key functionality
         this.initializeMagicKey();
+    }
+
+    initializeSessionTracking() {
+        // Initialize session storage for chat tracking
+        if (!sessionStorage.getItem('session_chat_count')) {
+            sessionStorage.setItem('session_chat_count', '0');
+        }
+        if (!sessionStorage.getItem('session_start_time')) {
+            sessionStorage.setItem('session_start_time', Date.now().toString());
+        }
+    }
+
+    getSessionChatCount() {
+        return parseInt(sessionStorage.getItem('session_chat_count') || '0');
+    }
+
+    incrementSessionChatCount() {
+        const currentCount = this.getSessionChatCount();
+        sessionStorage.setItem('session_chat_count', (currentCount + 1).toString());
     }
 
     detectApiUrl() {
@@ -243,6 +265,16 @@ class ChatApp {
         if (!question || this.isStreaming) return;
 
         try {
+            // Track that a developer started a chat
+            this.trackTelemetry('chat_started', { 
+                question_length: question.length,
+                conversation_length: this.conversationHistory.length,
+                session_chat_count: this.getSessionChatCount() + 1
+            });
+            
+            // Increment session chat count
+            this.incrementSessionChatCount();
+
             // Add user message
             this.addMessage('user', question);
 
@@ -710,6 +742,17 @@ class ChatApp {
             // Add final response to conversation history
             if (fullContent) {
                 this.conversationHistory.push({ role: 'assistant', content: fullContent });
+                
+                // Track chat response received
+                this.trackTelemetry('chat_response_received', {
+                    response_length: fullContent.length,
+                    conversation_length: this.conversationHistory.length,
+                    has_links: fullContent.includes('http') || fullContent.includes('www.'),
+                    session_chat_count: this.getSessionChatCount()
+                });
+                
+                // Add click tracking to all links in the response
+                this.addLinkClickTracking(contentElement);
             }
 
         } catch (error) {
@@ -720,6 +763,47 @@ class ChatApp {
                 </div>
             `;
         }
+    }
+
+    addLinkClickTracking(contentElement) {
+        // Add click tracking to all links in the chat response
+        const links = contentElement.querySelectorAll('a[href]');
+        links.forEach((link, index) => {
+            link.addEventListener('click', () => {
+                this.trackTelemetry('chat_link_clicked', {
+                    url: link.href,
+                    link_text: link.textContent.trim(),
+                    link_index: index,
+                    conversation_length: this.conversationHistory.length,
+                    session_chat_count: this.getSessionChatCount()
+                });
+            });
+        });
+        
+        // Track if user interacts with the response (clicks, selects text, etc.)
+        let hasInteracted = false;
+        const trackInteraction = () => {
+            if (!hasInteracted) {
+                hasInteracted = true;
+                this.trackTelemetry('chat_response_interacted', {
+                    conversation_length: this.conversationHistory.length,
+                    session_chat_count: this.getSessionChatCount()
+                });
+            }
+        };
+        
+        contentElement.addEventListener('click', trackInteraction);
+        contentElement.addEventListener('mouseup', trackInteraction); // For text selection
+        
+        // Track if user does not interact with response after a timeout
+        setTimeout(() => {
+            if (!hasInteracted) {
+                this.trackTelemetry('chat_response_not_interacted', {
+                    conversation_length: this.conversationHistory.length,
+                    session_chat_count: this.getSessionChatCount()
+                });
+            }
+        }, 30000); // 30 second timeout
     }
     
     generateFollowUpSuggestions(assistantResponse) {
@@ -812,6 +896,24 @@ class ChatApp {
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
         const newsSection = document.getElementById('news-section');
+
+        // Track section views
+        if (tab === 'samples') {
+            this.trackTelemetry('samples_section_viewed', {
+                session_chat_count: this.getSessionChatCount(),
+                previous_tab: this.currentTab || 'chat'
+            });
+        } else if (tab === 'news') {
+            this.trackTelemetry('news_section_viewed', {
+                session_chat_count: this.getSessionChatCount(),
+                previous_tab: this.currentTab || 'chat'
+            });
+        } else if (tab === 'chat') {
+            this.trackTelemetry('chat_section_viewed', {
+                session_chat_count: this.getSessionChatCount(),
+                previous_tab: this.currentTab || 'chat'
+            });
+        }
 
         // Update tab states
         chatTab.classList.toggle('active', tab === 'chat');
@@ -1522,16 +1624,32 @@ class SamplesGallery {
         // Add external link tracking
         this.modalSampleDetails.querySelectorAll('a[target="_blank"]').forEach(link => {
             link.addEventListener('click', () => {
+                const linkType = link.href.includes(sample.authorUrl) ? 'author' : 'source';
+                
+                // Mark that source links were viewed for this sample
+                if (linkType === 'source') {
+                    sample._viewedSourceLinks = true;
+                }
+                
                 this.trackTelemetry('external_click', { 
                     url: link.href, 
                     sample_id: sample.id,
-                    link_type: link.href.includes(sample.authorUrl) ? 'author' : 'source'
+                    link_type: linkType
                 });
             });
         });
     }
 
     closeSampleModal() {
+        // Track modal close behavior
+        if (this.currentSample) {
+            this.trackTelemetry('sample_modal_closed', { 
+                sample_id: this.currentSample.id,
+                title: this.currentSample.title,
+                viewed_source_links: this.currentSample._viewedSourceLinks || false
+            });
+        }
+        
         this.sampleModal.style.display = 'none';
         this.sampleModal.setAttribute('aria-hidden', 'true');
         this.currentSample = null;
@@ -1547,8 +1665,49 @@ class SamplesGallery {
         
         console.log('Telemetry:', eventType, data);
         
-        // In a real implementation, this would send to the backend
-        // For now, just log to console
+        // Send event to Goat Counter if available
+        if (window.goatcounter && window.goatcounter.count) {
+            try {
+                // Construct a meaningful path for Goat Counter
+                const eventPath = `/analytics/${eventType}`;
+                const title = `${eventType}: ${JSON.stringify(data)}`;
+                
+                window.goatcounter.count({
+                    path: eventPath,
+                    title: title,
+                    event: true
+                });
+            } catch (error) {
+                console.error('Error sending analytics event:', error);
+            }
+        }
+        
+        // Also send to backend telemetry endpoint if available
+        this.sendBackendTelemetry(eventType, data);
+    }
+
+    async sendBackendTelemetry(eventType, data) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: data,
+                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('Backend telemetry request failed:', response.status);
+            }
+        } catch (error) {
+            // Silently fail - telemetry should not break the user experience
+            console.debug('Backend telemetry not available:', error.message);
+        }
     }
 
     initializeNews() {
@@ -1704,6 +1863,21 @@ class SamplesGallery {
                 </a>
             </div>
         `;
+
+        // Add click tracking to all news links
+        const links = card.querySelectorAll('a[href]');
+        links.forEach((link, index) => {
+            link.addEventListener('click', () => {
+                this.trackTelemetry('news_item_clicked', {
+                    url: item.url,
+                    title: item.title,
+                    source: item.source,
+                    link_type: link.classList.contains('news-item-read-more') ? 'read_more' : 'title',
+                    search_query: this.newsSearchQuery || null,
+                    current_page: this.newsCurrentPage
+                });
+            });
+        });
 
         return card;
     }
