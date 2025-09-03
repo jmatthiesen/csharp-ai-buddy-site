@@ -29,6 +29,14 @@
     --shadow-color: rgba(0, 0, 0, 0.1);
     --code-bg: #edf2f7;
     --code-text: #e53e3e;
+    --link-bg: #e6f3ff;
+    --link-text: #1a365d;
+    --link-hover-bg: #bee3f8;
+    --link-hover-text: #1a365d;
+    --user-message-bg: #4299e1;
+    --user-message-text: #ffffff;
+    --assistant-message-bg: #f7fafc;
+    --assistant-message-text: #1a202c;
 }
 
 /* Dark theme */
@@ -53,7 +61,15 @@
     --error-color: #fc8181;
     --shadow-color: rgba(0, 0, 0, 0.3);
     --code-bg: #2d3748;
-    --code-text: #fbb6ce;
+    --code-text: #ffffff;
+    --link-bg: #2a4a6b;
+    --link-text: #ffffff;
+    --link-hover-bg: #3182ce;
+    --link-hover-text: #ffffff;
+    --user-message-bg: #3182ce;
+    --user-message-text: #ffffff;
+    --assistant-message-bg: #2d3748;
+    --assistant-message-text: #ffffff;
 }
 
 body {
@@ -64,6 +80,23 @@ body {
     height: 100vh;
     overflow: hidden;
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* General link styling for better accessibility */
+a {
+    background-color: var(--link-bg);
+    color: var(--link-text);
+    text-decoration: none;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+a:hover,
+a:focus {
+    background-color: var(--link-hover-bg);
+    color: var(--link-hover-text);
+    outline: none;
 }
 
 .app-container {
@@ -391,14 +424,14 @@ body {
 }
 
 .message.user .message-content {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
+    background: var(--user-message-bg);
+    color: var(--user-message-text);
 }
 
 .message.assistant .message-content {
-    background: var(--bg-primary);
+    background: var(--assistant-message-bg);
     border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    color: var(--assistant-message-text);
 }
 
 /* Markdown content styling */
@@ -459,12 +492,13 @@ body {
 
 /* Inline code styling */
 .message-content code:not(pre code) {
-    background: #edf2f7;
+    background: var(--code-bg);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-family: 'Monaco', 'Consolas', monospace;
     font-size: 0.9rem;
-    color: #e53e3e;
+    color: var(--code-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .message-content ul,
