@@ -1796,6 +1796,7 @@ class AppManager {
         this.initializeNavigation();
         this.initializePrivacyNotice();
         this.initializeUrlHandling();
+        this.initializeThemeToggle();
     }
 
     initializeNavigation() {
@@ -1931,6 +1932,85 @@ class AppManager {
             const tab = urlParams.get('tab') || 'chat';
             this.chatApp.switchTab(tab);
         });
+    }
+
+    initializeThemeToggle() {
+        this.themeToggle = document.getElementById('theme-toggle');
+        this.sunIcon = this.themeToggle.querySelector('.sun-icon');
+        this.moonIcon = this.themeToggle.querySelector('.moon-icon');
+        
+        // Set initial theme based on system preference or saved preference
+        this.setInitialTheme();
+        
+        // Add click event listener for manual toggle
+        this.themeToggle.addEventListener('click', () => {
+            this.toggleTheme();
+        });
+        
+        // Listen for system theme changes
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+            // Only update if user hasn't manually set a theme
+            if (!localStorage.getItem('theme_preference')) {
+                this.applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+
+    setInitialTheme() {
+        const savedTheme = localStorage.getItem('theme_preference');
+        
+        if (savedTheme) {
+            // User has manually set a theme preference
+            this.applyTheme(savedTheme);
+        } else {
+            // Use system preference
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.applyTheme(systemPrefersDark ? 'dark' : 'light');
+        }
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Save user preference
+        localStorage.setItem('theme_preference', newTheme);
+        
+        // Apply the new theme
+        this.applyTheme(newTheme);
+        
+        // Update tooltip
+        this.updateThemeTooltip(newTheme);
+    }
+
+    applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Update icon visibility
+        if (theme === 'dark') {
+            this.sunIcon.style.display = 'none';
+            this.moonIcon.style.display = 'block';
+        } else {
+            this.sunIcon.style.display = 'block';
+            this.moonIcon.style.display = 'none';
+        }
+        
+        // Update tooltip
+        this.updateThemeTooltip(theme);
+        
+        // Add transition class for smooth transitions
+        document.body.classList.add('theme-transitioning');
+        setTimeout(() => {
+            document.body.classList.remove('theme-transitioning');
+        }, 300);
+    }
+
+    updateThemeTooltip(currentTheme) {
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        const tooltipText = `Switch to ${nextTheme} theme`;
+        this.themeToggle.setAttribute('title', tooltipText);
+        this.themeToggle.setAttribute('aria-label', tooltipText);
     }
 }
 

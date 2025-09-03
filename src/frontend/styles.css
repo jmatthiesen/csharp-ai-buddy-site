@@ -5,33 +5,86 @@
     box-sizing: border-box;
 }
 
+/* Theme variables */
+:root {
+    /* Light theme (default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-tertiary: #edf2f7;
+    --text-primary: #333333;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --border-color: #e2e8f0;
+    --border-color-dark: #cbd5e0;
+    --sidebar-bg: #2d3748;
+    --sidebar-text: #e2e8f0;
+    --sidebar-border: #1a202c;
+    --sidebar-hover: #4a5568;
+    --sidebar-active: #4299e1;
+    --accent-primary: #4299e1;
+    --accent-secondary: #63b3ed;
+    --success-color: #38a169;
+    --warning-color: #ed8936;
+    --error-color: #e53e3e;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --code-bg: #edf2f7;
+    --code-text: #e53e3e;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+    --bg-primary: #1a202c;
+    --bg-secondary: #2d3748;
+    --bg-tertiary: #4a5568;
+    --text-primary: #f7fafc;
+    --text-secondary: #e2e8f0;
+    --text-muted: #a0aec0;
+    --border-color: #4a5568;
+    --border-color-dark: #2d3748;
+    --sidebar-bg: #171923;
+    --sidebar-text: #e2e8f0;
+    --sidebar-border: #0d1117;
+    --sidebar-hover: #2d3748;
+    --sidebar-active: #3182ce;
+    --accent-primary: #3182ce;
+    --accent-secondary: #4299e1;
+    --success-color: #38a169;
+    --warning-color: #ed8936;
+    --error-color: #fc8181;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --code-bg: #2d3748;
+    --code-text: #fbb6ce;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     line-height: 1.6;
-    color: #333;
-    background-color: #f5f5f5;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
     height: 100vh;
     overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
     display: flex;
     height: 100vh;
     margin: 0 auto;
-    background: white;
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    background: var(--bg-primary);
+    box-shadow: 0 0 20px var(--shadow-color);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Sidebar */
 .sidebar {
-    background: #2d3748;
-    color: white;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
     width: 280px;
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, background-color 0.3s ease;
     position: relative;
-    border-right: 1px solid #1a202c;
+    border-right: 1px solid var(--sidebar-border);
 }
 
 .sidebar.collapsed {
@@ -42,14 +95,14 @@ body {
     display: flex;
     align-items: center;
     padding: 1rem;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--sidebar-hover);
     min-height: 70px;
 }
 
 .sidebar-toggle {
     background: transparent;
     border: none;
-    color: white;
+    color: var(--sidebar-text);
     cursor: pointer;
     padding: 0.5rem;
     border-radius: 6px;
@@ -62,7 +115,7 @@ body {
 }
 
 .sidebar-toggle:hover {
-    background: #4a5568;
+    background: var(--sidebar-hover);
 }
 
 .site-branding {
@@ -73,7 +126,7 @@ body {
 }
 
 .site-icon {
-    color: #4299e1;
+    color: var(--accent-primary);
     margin-right: 0.5rem;
     flex-shrink: 0;
     transition: opacity 0.3s ease;
@@ -109,7 +162,7 @@ body {
     padding: 0.75rem 1rem;
     background: transparent;
     border: none;
-    color: #e2e8f0;
+    color: var(--sidebar-text);
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.95rem;
@@ -118,19 +171,19 @@ body {
 }
 
 .sidebar-item:hover {
-    background: #4a5568;
-    color: white;
+    background: var(--sidebar-hover);
+    color: var(--sidebar-text);
 }
 
 .sidebar-item.active {
-    background: #4299e1;
-    color: white;
-    border-left-color: #63b3ed;
+    background: var(--sidebar-active);
+    color: var(--sidebar-text);
+    border-left-color: var(--accent-secondary);
 }
 
 /* Prevent New Chat button from showing active state */
 .sidebar-item.new-chat-item.active {
-    background: #38a169;
+    background: var(--success-color);
     border-left: none;
 }
 
@@ -177,15 +230,80 @@ body {
     overflow: hidden;
 }
 
-/* Header - Hidden to not reserve space */
+/* Header - Now visible for theme toggle */
 .main-header {
-    display: none;
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .header-actions {
     display: flex;
     gap: 1rem;
     align-items: center;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-toggle:hover {
+    background: var(--border-color);
+    transform: scale(1.05);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+.theme-icon {
+    transition: all 0.3s ease;
+    position: absolute;
+}
+
+.theme-toggle .sun-icon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.theme-toggle .moon-icon {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-toggle .sun-icon {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-toggle .moon-icon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.theme-icon .stars {
+    animation: twinkle 2s infinite alternate;
+}
+
+@keyframes twinkle {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
 .telemetry-btn {
@@ -239,13 +357,13 @@ body {
 .welcome-message {
     text-align: center;
     padding: 2rem;
-    color: #718096;
+    color: var(--text-muted);
 }
 
 .welcome-message h2 {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 /* Message styles */
@@ -269,17 +387,18 @@ body {
     padding: 1rem;
     border-radius: 12px;
     word-wrap: break-word;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .message.user .message-content {
-    background: #4299e1;
-    color: white;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
 }
 
 .message.assistant .message-content {
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
-    color: #2d3748;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
 }
 
 /* Markdown content styling */
@@ -294,20 +413,23 @@ body {
 }
 
 .message-content pre {
-    background: #1a202c;
-    color: #f7fafc;
+    background: var(--code-bg);
+    color: var(--text-primary);
     padding: 1rem;
     border-radius: 8px;
     overflow-x: auto;
     margin: 1rem 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .message-content code {
-    background: #edf2f7;
+    background: var(--code-bg);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-family: 'Monaco', 'Consolas', monospace;
     font-size: 0.9rem;
+    color: var(--code-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .message-content pre code {
@@ -354,7 +476,8 @@ body {
 /* Suggestions */
 .suggestions-container {
     padding: 0 2rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--border-color);
+    transition: border-color 0.3s ease;
 }
 
 .suggestions {
@@ -365,9 +488,9 @@ body {
 }
 
 .suggestion-btn {
-    background: #edf2f7;
-    border: 1px solid #e2e8f0;
-    color: #4a5568;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
     padding: 0.5rem 1rem;
     border-radius: 20px;
     cursor: pointer;
@@ -377,20 +500,21 @@ body {
 }
 
 .suggestion-btn:hover {
-    background: #e2e8f0;
-    border-color: #cbd5e0;
+    background: var(--border-color);
+    border-color: var(--border-color-dark);
 }
 
 .suggestion-btn:focus {
-    outline: 2px solid #4299e1;
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
 
 /* Input form */
 .input-form {
     padding: 1rem 2rem 2rem;
-    border-top: 1px solid #e2e8f0;
-    background: white;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .input-container {
@@ -404,23 +528,25 @@ body {
     min-height: 44px;
     max-height: 120px;
     padding: 0.75rem;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--border-color);
     border-radius: 12px;
     font-family: inherit;
     font-size: 1rem;
     line-height: 1.5;
     resize: none;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .question-input:focus {
     outline: none;
-    border-color: #4299e1;
+    border-color: var(--accent-primary);
 }
 
 .send-btn {
-    background: #4299e1;
-    color: white;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
     border: none;
     padding: 0.75rem;
     border-radius: 12px;
@@ -434,16 +560,16 @@ body {
 }
 
 .send-btn:hover {
-    background: #3182ce;
+    background: var(--accent-secondary);
 }
 
 .send-btn:focus {
-    outline: 2px solid #4299e1;
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
 
 .send-btn:disabled {
-    background: #a0aec0;
+    background: var(--text-muted);
     cursor: not-allowed;
 }
 
@@ -458,15 +584,16 @@ body {
 
 .options-summary {
     font-size: 0.75rem;
-    color: #718096;
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 0.375rem 0.5rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 300px;
+    transition: all 0.3s ease;
 }
 
 .options-btn {
@@ -474,8 +601,24 @@ body {
     align-items: center;
     gap: 0.5rem;
     background: transparent;
-    border: 1px solid #e2e8f0;
-    color: #718096;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.options-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color-dark);
+}
+
+.options-btn:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
     padding: 0.5rem 0.75rem;
     border-radius: 8px;
     cursor: pointer;
