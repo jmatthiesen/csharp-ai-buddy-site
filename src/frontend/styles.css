@@ -29,14 +29,15 @@
     --shadow-color: rgba(0, 0, 0, 0.1);
     --code-bg: #edf2f7;
     --code-text: #e53e3e;
-    --link-bg: #e6f3ff;
+    --link-bg: transparent;
     --link-text: #1a365d;
     --link-hover-bg: #bee3f8;
     --link-hover-text: #1a365d;
     --user-message-bg: #4299e1;
     --user-message-text: #ffffff;
-    --assistant-message-bg: #f7fafc;
-    --assistant-message-text: #1a202c;
+    --assistant-message-bg: #ffffff;
+    --assistant-message-text: #333333;
+    --scrollbar-thumb-color: rgba(0, 0, 0, 0.2);
 }
 
 /* Dark theme */
@@ -70,6 +71,7 @@
     --user-message-text: #ffffff;
     --assistant-message-bg: #2d3748;
     --assistant-message-text: #ffffff;
+    --scrollbar-thumb-color: rgba(255, 255, 255, 0.2);
 }
 
 body {
@@ -86,7 +88,7 @@ body {
 a {
     background-color: var(--link-bg);
     color: var(--link-text);
-    text-decoration: none;
+    text-decoration: underline;
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -445,51 +447,6 @@ a:focus {
     margin: 0.5rem 0;
 }
 
-.message-content pre {
-    background: var(--code-bg);
-    color: var(--text-primary);
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 1rem 0;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.message-content code {
-    background: var(--code-bg);
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-size: 0.9rem;
-    color: var(--code-text);
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.message-content pre code {
-    background: transparent;
-    padding: 0;
-    color: inherit;
-}
-
-/* Syntax highlighting improvements */
-.message-content pre {
-    position: relative;
-}
-
-.message-content pre code.hljs {
-    background: transparent;
-    padding: 0;
-    color: inherit;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-/* Ensure code blocks have proper scrolling */
-.message-content pre {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
 /* Inline code styling */
 .message-content code:not(pre code) {
     background: var(--code-bg);
@@ -499,6 +456,29 @@ a:focus {
     font-size: 0.9rem;
     color: var(--code-text);
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+.message-content code {
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.message-content code::-webkit-scrollbar {
+  height: 8px;
+}
+
+.message-content code::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+  margin: 0px 10px;
+}
+
+.message-content code::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 .message-content ul,
@@ -525,6 +505,7 @@ a:focus {
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
+    margin: 0px 2px;
     padding: 0.5rem 1rem;
     border-radius: 20px;
     cursor: pointer;

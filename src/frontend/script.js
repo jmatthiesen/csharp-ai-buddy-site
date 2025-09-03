@@ -1986,14 +1986,17 @@ class AppManager {
 
     applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
+        const hljsTheme = document.getElementById('hljs-theme');
         
         // Update icon visibility
         if (theme === 'dark') {
             this.sunIcon.style.display = 'none';
             this.moonIcon.style.display = 'block';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
         } else {
             this.sunIcon.style.display = 'block';
             this.moonIcon.style.display = 'none';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
         }
         
         // Update tooltip
