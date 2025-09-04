@@ -1471,12 +1471,6 @@ class SamplesGallery {
         
         this.modalSampleDetails.innerHTML = `
             <div class="sample-detail-header">
-                ${isMicrosoft ? `
-                    <div class="microsoft-badge">
-                        <div class="microsoft-icon">MS</div>
-                        Microsoft Authored
-                    </div>
-                ` : ''}
                 <h3>${this.escapeHtml(sample.title)}</h3>
             </div>
             

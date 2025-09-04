@@ -104,7 +104,6 @@ curl http://localhost:8000/api/samples/tags
 - **Clear Filters**: Use "Clear All" button to reset all filters
 
 ### Sample Cards
-- **Microsoft Badge**: Shows "MS Microsoft Authored" for Microsoft samples
 - **Sample Info**: Title, author, truncated description, and tags
 - **Click to View**: Click any card to open the detailed modal
 
