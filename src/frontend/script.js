@@ -973,9 +973,12 @@ class ChatApp {
     }
 
     createNewsCard(item) {
-        const card = document.createElement('article');
+        const card = document.createElement('div');
         card.className = 'news-item';
-        
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `Read news article: ${this.escapeHtml(item.title)}`);
+
         const publishedDate = this.formatDate(item.published_date);
         
         card.innerHTML = `
@@ -984,6 +987,7 @@ class ChatApp {
                     <h3><a href="${item.url}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(item.title)}</a></h3>
                 </div>
                 <div class="news-item-meta">
+                    <span class="news-item-source">${this.escapeHtml(item.source)}</span>
                     <span class="news-item-date">${publishedDate}</span>
                     ${item.author ? `<span class="news-item-author">by ${this.escapeHtml(item.author)}</span>` : ''}
                 </div>
@@ -995,6 +999,10 @@ class ChatApp {
                 </a>
             </div>
         `;
+
+        card.addEventListener('click', () => {
+            window.open(item.url, '_blank', 'noopener,noreferrer');
+        });
 
         return card;
     }
@@ -1405,18 +1413,8 @@ class SamplesGallery {
         card.setAttribute('tabindex', '0');
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `View details for ${sample.title}`);
-        
-        const isMicrosoft = sample.tags.includes('msft');
-        
+             
         card.innerHTML = `
-            <div class="sample-header">
-                ${isMicrosoft ? `
-                    <div class="microsoft-badge">
-                        <div class="microsoft-icon">MS</div>
-                        Microsoft Authored
-                    </div>
-                ` : ''}
-            </div>
             <h3 class="sample-title">${this.escapeHtml(sample.title)}</h3>
             <div class="sample-author">by ${this.escapeHtml(sample.author)}</div>
             <div class="sample-description">${this.escapeHtml(sample.description)}</div>
@@ -1681,9 +1679,12 @@ class SamplesGallery {
     }
 
     createNewsCard(item) {
-        const card = document.createElement('article');
+        const card = document.createElement('div');
         card.className = 'news-item';
-        
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `Read news article: ${this.escapeHtml(item.title)}`);
+
         const publishedDate = this.formatDate(item.published_date);
         
         card.innerHTML = `
@@ -1704,6 +1705,10 @@ class SamplesGallery {
                 </a>
             </div>
         `;
+
+        card.addEventListener('click', () => {
+            window.open(item.url, '_blank', 'noopener,noreferrer');
+        });
 
         return card;
     }
