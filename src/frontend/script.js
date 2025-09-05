@@ -747,7 +747,7 @@ class ChatApp {
                 this.trackTelemetry('chat_response_received', {
                     response_length: fullContent.length,
                     conversation_length: this.conversationHistory.length,
-                    has_links: fullContent.includes('http') || fullContent.includes('www.'),
+                    has_links: /\[.*?\]\(https?:\/\/.*?\)/.test(fullContent) || /\[.*?\]\(www\..*?\)/.test(fullContent),
                     session_chat_count: this.getSessionChatCount()
                 });
                 
@@ -900,17 +900,14 @@ class ChatApp {
         // Track section views
         if (tab === 'samples') {
             this.trackTelemetry('samples_section_viewed', {
-                session_chat_count: this.getSessionChatCount(),
                 previous_tab: this.currentTab || 'chat'
             });
         } else if (tab === 'news') {
             this.trackTelemetry('news_section_viewed', {
-                session_chat_count: this.getSessionChatCount(),
                 previous_tab: this.currentTab || 'chat'
             });
         } else if (tab === 'chat') {
             this.trackTelemetry('chat_section_viewed', {
-                session_chat_count: this.getSessionChatCount(),
                 previous_tab: this.currentTab || 'chat'
             });
         }
@@ -1193,7 +1190,10 @@ class ChatApp {
             return;
         }
         
-        console.log('Telemetry:', eventType, data);
+        // Only log telemetry in development environment
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+            console.log('Telemetry:', eventType, data);
+        }
         
         // Send event to Goat Counter if available
         if (window.goatcounter && window.goatcounter.count) {
