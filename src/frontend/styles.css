@@ -1081,7 +1081,7 @@ a:focus {
 }
 
 .news-item {
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     cursor: pointer;
@@ -1129,21 +1129,12 @@ a:focus {
     align-items: center;
     gap: 1rem;
     flex-shrink: 0;
-    color: #718096;
+    color: var(--text-muted);
     font-size: 0.875rem;
 }
 
 .news-item-source {
     font-weight: 500;
-    color: #4a5568;
-}
-
-.news-item-date {
-    color: #718096;
-}
-
-.news-item-author {
-    color: #718096;
 }
 
 .news-item-summary {
