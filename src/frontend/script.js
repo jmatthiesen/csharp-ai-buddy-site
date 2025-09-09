@@ -1,6 +1,7 @@
 class ChatApp {
-    constructor(apiBaseUrl) {
+    constructor(apiBaseUrl, trackTelemetry) {
         this.apiBaseUrl = apiBaseUrl;
+        this.trackTelemetry = trackTelemetry;
         this.chatMessages = document.getElementById('chat-messages');
         this.questionInput = document.getElementById('question-input');
         this.chatForm = document.getElementById('chat-form');
@@ -889,13 +890,14 @@ class ChatApp {
     }
 }
 
-class News {
-    constructor(apiBaseUrl) {
+class NewsApp {
+    constructor(apiBaseUrl, trackTelemetry) {
         this.apiBaseUrl = apiBaseUrl;
         this.newsCurrentPage = 1;
         this.newsSearchQuery = '';
         this.newsPageSize = 20;
         this.newsInitialized = false;
+        this.trackTelemetry = trackTelemetry;
         
         // DOM elements (will be set during initialization)
         this.newsSearchInput = null;
@@ -1026,7 +1028,7 @@ class News {
           
             // Track no results for news search
             if (this.newsSearchQuery) {
-                this.chatApp.trackTelemetry('news_search_no_results', {
+                this.trackTelemetry('news_search_no_results', {
                     search_query: this.newsSearchQuery,
                     current_page: this.newsCurrentPage
                 });
@@ -1043,7 +1045,7 @@ class News {
           
             // Track successful news search results
             if (this.newsSearchQuery && data.news.length > 0) {
-                this.chatApp.trackTelemetry('news_search_results_found', {
+                this.trackTelemetry('news_search_results_found', {
                     search_query: this.newsSearchQuery,
                     results_count: data.news.length,
                     current_page: this.newsCurrentPage
@@ -1078,7 +1080,7 @@ class News {
 
         card.addEventListener('click', () => {
             window.open(item.url, '_blank', 'noopener,noreferrer');
-            this.chatApp.trackTelemetry('news_item_clicked', {
+            this.trackTelemetry('news_item_clicked', {
                     url: item.url,
                     title: item.title,
                     source: item.source,
@@ -1173,70 +1175,12 @@ class News {
         div.textContent = text;
         return div.innerHTML;
     }
-
-    trackTelemetry(eventType, data) {
-        // Check if telemetry is enabled
-        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        
-        if (!telemetryEnabled) {
-            return;
-        }
-        
-        // Only log telemetry in development environment
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            console.log('Telemetry:', eventType, data);
-        }
-        
-        // Send event to Goat Counter if available
-        if (window.goatcounter && window.goatcounter.count) {
-            try {
-                // Construct a meaningful path for Goat Counter
-                const eventPath = `/analytics/${eventType}`;
-                const title = `${eventType}: ${JSON.stringify(data)}`;
-                
-                window.goatcounter.count({
-                    path: eventPath,
-                    title: title,
-                    event: true
-                });
-            } catch (error) {
-                console.error('Error sending analytics event:', error);
-            }
-        }
-        
-        // Also send to backend telemetry endpoint if available
-        this.sendBackendTelemetry(eventType, data);
-    }
-
-    async sendBackendTelemetry(eventType, data) {
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    event_type: eventType,
-                    data: data,
-                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
-                    timestamp: new Date().toISOString()
-                })
-            });
-            
-            if (!response.ok) {
-                console.warn('Backend telemetry request failed:', response.status);
-            }
-        } catch (error) {
-            // Silently fail - telemetry should not break the user experience
-            console.debug('Backend telemetry not available:', error.message);
-        }
-    }
 }
 
 class SamplesGallery {
 
-    constructor(apiBaseUrl = null, chatApp) {
-        this.chatApp = chatApp; // Store reference to ChatApp for telemetry
+    constructor(apiBaseUrl = null, trackTelemetry) {
+        this.trackTelemetry = trackTelemetry;
         this.apiBaseUrl = apiBaseUrl;
         this.samplesGrid = document.getElementById('samples-grid');
         this.samplesSearch = document.getElementById('samples-search');
@@ -1507,7 +1451,7 @@ class SamplesGallery {
         this.loadMockData();
         
         // Track filter usage
-        this.chatApp.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
+        this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
     }
 
     clearAllFilters() {
@@ -1585,7 +1529,7 @@ class SamplesGallery {
         this.currentSample = sample;
         
         // Track sample view
-        this.chatApp.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
+        this.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
         
         this.renderSampleModal(sample);
         this.sampleModal.style.display = 'flex';
@@ -1594,8 +1538,6 @@ class SamplesGallery {
     }
 
     renderSampleModal(sample) {
-        const isMicrosoft = sample.tags.includes('msft');
-        
         this.modalSampleDetails.innerHTML = `
             <div class="sample-detail-header">
                 <h3>${this.escapeHtml(sample.title)}</h3>
@@ -1648,7 +1590,7 @@ class SamplesGallery {
                     sample._viewedSourceLinks = true;
                 }
                 
-                this.chatApp.trackTelemetry('external_click', { 
+                this.trackTelemetry('external_click', { 
                     url: link.href, 
                     sample_id: sample.id,
                     link_type: linkType
@@ -1660,7 +1602,7 @@ class SamplesGallery {
     closeSampleModal() {
         // Track modal close behavior
         if (this.currentSample) {
-            this.chatApp.trackTelemetry('sample_modal_closed', { 
+            this.trackTelemetry('sample_modal_closed', { 
                 sample_id: this.currentSample.id,
                 title: this.currentSample.title,
                 viewed_source_links: this.currentSample._viewedSourceLinks || false
@@ -1668,31 +1610,17 @@ class SamplesGallery {
         }
         
         this.sampleModal.style.display = 'none';
-        this.sampleModal.setAttribute('aria-hidden', 'true');
+        this.sampleModal.setAttribute('aria-inert', 'true');
         this.currentSample = null;
-    }
-
-    trackTelemetry(eventType, data) {
-        // Check if telemetry is enabled
-        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        
-        if (!telemetryEnabled) {
-            return;
-        }
-        
-        console.log('Telemetry:', eventType, data);
-        
-        // In a real implementation, this would send to the backend
-        // For now, just log to console
     }
 }
 
 class AppManager {
     constructor() {
         this.apiBaseUrl = this.detectApiUrl();
-        this.chatApp = new ChatApp(this.apiBaseUrl);
-        this.samplesGallery = new SamplesGallery(this.apiBaseUrl);
-        this.newsApp = new News(this.apiBaseUrl);
+        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry);
+        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry);
+        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry);
         this.currentTab = 'chat';
         
         this.initializeSidebarState();
@@ -1718,6 +1646,64 @@ class AppManager {
 
         // Default to production API URL
         return apiUrl + "/api";
+    }
+
+    trackTelemetry(eventType, data) {
+        // Check if telemetry is enabled
+        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
+        
+        if (!telemetryEnabled) {
+            return;
+        }
+        
+        // Only log telemetry in development environment
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+            console.log('Telemetry:', eventType, data);
+        }
+        
+        // Send event to Goat Counter if available
+        if (window.goatcounter && window.goatcounter.count) {
+            try {
+                // Construct a meaningful path for Goat Counter
+                const eventPath = `/analytics/${eventType}`;
+                const title = `${eventType}: ${JSON.stringify(data)}`;
+                
+                window.goatcounter.count({
+                    path: eventPath,
+                    title: title,
+                    event: true
+                });
+            } catch (error) {
+                console.error('Error sending analytics event:', error);
+            }
+        }
+        
+        // Also send to backend telemetry endpoint if available
+        this.sendBackendTelemetry(eventType, data);
+    }
+
+    async sendBackendTelemetry(eventType, data) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: data,
+                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('Backend telemetry request failed:', response.status);
+            }
+        } catch (error) {
+            // Silently fail - telemetry should not break the user experience
+            console.debug('Backend telemetry not available:', error.message);
+        }
     }
 
     initializeNavigation() {
