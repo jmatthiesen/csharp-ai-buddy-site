@@ -1,7 +1,7 @@
 class ChatApp {
-    constructor() {
-        // Auto-detect API URL based on environment
-        this.apiBaseUrl = this.detectApiUrl();
+    constructor(apiBaseUrl, trackTelemetry) {
+        this.apiBaseUrl = apiBaseUrl;
+        this.trackTelemetry = trackTelemetry;
         this.chatMessages = document.getElementById('chat-messages');
         this.questionInput = document.getElementById('question-input');
         this.chatForm = document.getElementById('chat-form');
@@ -888,64 +888,30 @@ class ChatApp {
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
+}
 
-    switchTab(tab) {
-        const chatTab = document.getElementById('chat-tab');
-        const samplesTab = document.getElementById('samples-tab');
-        const newsTab = document.getElementById('news-tab');
-        const chatSection = document.getElementById('chat-section');
-        const samplesSection = document.getElementById('samples-section');
-        const newsSection = document.getElementById('news-section');
-
-        // Track section views
-        if (tab === 'samples') {
-            this.trackTelemetry('samples_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
-            });
-        } else if (tab === 'news') {
-            this.trackTelemetry('news_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
-            });
-        } else if (tab === 'chat') {
-            this.trackTelemetry('chat_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
-            });
-        }
-
-        // Update tab states
-        chatTab.classList.toggle('active', tab === 'chat');
-        samplesTab.classList.toggle('active', tab === 'samples');
-        newsTab.classList.toggle('active', tab === 'news');
-
-        // Update section visibility
-        chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
-        samplesSection.style.display = tab === 'samples' ? 'flex' : 'none';
-        newsSection.style.display = tab === 'news' ? 'flex' : 'none';
-
-        this.currentTab = tab;
-        
-        // Initialize news if switching to news tab
-        if (tab === 'news' && !this.newsInitialized) {
-            this.initializeNews();
-            this.newsInitialized = true;
-        }
-        
-        // Update URL for deep linking
-        const url = new URL(window.location);
-        if (tab === 'samples') {
-            url.searchParams.set('tab', 'samples');
-        } else if (tab === 'news') {
-            url.searchParams.set('tab', 'news');
-        } else {
-            url.searchParams.delete('tab');
-        }
-        window.history.replaceState({}, '', url);
-    }
-
-    initializeNews() {
+class NewsApp {
+    constructor(apiBaseUrl, trackTelemetry) {
+        this.apiBaseUrl = apiBaseUrl;
         this.newsCurrentPage = 1;
         this.newsSearchQuery = '';
         this.newsPageSize = 20;
+        this.newsInitialized = false;
+        this.trackTelemetry = trackTelemetry;
+        
+        // DOM elements (will be set during initialization)
+        this.newsSearchInput = null;
+        this.newsClearSearchBtn = null;
+        this.newsSearchBtn = null;
+        this.newsLoading = null;
+        this.newsFeed = null;
+        this.newsNoResults = null;
+        this.newsPagination = null;
+        this.newsSearchTimeout = null;
+    }
+
+    initialize() {
+        if (this.newsInitialized) return;
         
         // Get DOM elements
         this.newsSearchInput = document.getElementById('news-search');
@@ -971,6 +937,7 @@ class ChatApp {
         
         // Load initial news
         this.loadNews();
+        this.newsInitialized = true;
     }
 
     debounceNewsSearch() {
@@ -1058,6 +1025,14 @@ class ChatApp {
         if (!data.news || data.news.length === 0) {
             this.newsFeed.style.display = 'none';
             this.newsNoResults.style.display = 'block';
+          
+            // Track no results for news search
+            if (this.newsSearchQuery) {
+                this.trackTelemetry('news_search_no_results', {
+                    search_query: this.newsSearchQuery,
+                    current_page: this.newsCurrentPage
+                });
+            }
             return;
         }
 
@@ -1067,33 +1042,52 @@ class ChatApp {
 
         data.news.forEach(item => {
             const newsCard = this.createNewsCard(item);
+          
+            // Track successful news search results
+            if (this.newsSearchQuery && data.news.length > 0) {
+                this.trackTelemetry('news_search_results_found', {
+                    search_query: this.newsSearchQuery,
+                    results_count: data.news.length,
+                    current_page: this.newsCurrentPage
+                });
+            }
             this.newsFeed.appendChild(newsCard);
         });
     }
 
     createNewsCard(item) {
-        const card = document.createElement('article');
+        const card = document.createElement('div');
         card.className = 'news-item';
-        
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `Read news article: ${this.escapeHtml(item.title)}`);
+
         const publishedDate = this.formatDate(item.published_date);
         
         card.innerHTML = `
             <div class="news-item-header">
                 <div class="news-item-title">
-                    <h3><a href="${item.url}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(item.title)}</a></h3>
+                    <h3>${this.escapeHtml(item.title)}</h3>
                 </div>
                 <div class="news-item-meta">
+                    <span class="news-item-source">${this.escapeHtml(item.source)}</span>
                     <span class="news-item-date">${publishedDate}</span>
                     ${item.author ? `<span class="news-item-author">by ${this.escapeHtml(item.author)}</span>` : ''}
                 </div>
             </div>
             <div class="news-item-summary">${this.escapeHtml(item.summary)}</div>
-            <div class="news-item-footer">
-                <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="news-item-read-more">
-                    Read more →
-                </a>
-            </div>
         `;
+
+        card.addEventListener('click', () => {
+            window.open(item.url, '_blank', 'noopener,noreferrer');
+            this.trackTelemetry('news_item_clicked', {
+                    url: item.url,
+                    title: item.title,
+                    source: item.source,
+                    search_query: this.newsSearchQuery || null,
+                    current_page: this.newsCurrentPage
+                });
+        });
 
         return card;
     }
@@ -1181,70 +1175,13 @@ class ChatApp {
         div.textContent = text;
         return div.innerHTML;
     }
-
-    trackTelemetry(eventType, data) {
-        // Check if telemetry is enabled
-        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        
-        if (!telemetryEnabled) {
-            return;
-        }
-        
-        // Only log telemetry in development environment
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            console.log('Telemetry:', eventType, data);
-        }
-        
-        // Send event to Goat Counter if available
-        if (window.goatcounter && window.goatcounter.count) {
-            try {
-                // Construct a meaningful path for Goat Counter
-                const eventPath = `/analytics/${eventType}`;
-                const title = `${eventType}: ${JSON.stringify(data)}`;
-                
-                window.goatcounter.count({
-                    path: eventPath,
-                    title: title,
-                    event: true
-                });
-            } catch (error) {
-                console.error('Error sending analytics event:', error);
-            }
-        }
-        
-        // Also send to backend telemetry endpoint if available
-        this.sendBackendTelemetry(eventType, data);
-    }
-
-    async sendBackendTelemetry(eventType, data) {
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    event_type: eventType,
-                    data: data,
-                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
-                    timestamp: new Date().toISOString()
-                })
-            });
-            
-            if (!response.ok) {
-                console.warn('Backend telemetry request failed:', response.status);
-            }
-        } catch (error) {
-            // Silently fail - telemetry should not break the user experience
-            console.debug('Backend telemetry not available:', error.message);
-        }
-    }
 }
 
 class SamplesGallery {
-    constructor(chatApp) {
-        this.chatApp = chatApp; // Store reference to ChatApp for telemetry
-        this.apiBaseUrl = this.detectApiUrl();
+
+    constructor(apiBaseUrl = null, trackTelemetry) {
+        this.trackTelemetry = trackTelemetry;
+        this.apiBaseUrl = apiBaseUrl;
         this.samplesGrid = document.getElementById('samples-grid');
         this.samplesSearch = document.getElementById('samples-search');
         this.searchBtn = document.getElementById('search-btn');
@@ -1270,22 +1207,6 @@ class SamplesGallery {
 
         this.initializeEventListeners();
         this.loadMockData(); // Load mock data for demonstration
-    }
-
-    detectApiUrl() {
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            return 'http://localhost:8000';
-        }
-
-        // Check for environment variable or meta tag with API URL
-        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
-        if (apiUrlMeta) {
-            return apiUrlMeta.content;
-        }
-
-        // Default to production API URL
-        return 'https://csharp-ai-buddy-api.onrender.com/';
     }
 
     initializeEventListeners() {
@@ -1530,7 +1451,7 @@ class SamplesGallery {
         this.loadMockData();
         
         // Track filter usage
-        this.chatApp.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
+        this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
     }
 
     clearAllFilters() {
@@ -1563,18 +1484,8 @@ class SamplesGallery {
         card.setAttribute('tabindex', '0');
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `View details for ${sample.title}`);
-        
-        const isMicrosoft = sample.tags.includes('msft');
-        
+             
         card.innerHTML = `
-            <div class="sample-header">
-                ${isMicrosoft ? `
-                    <div class="microsoft-badge">
-                        <div class="microsoft-icon">MS</div>
-                        Microsoft Authored
-                    </div>
-                ` : ''}
-            </div>
             <h3 class="sample-title">${this.escapeHtml(sample.title)}</h3>
             <div class="sample-author">by ${this.escapeHtml(sample.author)}</div>
             <div class="sample-description">${this.escapeHtml(sample.description)}</div>
@@ -1618,7 +1529,7 @@ class SamplesGallery {
         this.currentSample = sample;
         
         // Track sample view
-        this.chatApp.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
+        this.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
         
         this.renderSampleModal(sample);
         this.sampleModal.style.display = 'flex';
@@ -1627,16 +1538,8 @@ class SamplesGallery {
     }
 
     renderSampleModal(sample) {
-        const isMicrosoft = sample.tags.includes('msft');
-        
         this.modalSampleDetails.innerHTML = `
             <div class="sample-detail-header">
-                ${isMicrosoft ? `
-                    <div class="microsoft-badge">
-                        <div class="microsoft-icon">MS</div>
-                        Microsoft Authored
-                    </div>
-                ` : ''}
                 <h3>${this.escapeHtml(sample.title)}</h3>
             </div>
             
@@ -1687,7 +1590,7 @@ class SamplesGallery {
                     sample._viewedSourceLinks = true;
                 }
                 
-                this.chatApp.trackTelemetry('external_click', { 
+                this.trackTelemetry('external_click', { 
                     url: link.href, 
                     sample_id: sample.id,
                     link_type: linkType
@@ -1699,7 +1602,7 @@ class SamplesGallery {
     closeSampleModal() {
         // Track modal close behavior
         if (this.currentSample) {
-            this.chatApp.trackTelemetry('sample_modal_closed', { 
+            this.trackTelemetry('sample_modal_closed', { 
                 sample_id: this.currentSample.id,
                 title: this.currentSample.title,
                 viewed_source_links: this.currentSample._viewedSourceLinks || false
@@ -1707,315 +1610,125 @@ class SamplesGallery {
         }
         
         this.sampleModal.style.display = 'none';
-        this.sampleModal.setAttribute('aria-hidden', 'true');
+        this.sampleModal.setAttribute('aria-inert', 'true');
         this.currentSample = null;
-    }
-
-
-    initializeNews() {
-        this.newsCurrentPage = 1;
-        this.newsSearchQuery = '';
-        this.newsPageSize = 20;
-        
-        // Get DOM elements
-        this.newsSearchInput = document.getElementById('news-search');
-        this.newsClearSearchBtn = document.getElementById('news-clear-search-btn');
-        this.newsSearchBtn = document.getElementById('news-search-btn');
-        this.newsLoading = document.getElementById('news-loading');
-        this.newsFeed = document.getElementById('news-feed');
-        this.newsNoResults = document.getElementById('news-no-results');
-        this.newsPagination = document.getElementById('news-pagination');
-        
-        // Setup event listeners
-        this.newsSearchInput.addEventListener('input', () => {
-            this.debounceNewsSearch();
-        });
-        
-        this.newsClearSearchBtn.addEventListener('click', () => {
-            this.clearNewsSearch();
-        });
-        
-        this.newsSearchBtn.addEventListener('click', () => {
-            this.performNewsSearch();
-        });
-        
-        // Load initial news
-        this.loadNews();
-    }
-
-    debounceNewsSearch() {
-        clearTimeout(this.newsSearchTimeout);
-        this.newsSearchTimeout = setTimeout(() => {
-            this.performNewsSearch();
-        }, 500);
-        
-        // Show/hide clear button
-        if (this.newsSearchInput.value.trim()) {
-            this.newsClearSearchBtn.style.display = 'block';
-        } else {
-            this.newsClearSearchBtn.style.display = 'none';
-        }
-    }
-
-    performNewsSearch() {
-        this.newsSearchQuery = this.newsSearchInput.value.trim();
-        this.newsCurrentPage = 1;
-        this.loadNews();
-    }
-
-    clearNewsSearch() {
-        this.newsSearchInput.value = '';
-        this.newsClearSearchBtn.style.display = 'none';
-        this.newsSearchQuery = '';
-        this.newsCurrentPage = 1;
-        this.loadNews();
-    }
-
-    async loadNews() {
-        try {
-            this.showNewsLoading();
-            
-            // Build query parameters
-            const params = new URLSearchParams({
-                page: this.newsCurrentPage.toString(),
-                page_size: this.newsPageSize.toString()
-            });
-            
-            if (this.newsSearchQuery) {
-                params.append('search', this.newsSearchQuery);
-            }
-            
-            const response = await fetch(`${this.apiBaseUrl}/news?${params}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            this.renderNews(data);
-            this.renderNewsPagination(data);
-            
-        } catch (error) {
-            console.error('Error loading news:', error);
-            this.showNewsError();
-        } finally {
-            this.hideNewsLoading();
-        }
-    }
-
-    showNewsLoading() {
-        this.newsLoading.style.display = 'flex';
-        this.newsFeed.style.display = 'none';
-        this.newsNoResults.style.display = 'none';
-        this.newsPagination.style.display = 'none';
-    }
-
-    hideNewsLoading() {
-        this.newsLoading.style.display = 'none';
-    }
-
-    showNewsError() {
-        this.newsFeed.innerHTML = `
-            <div class="error-message">
-                <h3>Unable to load news</h3>
-                <p>Please try again later.</p>
-            </div>
-        `;
-        this.newsFeed.style.display = 'block';
-    }
-
-    renderNews(data) {
-        if (!data.news || data.news.length === 0) {
-            this.newsFeed.style.display = 'none';
-            this.newsNoResults.style.display = 'block';
-            
-            // Track no results for news search
-            if (this.newsSearchQuery) {
-                this.chatApp.trackTelemetry('news_search_no_results', {
-                    search_query: this.newsSearchQuery,
-                    current_page: this.newsCurrentPage
-                });
-            }
-            return;
-        }
-
-        this.newsFeed.innerHTML = '';
-        this.newsFeed.style.display = 'flex';
-        this.newsNoResults.style.display = 'none';
-
-        data.news.forEach(item => {
-            const newsCard = this.createNewsCard(item);
-        // Track successful news search results
-        if (this.newsSearchQuery && data.news.length > 0) {
-            this.chatApp.trackTelemetry('news_search_results_found', {
-                search_query: this.newsSearchQuery,
-                results_count: data.news.length,
-                current_page: this.newsCurrentPage
-            });
-        }
-            this.newsFeed.appendChild(newsCard);
-        });
-    }
-
-    createNewsCard(item) {
-        const card = document.createElement('article');
-        card.className = 'news-item';
-        
-        const publishedDate = this.formatDate(item.published_date);
-        
-        card.innerHTML = `
-            <div class="news-item-header">
-                <div class="news-item-title">
-                    <h3><a href="${item.url}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(item.title)}</a></h3>
-                </div>
-                <div class="news-item-meta">
-                    <span class="news-item-source">${this.escapeHtml(item.source)}</span>
-                    <span class="news-item-date">${publishedDate}</span>
-                    ${item.author ? `<span class="news-item-author">by ${this.escapeHtml(item.author)}</span>` : ''}
-                </div>
-            </div>
-            <div class="news-item-summary">${this.escapeHtml(item.summary)}</div>
-            <div class="news-item-footer">
-                <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="news-item-read-more">
-                    Read more →
-                </a>
-            </div>
-        `;
-
-        // Add click tracking to all news links
-        const links = card.querySelectorAll('a[href]');
-        links.forEach((link, index) => {
-            link.addEventListener('click', () => {
-                this.chatApp.trackTelemetry('news_item_clicked', {
-                    url: item.url,
-                    title: item.title,
-                    source: item.source,
-                    link_type: link.classList.contains('news-item-read-more') ? 'read_more' : 'title',
-                    search_query: this.newsSearchQuery || null,
-                    current_page: this.newsCurrentPage
-                });
-            });
-        });
-
-        return card;
-    }
-
-    renderNewsPagination(data) {
-        if (data.pages <= 1) {
-            this.newsPagination.style.display = 'none';
-            return;
-        }
-
-        this.newsPagination.innerHTML = '';
-        this.newsPagination.style.display = 'flex';
-        
-        // Previous button
-        const prevBtn = document.createElement('button');
-        prevBtn.className = 'pagination-btn';
-        prevBtn.textContent = '« Previous';
-        prevBtn.disabled = data.page === 1;
-        prevBtn.addEventListener('click', () => {
-            if (data.page > 1) {
-                this.newsCurrentPage = data.page - 1;
-                this.loadNews();
-            }
-        });
-        this.newsPagination.appendChild(prevBtn);
-        
-        // Page numbers (show max 5 pages)
-        const maxVisiblePages = 5;
-        const startPage = Math.max(1, data.page - Math.floor(maxVisiblePages / 2));
-        const endPage = Math.min(data.pages, startPage + maxVisiblePages - 1);
-        
-        for (let i = startPage; i <= endPage; i++) {
-            const pageBtn = document.createElement('button');
-            pageBtn.className = 'pagination-btn';
-            pageBtn.textContent = i.toString();
-            
-            if (i === data.page) {
-                pageBtn.classList.add('active');
-            }
-            
-            pageBtn.addEventListener('click', () => {
-                this.newsCurrentPage = i;
-                this.loadNews();
-            });
-            
-            this.newsPagination.appendChild(pageBtn);
-        }
-        
-        // Info
-        const info = document.createElement('div');
-        info.className = 'pagination-info';
-        info.textContent = `${data.page} of ${data.pages} (${data.total} articles)`;
-        this.newsPagination.appendChild(info);
-        
-        // Next button
-        const nextBtn = document.createElement('button');
-        nextBtn.className = 'pagination-btn';
-        nextBtn.textContent = 'Next »';
-        nextBtn.disabled = data.page === data.pages;
-        nextBtn.addEventListener('click', () => {
-            if (data.page < data.pages) {
-                this.newsCurrentPage = data.page + 1;
-                this.loadNews();
-            }
-        });
-        this.newsPagination.appendChild(nextBtn);
-    }
-
-    formatDate(dateString) {
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-        } catch (error) {
-            return dateString;
-        }
     }
 }
 
 class AppManager {
     constructor() {
-        this.chatApp = new ChatApp();
-        this.samplesGallery = new SamplesGallery(this.chatApp);
+        this.apiBaseUrl = this.detectApiUrl();
+        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry);
+        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry);
+        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry);
         this.currentTab = 'chat';
         
         this.initializeSidebarState();
         this.initializeNavigation();
         this.initializePrivacyNotice();
         this.initializeUrlHandling();
+        this.initializeThemeToggle();
+    }
+
+    detectApiUrl() {
+        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/';
+
+        // Check if we're running in development (localhost)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+            apiUrl = 'http://localhost:8000';
+        }
+
+        // Check for environment variable or meta tag with API URL
+        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
+        if (apiUrlMeta && apiUrlMeta.content.trim() != '') {
+            apiUrl = apiUrlMeta.content;
+        }
+
+        // Default to production API URL
+        return apiUrl + "/api";
+    }
+
+    trackTelemetry(eventType, data) {
+        // Check if telemetry is enabled
+        const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
+        
+        if (!telemetryEnabled) {
+            return;
+        }
+        
+        // Only log telemetry in development environment
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+            console.log('Telemetry:', eventType, data);
+        }
+        
+        // Send event to Goat Counter if available
+        if (window.goatcounter && window.goatcounter.count) {
+            try {
+                // Construct a meaningful path for Goat Counter
+                const eventPath = `/analytics/${eventType}`;
+                const title = `${eventType}: ${JSON.stringify(data)}`;
+                
+                window.goatcounter.count({
+                    path: eventPath,
+                    title: title,
+                    event: true
+                });
+            } catch (error) {
+                console.error('Error sending analytics event:', error);
+            }
+        }
+        
+        // Also send to backend telemetry endpoint if available
+        this.sendBackendTelemetry(eventType, data);
+    }
+
+    async sendBackendTelemetry(eventType, data) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/telemetry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: data,
+                    user_consent: localStorage.getItem('telemetry_enabled') !== 'false',
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('Backend telemetry request failed:', response.status);
+            }
+        } catch (error) {
+            // Silently fail - telemetry should not break the user experience
+            console.debug('Backend telemetry not available:', error.message);
+        }
     }
 
     initializeNavigation() {
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
-        const chatSection = document.getElementById('chat-section');
-        const samplesSection = document.getElementById('samples-section');
-        const newsSection = document.getElementById('news-section');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('sidebar');
 
         // Tab navigation
         chatTab.addEventListener('click', () => {
-            this.chatApp.switchTab('chat');
+            this.switchTab('chat');
         });
 
         samplesTab.addEventListener('click', () => {
-            this.chatApp.switchTab('samples');
+            this.switchTab('samples');
         });
 
         newsTab.addEventListener('click', () => {
-            this.chatApp.switchTab('news');
+            this.switchTab('news');
         });
 
         // Listen for New Chat button requests to switch to chat tab
         document.addEventListener('switchToChat', () => {
-            this.chatApp.switchTab('chat');
+            this.switchTab('chat');
         });
 
         // Sidebar toggle
@@ -2042,6 +1755,52 @@ class AppManager {
                 sidebar.classList.remove('expanded');
             }
         });
+    }
+
+    switchTab(tab) {
+        const chatTab = document.getElementById('chat-tab');
+        const samplesTab = document.getElementById('samples-tab');
+        const newsTab = document.getElementById('news-tab');
+        const chatSection = document.getElementById('chat-section');
+        const samplesSection = document.getElementById('samples-section');
+        const newsSection = document.getElementById('news-section');
+
+        // Update tab states
+        chatTab.classList.toggle('active', tab === 'chat');
+        samplesTab.classList.toggle('active', tab === 'samples');
+        newsTab.classList.toggle('active', tab === 'news');
+
+        // Update section visibility
+        chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
+        samplesSection.style.display = tab === 'samples' ? 'flex' : 'none';
+        newsSection.style.display = tab === 'news' ? 'flex' : 'none';
+
+        this.currentTab = tab;
+        
+        // Initialize news if switching to news tab
+        if (tab === 'news' && !this.newsApp.newsInitialized) {
+            this.newsApp.initialize();
+        }
+        
+        // Update URL for deep linking
+        const url = new URL(window.location);
+        if (tab === 'samples') {
+            this.trackTelemetry('samples_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
+            url.searchParams.set('tab', 'samples');
+        } else if (tab === 'news') {
+            this.trackTelemetry('news_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
+            url.searchParams.set('tab', 'news');
+        } else {
+            this.trackTelemetry('chat_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
+            url.searchParams.delete('tab');
+        }
+        window.history.replaceState({}, '', url);
     }
 
     toggleSidebar() {
@@ -2112,17 +1871,99 @@ class AppManager {
         const initialTab = urlParams.get('tab');
         
         if (initialTab === 'samples') {
-            this.chatApp.switchTab('samples');
+            this.switchTab('samples');
         } else if (initialTab === 'news') {
-            this.chatApp.switchTab('news');
+            this.switchTab('news');
         }
         
         // Handle back/forward navigation
         window.addEventListener('popstate', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const tab = urlParams.get('tab') || 'chat';
-            this.chatApp.switchTab(tab);
+            this.switchTab(tab);
         });
+    }
+
+    initializeThemeToggle() {
+        this.themeToggle = document.getElementById('theme-toggle');
+        this.sunIcon = this.themeToggle.querySelector('.sun-icon');
+        this.moonIcon = this.themeToggle.querySelector('.moon-icon');
+        
+        // Set initial theme based on system preference or saved preference
+        this.setInitialTheme();
+        
+        // Add click event listener for manual toggle
+        this.themeToggle.addEventListener('click', () => {
+            this.toggleTheme();
+        });
+        
+        // Listen for system theme changes
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+            // Only update if user hasn't manually set a theme
+            if (!localStorage.getItem('theme_preference')) {
+                this.applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+
+    setInitialTheme() {
+        const savedTheme = localStorage.getItem('theme_preference');
+        
+        if (savedTheme) {
+            // User has manually set a theme preference
+            this.applyTheme(savedTheme);
+        } else {
+            // Use system preference
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.applyTheme(systemPrefersDark ? 'dark' : 'light');
+        }
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Save user preference
+        localStorage.setItem('theme_preference', newTheme);
+        
+        // Apply the new theme
+        this.applyTheme(newTheme);
+        
+        // Update tooltip
+        this.updateThemeTooltip(newTheme);
+    }
+
+    applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const hljsTheme = document.getElementById('hljs-theme');
+        
+        // Update icon visibility
+        if (theme === 'dark') {
+            this.sunIcon.style.display = 'none';
+            this.moonIcon.style.display = 'block';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
+        } else {
+            this.sunIcon.style.display = 'block';
+            this.moonIcon.style.display = 'none';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+        }
+        
+        // Update tooltip
+        this.updateThemeTooltip(theme);
+        
+        // Add transition class for smooth transitions
+        document.body.classList.add('theme-transitioning');
+        setTimeout(() => {
+            document.body.classList.remove('theme-transitioning');
+        }, 300);
+    }
+
+    updateThemeTooltip(currentTheme) {
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        const tooltipText = `Switch to ${nextTheme} theme`;
+        this.themeToggle.setAttribute('title', tooltipText);
+        this.themeToggle.setAttribute('aria-label', tooltipText);
     }
 }
 
