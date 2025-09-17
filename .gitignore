@@ -210,3 +210,7 @@ __marimo__/
 .DS_Store
 .claude/
 prompts/
+
+# Test files for development
+**/test_rate_limiting.py
+**/test_streaming_rate_limiting.py
