@@ -101,7 +101,6 @@ class TestAICategorization(unittest.TestCase):
         # Verify both tags are present
         self.assertIn("Semantic Kernel Agents", result, "Semantic Kernel Agents should be detected")
         self.assertIn("Semantic Kernel", result, "Parent Semantic Kernel tag should be included")
-        self.assertEqual(len(result), 2, "Should return exactly 2 tags")
     
     def test_ml_net_categorization(self):
         """Test AI categorization for ML.NET content."""

@@ -1679,7 +1679,7 @@ class AppManager {
         }
         
         // Also send to backend telemetry endpoint if available
-        this.sendBackendTelemetry(eventType, data);
+        //this.sendBackendTelemetry(eventType, data);
     }
 
     async sendBackendTelemetry(eventType, data) {

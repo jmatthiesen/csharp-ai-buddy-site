@@ -6,16 +6,28 @@ import logging
 from datetime import datetime
 import json
 
-from models import ChatRequest, Message, AIFilters
+from pymongo import MongoClient
 from agents import Agent, Runner, function_tool, WebSearchTool
 from agents.mcp import MCPServerStreamableHttp
 from openai import OpenAI
 from openai.types.responses import ResponseTextDeltaEvent
+from arize.otel import register
+
+from models import ChatRequest, Message, AIFilters
 from nuget_search import search_nuget_packages, get_nuget_package_details
-from pymongo import MongoClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Setup OTel via our convenience function
+tracer_provider = register(
+    space_id = os.getenv("ARIZE_SPACE_ID"),    # in app space settings page
+    api_key = os.getenv("ARIZE_API_KEY"),      # in app space settings page
+    project_name="agents"          # As used in the example, or your preferred project name
+)
+
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
+OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
 
 async def validate_magic_key(magic_key: str) -> bool:
     """
@@ -57,6 +69,7 @@ async def validate_magic_key(magic_key: str) -> bool:
     except Exception as e:
         logger.error(f"Error validating magic key: {str(e)}", exc_info=True)
         return False
+    
 
 def generate_embedding(text: str) -> List[float]:
     """
