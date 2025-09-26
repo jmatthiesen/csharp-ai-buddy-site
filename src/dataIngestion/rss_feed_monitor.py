@@ -122,7 +122,6 @@ class RSSFeedMonitor:
         
         # Collections
         self.subscriptions_collection = self.db["rss_subscriptions"]
-        self.processed_items_collection = self.db["rss_processed_items"]
         
         # Initialize document pipeline and RSS retriever for content processing
         self.document_pipeline = DocumentPipeline(config)
@@ -143,11 +142,6 @@ class RSSFeedMonitor:
             # Index on last_checked for scheduling
             self.subscriptions_collection.create_index("last_checked")
             
-            # Index on processed items to avoid duplicates
-            self.processed_items_collection.create_index([("feed_url", 1), ("item_id", 1)], unique=True)
-            
-            # Index on processed date for cleanup
-            self.processed_items_collection.create_index("processed_date")
             
             logger.info("RSS feed monitor indexes created successfully")
         except Exception as e:
@@ -240,28 +234,62 @@ class RSSFeedMonitor:
             logger.error(f"Error listing RSS subscriptions: {e}")
             return []
     
-    def _is_item_processed(self, feed_url: str, item_id: str) -> bool:
-        """Check if an RSS item has already been processed."""
+    def _should_reindex_document(self, source_url: str, current_published_date: Optional[datetime] = None) -> bool:
+        """
+        Check if a document should be re-indexed based on its URL and published date.
+        
+        Args:
+            source_url: URL of the RSS item (used as source_url in documents)
+            current_published_date: Published date of the current RSS item
+            
+        Returns:
+            bool: True if document needs re-indexing (newer content), False if should skip
+        """
         try:
-            doc = self.processed_items_collection.find_one({
-                "feed_url": feed_url,
-                "item_id": item_id
+            # Look for existing document by source URL
+            existing_doc = self.document_pipeline.documents_collection.find_one({
+                "sourceUrl": source_url
             })
-            return doc is not None
-        except Exception as e:
-            logger.error(f"Error checking if item is processed: {e}")
+            
+            # If document doesn't exist, it needs to be indexed
+            if existing_doc is None:
+                logger.debug(f"Document not found in collection, needs indexing: {source_url}")
+                return True
+            
+            # If no current published date, skip comparison and don't re-index
+            if current_published_date is None:
+                logger.debug(f"No published date available for comparison, skipping re-index: {source_url}")
+                return False
+                
+            # Get the stored published date from the document
+            stored_published_date = existing_doc.get("publishedDate")
+            
+            # If no stored published date, re-index to update with date metadata
+            if stored_published_date is None:
+                logger.info(f"Re-indexing document to add published date metadata: {source_url}")
+                return True
+            
+            # Convert stored date if it's a string (ISO format)
+            if isinstance(stored_published_date, str):
+                try:
+                    stored_published_date = datetime.fromisoformat(stored_published_date)
+                except ValueError:
+                    logger.warning(f"Invalid stored published date, re-indexing: {source_url}")
+                    return True
+            
+            # If current item is newer than stored item, re-index
+            if current_published_date > stored_published_date:
+                logger.info(f"Re-indexing updated document: {source_url} (new: {current_published_date} > stored: {stored_published_date})")
+                return True
+            
+            # Document is up to date, skip re-indexing
+            logger.debug(f"Document is up to date, skipping: {source_url}")
             return False
-    
-    def _mark_item_processed(self, feed_url: str, item_id: str):
-        """Mark an RSS item as processed."""
-        try:
-            self.processed_items_collection.insert_one({
-                "feed_url": feed_url,
-                "item_id": item_id,
-                "processed_date": datetime.now(timezone.utc)
-            })
+            
         except Exception as e:
-            logger.error(f"Error marking item as processed: {e}")
+            logger.error(f"Error checking if document should be re-indexed: {e}")
+            # On error, err on the side of re-indexing to ensure content is processed
+            return True
     
     def _get_item_id(self, feed_item: FeedParserDict, feed_url: str) -> str:
         """Generate a unique ID for a feed item."""
@@ -280,12 +308,20 @@ class RSSFeedMonitor:
             bool: True if item was processed successfully
         """
         try:
-            # Generate item ID
-            item_id = self._get_item_id(feed_item, subscription.feed_url)
-            
-            # Check if already processed
-            if self._is_item_processed(subscription.feed_url, item_id):
-                logger.debug(f"Item already processed: {feed_item.get('title', '')}")
+            # Parse published date first for use in processing checks
+            published_date = None
+            if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
+                published_date = datetime(*feed_item.published_parsed[:6])
+
+            # Get the source URL for document checking
+            source_url = feed_item.get('link', '')
+            if not source_url:
+                logger.warning(f"RSS item has no link/URL, skipping: {feed_item.get('title', 'Unknown')}")
+                return False
+
+            # Check if document needs re-indexing based on URL and published date
+            if not self._should_reindex_document(source_url, published_date):
+                logger.debug(f"Document is up to date, skipping: {feed_item.get('title', '')}")
                 return True
             
             # Create raw document directly from the feed item
@@ -294,10 +330,7 @@ class RSSFeedMonitor:
             if hasattr(feed_item, 'tags'):
                 categories = [tag.term for tag in feed_item.tags if hasattr(tag, 'term')]
             
-            # Parse published date
-            published_date = None
-            if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
-                published_date = datetime(*feed_item.published_parsed[:6])
+            # Published date already parsed above
             
             # Extract author
             author = None
@@ -321,7 +354,6 @@ class RSSFeedMonitor:
             # Create RSS metadata
             rss_metadata = {
                 "rss_feed_url": subscription.feed_url,
-                "rss_item_id": item_id,
                 "rss_author": author,
                 "rss_published_date": published_date.isoformat() if published_date else None,
                 "rss_categories": categories,
@@ -357,9 +389,6 @@ class RSSFeedMonitor:
                 }
             )
             
-            # Mark as processed
-            self._mark_item_processed(subscription.feed_url, item_id)
-            
             logger.info(f"Processed RSS item into {len(stored_ids)} chunks: {raw_document.title}")
             return True
             
@@ -394,12 +423,6 @@ class RSSFeedMonitor:
                 # Generate item ID for checking
                 item_id = self._get_item_id(feed_item, subscription.feed_url)
                 
-                # TODO: Add support to update already processed items that were updated since last indexed
-                # Skip if already processed
-                if self._is_item_processed(subscription.feed_url, item_id):
-                    continue
-                
-                # Process the item
                 if self._process_feed_item(feed_item, subscription):
                     processed_count += 1
                     
@@ -490,33 +513,6 @@ class RSSFeedMonitor:
                 "total_items_processed": 0,
                 "errors": [str(e)]
             }
-    
-    def cleanup_old_processed_items(self, days_to_keep: int = 30) -> int:
-        """
-        Clean up old processed item records to prevent database bloat.
-        
-        Args:
-            days_to_keep: Number of days of processed items to keep
-            
-        Returns:
-            int: Number of records deleted
-        """
-        try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
-            
-            result = self.processed_items_collection.delete_many({
-                "processed_date": {"$lt": cutoff_date}
-            })
-            
-            deleted_count = result.deleted_count
-            logger.info(f"Cleaned up {deleted_count} old processed item records")
-            
-            return deleted_count
-            
-        except Exception as e:
-            logger.error(f"Error cleaning up old processed items: {e}")
-            return 0
-
 
 def main():
     """Main function for command-line interface."""
@@ -542,10 +538,6 @@ def main():
     
     # Daily check command
     daily_parser = subparsers.add_parser("daily-check", help="Run daily RSS feed check")
-    
-    # Cleanup command
-    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up old processed items")
-    cleanup_parser.add_argument("--days", type=int, default=30, help="Days of processed items to keep")
 
     # Launch Streamlit UI command
     ui_parser = subparsers.add_parser("launch-ui", help="Launch the Streamlit UI for RSS Feed Monitor")
@@ -586,10 +578,6 @@ def main():
         elif args.command == "daily-check":
             stats = monitor.run_daily_check()
             print(json.dumps(stats, indent=2, default=str))
-
-        elif args.command == "cleanup":
-            deleted_count = monitor.cleanup_old_processed_items(args.days)
-            print(f"Cleaned up {deleted_count} old processed item records")
 
         elif args.command == "launch-ui":
             import subprocess

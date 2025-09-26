@@ -335,7 +335,22 @@ class DocumentPipeline:
             stored_chunk_ids = []
             doc = context.raw_document
 
+            # Clean up any existing document and chunks for this source URL to avoid duplicates
+            source_url = context.raw_document.source_url
+            
+            # Clean up existing document summary
+            doc_result = self.documents_collection.delete_many({"sourceUrl": source_url})
+            if doc_result.deleted_count > 0:
+                logger.info(f"Cleaned up {doc_result.deleted_count} existing document summary before re-processing")
+            
+            # Clean up existing chunks
+            chunk_result = self.chunks_collection.delete_many({"original_document_id": source_url})
+            if chunk_result.deleted_count > 0:
+                logger.info(f"Cleaned up {chunk_result.deleted_count} existing chunks before re-processing")
+
+            # Create and store new document summary
             summary_doc = {
+                "documentId": doc.source_url,  # Use source URL as unique ID
                 "title": doc.title,
                 "summary": doc.summary,
                 "tags": doc.tags,
@@ -346,14 +361,6 @@ class DocumentPipeline:
 
             self.documents_collection.insert_one(summary_doc)
             logger.info(f"Stored summary document: {summary_doc["documentId"]}")
-
-            # Clean up any existing chunks for this document to avoid duplicates
-            original_doc_id = context.raw_document.source_url
-            
-            # Simple cleanup by original document ID
-            result = self.chunks_collection.delete_many({"original_document_id": original_doc_id})
-            if result.deleted_count > 0:
-                logger.info(f"Cleaned up {result.deleted_count} existing chunks for document before processing")
             
             # Determine total chunks
             total_chunks = len(context.chunks)
@@ -378,13 +385,13 @@ class DocumentPipeline:
                     "chunk_index": i,
                     "total_chunks": total_chunks,
                     "chunk_size": len(chunk_content),
-                    "original_document_id": original_doc_id
+                    "original_document_id": source_url
                 })
                 
                 # Create chunk
                 chunk = Chunk(
                     chunk_id=chunk_id,
-                    original_document_id=original_doc_id,
+                    original_document_id=source_url,
                     title=context.raw_document.title or "Untitled",
                     source_url=context.raw_document.source_url,
                     content=chunk_content,  # Markdown content only
@@ -410,7 +417,7 @@ class DocumentPipeline:
                     raise ValueError(error_msg)
             
             context.mark_stage_complete("finalization_and_storage")
-            logger.info(f"Successfully stored document summary and {len(stored_chunk_ids)} chunks for: {original_doc_id}")
+            logger.info(f"Successfully stored document summary and {len(stored_chunk_ids)} chunks for: {source_url}")
             return stored_chunk_ids
             
         except Exception as e:

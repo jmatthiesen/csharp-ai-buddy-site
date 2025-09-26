@@ -188,9 +188,8 @@ class TestRSSFeedMonitor(unittest.TestCase):
         # Create monitor instance
         monitor = RSSFeedMonitor(self.mock_config)
         
-        # Verify indexes were created
+        # Verify indexes were created (only subscriptions collection now)
         self.mock_subscriptions_collection.create_index.assert_called()
-        self.mock_processed_items_collection.create_index.assert_called()
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
@@ -369,44 +368,73 @@ class TestRSSFeedMonitor(unittest.TestCase):
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
-    def test_is_item_processed(self, mock_document_pipeline_class, mock_mongo_client_class):
-        """Test checking if an item has been processed."""
+    def test_should_reindex_document_new_document(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test that new documents (not in collection) should be indexed."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
         
-        # Mock processed item found
-        self.mock_processed_items_collection.find_one.return_value = {"item_id": "test-123"}
+        # Mock no existing document found
+        self.mock_document_pipeline.documents_collection = Mock()
+        self.mock_document_pipeline.documents_collection.find_one.return_value = None
         
         monitor = RSSFeedMonitor(self.mock_config)
         
-        # Test checking processed item
-        result = monitor._is_item_processed("https://feed.com/feed.xml", "test-123")
+        # Test with new document
+        published_date = datetime(2023, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        result = monitor._should_reindex_document("https://example.com/article", published_date)
         
-        self.assertTrue(result)
-        self.mock_processed_items_collection.find_one.assert_called_with({
-            "feed_url": "https://feed.com/feed.xml",
-            "item_id": "test-123"
+        self.assertTrue(result)  # Should index new document
+        self.mock_document_pipeline.documents_collection.find_one.assert_called_with({
+            "sourceUrl": "https://example.com/article"
         })
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
-    def test_mark_item_processed(self, mock_document_pipeline_class, mock_mongo_client_class):
-        """Test marking an item as processed."""
+    def test_should_reindex_document_newer_content(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test that documents with newer published date should be re-indexed."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
         
+        # Mock existing document with older published date
+        older_date = datetime(2023, 1, 10, 12, 0, 0, tzinfo=timezone.utc)
+        self.mock_document_pipeline.documents_collection = Mock()
+        self.mock_document_pipeline.documents_collection.find_one.return_value = {
+            "sourceUrl": "https://example.com/article",
+            "publishedDate": older_date
+        }
+        
         monitor = RSSFeedMonitor(self.mock_config)
         
-        # Test marking item as processed
-        monitor._mark_item_processed("https://feed.com/feed.xml", "test-123")
+        # Test with newer published date
+        newer_date = datetime(2023, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        result = monitor._should_reindex_document("https://example.com/article", newer_date)
         
-        self.mock_processed_items_collection.insert_one.assert_called_once()
-        call_args = self.mock_processed_items_collection.insert_one.call_args[0][0]
-        self.assertEqual(call_args["feed_url"], "https://feed.com/feed.xml")
-        self.assertEqual(call_args["item_id"], "test-123")
-        self.assertIn("processed_date", call_args)
+        self.assertTrue(result)  # Should re-index newer content
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    def test_should_reindex_document_same_content(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test that documents with same published date should not be re-indexed."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock existing document with same published date
+        same_date = datetime(2023, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        self.mock_document_pipeline.documents_collection = Mock()
+        self.mock_document_pipeline.documents_collection.find_one.return_value = {
+            "sourceUrl": "https://example.com/article",
+            "publishedDate": same_date
+        }
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Test with same published date
+        result = monitor._should_reindex_document("https://example.com/article", same_date)
+        
+        self.assertFalse(result)  # Should not re-index same content
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
@@ -432,7 +460,6 @@ class TestRSSFeedMonitor(unittest.TestCase):
         self.assertIsInstance(item_id, str)
         self.assertEqual(len(item_id), 32)  # MD5 hash length
     
-    
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
     def test_process_feed_integration(self, mock_document_pipeline_class, mock_mongo_client_class):
@@ -442,35 +469,14 @@ class TestRSSFeedMonitor(unittest.TestCase):
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
         
         # Mock document pipeline methods
-        self.mock_document_pipeline.process_document.return_value = Mock()
-        self.mock_document_pipeline.store_document.return_value = "test-doc-id"
+        self.mock_document_pipeline.process_document.return_value = ["chunk-id-1", "chunk-id-2"]
+        self.mock_document_pipeline.documents_collection = Mock()
         
         monitor = RSSFeedMonitor(self.mock_config)
         
         # Verify that monitor has access to document pipeline
         self.assertIsNotNone(monitor.document_pipeline)
         self.assertIsNotNone(monitor.rss_retriever)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_cleanup_old_processed_items(self, mock_document_pipeline_class, mock_mongo_client_class):
-        """Test cleaning up old processed items."""
-        # Setup mocks
-        mock_mongo_client_class.return_value = self.mock_mongo_client
-        mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
-        # Mock successful cleanup
-        mock_result = Mock()
-        mock_result.deleted_count = 5
-        self.mock_processed_items_collection.delete_many.return_value = mock_result
-        
-        monitor = RSSFeedMonitor(self.mock_config)
-        
-        # Test cleanup
-        deleted_count = monitor.cleanup_old_processed_items(days_to_keep=30)
-        
-        self.assertEqual(deleted_count, 5)
-        self.mock_processed_items_collection.delete_many.assert_called_once()
 
 
 if __name__ == "__main__":
