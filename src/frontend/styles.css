@@ -436,6 +436,224 @@ a:focus {
     color: var(--assistant-message-text);
 }
 
+/* Feedback Controls */
+.message.assistant {
+    position: relative;
+}
+
+.feedback-controls {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    padding: 6px;
+    gap: 4px;
+    z-index: 10;
+}
+
+.message.assistant:hover .feedback-controls {
+    display: flex;
+}
+
+.feedback-btn {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+.feedback-btn:hover {
+    background: var(--bg-secondary);
+    opacity: 1;
+}
+
+.feedback-btn.selected {
+    opacity: 1;
+    background: var(--accent-primary);
+    color: white;
+}
+
+.feedback-btn svg {
+    width: 16px;
+    height: 16px;
+    transition: all 0.2s ease;
+}
+
+/* Feedback Modal */
+.feedback-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.feedback-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feedback-modal-content {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px var(--shadow-color);
+    animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.feedback-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.feedback-modal-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.feedback-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.feedback-modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.feedback-modal-body {
+    padding: 1.5rem;
+}
+
+.feedback-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.feedback-type svg {
+    width: 20px;
+    height: 20px;
+}
+
+.feedback-comment-group {
+    margin-bottom: 1.5rem;
+}
+
+.feedback-comment-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.feedback-comment {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+}
+
+.feedback-comment:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.feedback-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.feedback-btn-secondary,
+.feedback-btn-primary {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.feedback-btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.feedback-btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+.feedback-btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.feedback-btn-primary:hover {
+    background: var(--accent-secondary);
+}
+
+.feedback-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Markdown content styling */
 .message-content h1,
 .message-content h2,

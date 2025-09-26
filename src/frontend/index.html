@@ -399,6 +399,29 @@
         </div>
     </div>
 
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="feedback-modal" role="dialog" aria-labelledby="feedback-modal-title" aria-hidden="true">
+        <div class="feedback-modal-content">
+            <div class="feedback-modal-header">
+                <h2 id="feedback-modal-title" class="feedback-modal-title">Provide Feedback</h2>
+                <button id="feedback-modal-close" class="feedback-modal-close" aria-label="Close feedback modal">&times;</button>
+            </div>
+            <div class="feedback-modal-body">
+                <div id="feedback-type" class="feedback-type">
+                    <!-- Feedback type will be populated here -->
+                </div>
+                <div class="feedback-comment-group">
+                    <label for="feedback-comment" class="feedback-comment-label">Additional Comments (Optional)</label>
+                    <textarea id="feedback-comment" class="feedback-comment" placeholder="Tell us more about your experience with this response..."></textarea>
+                </div>
+                <div class="feedback-modal-actions">
+                    <button id="feedback-cancel" class="feedback-btn-secondary">Cancel</button>
+                    <button id="feedback-submit" class="feedback-btn-primary">Submit Feedback</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Privacy Notice -->
     <div id="privacy-notice" class="privacy-notice" style="display: none;">
         <div class="privacy-content">

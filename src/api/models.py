@@ -62,3 +62,13 @@ class TelemetryEvent(BaseModel):
     data: Dict[str, Any]
     timestamp: Optional[str] = None
     user_consent: bool = True
+
+# Feedback-related models
+class FeedbackRequest(BaseModel):
+    message_id: str
+    feedback_type: str  # 'thumbs_up' or 'thumbs_down'
+    comment: Optional[str] = None
+
+class FeedbackResponse(BaseModel):
+    success: bool
+    message: str

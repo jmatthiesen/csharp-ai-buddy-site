@@ -5,6 +5,7 @@ import os
 import logging
 from datetime import datetime
 import json
+import uuid
 
 from pymongo import MongoClient
 from agents import Agent, Runner, function_tool, WebSearchTool
@@ -290,9 +291,19 @@ async def generate_streaming_response(
     """Generate streaming response using OpenAI agents SDK."""
 
     try:
+        # Generate a unique message ID for this response
+        message_id = str(uuid.uuid4())
         logger.info(
-            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
+            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''} (ID: {message_id})"
         )
+
+        # Send the message ID first so frontend can track it
+        metadata_response = json.dumps({
+            "type": "metadata",
+            "message_id": message_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
+        yield metadata_response
 
         async with MCPServerStreamableHttp(
             name="Microsoft Learn Docs MCP Server",
@@ -350,9 +361,10 @@ async def generate_streaming_response(
                     # Continue processing other events
                     continue
             
-            # Send completion signal
+            # Send completion signal with message ID
             completion_response = json.dumps({
                 "type": "complete",
+                "message_id": message_id,
                 "timestamp": datetime.utcnow().isoformat()
             }) + "\n"
             yield completion_response

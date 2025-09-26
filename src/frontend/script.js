@@ -12,6 +12,10 @@ class ChatApp {
         this.isStreaming = false;
         this.magicKey = null; // Store the magic key
 
+        // Feedback tracking
+        this.currentMessageId = null;
+        this.messageIdMapping = new Map(); // Maps DOM elements to message IDs
+
         // AI configuration options
         this.aiOptions = {
             dotnetVersion: '.NET 9',
@@ -24,6 +28,7 @@ class ChatApp {
 
         this.initializeEventListeners();
         this.initializeAccessibility();
+        this.initializeFeedback();
         this.loadDefaultSuggestions();
         this.updateOptionsSummary(); // Initialize the options summary
 
@@ -299,7 +304,7 @@ class ChatApp {
         }
     }
 
-    addMessage(role, content, isStreaming = false) {
+    addMessage(role, content, isStreaming = false, messageId = null) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
         messageDiv.setAttribute('role', 'article');
@@ -317,6 +322,13 @@ class ChatApp {
                 contentDiv.innerHTML = '<div class="loading">Thinking...</div>';
             } else {
                 contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
+                
+                // Add feedback controls for completed assistant messages
+                if (messageId) {
+                    this.messageIdMapping.set(messageDiv, messageId);
+                    const feedbackControls = this.createFeedbackControls(messageId);
+                    messageDiv.appendChild(feedbackControls);
+                }
             }
         }
 
@@ -688,6 +700,7 @@ class ChatApp {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullContent = '';
+        let messageId = null;
 
         try {
             while (true) {
@@ -706,7 +719,10 @@ class ChatApp {
                         try {
                             const data = JSON.parse(line);
 
-                            if (data.type === 'content') {
+                            if (data.type === 'metadata' && data.message_id) {
+                                messageId = data.message_id;
+                                this.currentMessageId = messageId;
+                            } else if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
 
@@ -716,6 +732,14 @@ class ChatApp {
                                 });
 
                                 this.scrollToBottom();
+                            } else if (data.type === 'complete') {
+                                // Streaming is complete, add feedback controls if we have a message ID
+                                if (messageId && contentElement.parentElement) {
+                                    const messageDiv = contentElement.parentElement;
+                                    this.messageIdMapping.set(messageDiv, messageId);
+                                    const feedbackControls = this.createFeedbackControls(messageId);
+                                    messageDiv.appendChild(feedbackControls);
+                                }
                             } else if (data.type === 'error') {
                                 throw new Error(data.message);
                             }
@@ -748,7 +772,8 @@ class ChatApp {
                     response_length: fullContent.length,
                     conversation_length: this.conversationHistory.length,
                     has_links: /\[.*?\]\(https?:\/\/.*?\)/.test(fullContent) || /\[.*?\]\(www\..*?\)/.test(fullContent),
-                    session_chat_count: this.getSessionChatCount()
+                    session_chat_count: this.getSessionChatCount(),
+                    message_id: messageId
                 });
                 
                 // Add click tracking to all links in the response
@@ -887,6 +912,161 @@ class ChatApp {
     
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    initializeFeedback() {
+        // Get feedback modal elements
+        this.feedbackModal = document.getElementById('feedback-modal');
+        this.feedbackModalClose = document.getElementById('feedback-modal-close');
+        this.feedbackCancel = document.getElementById('feedback-cancel');
+        this.feedbackSubmit = document.getElementById('feedback-submit');
+        this.feedbackType = document.getElementById('feedback-type');
+        this.feedbackComment = document.getElementById('feedback-comment');
+
+        // Initialize event listeners
+        this.feedbackModalClose.addEventListener('click', () => this.closeFeedbackModal());
+        this.feedbackCancel.addEventListener('click', () => this.closeFeedbackModal());
+        this.feedbackSubmit.addEventListener('click', () => this.submitFeedback());
+
+        // Close modal on backdrop click
+        this.feedbackModal.addEventListener('click', (e) => {
+            if (e.target === this.feedbackModal) {
+                this.closeFeedbackModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.feedbackModal.classList.contains('show')) {
+                this.closeFeedbackModal();
+            }
+        });
+
+        // Current feedback state
+        this.currentFeedback = null;
+    }
+
+    createFeedbackControls(messageId) {
+        const controls = document.createElement('div');
+        controls.className = 'feedback-controls';
+
+        // Thumbs up button
+        const thumbsUp = document.createElement('button');
+        thumbsUp.className = 'feedback-btn';
+        thumbsUp.setAttribute('aria-label', 'Rate response as helpful');
+        thumbsUp.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+            </svg>
+        `;
+        thumbsUp.addEventListener('click', () => this.openFeedbackModal(messageId, 'thumbs_up', thumbsUp));
+
+        // Thumbs down button
+        const thumbsDown = document.createElement('button');
+        thumbsDown.className = 'feedback-btn';
+        thumbsDown.setAttribute('aria-label', 'Rate response as not helpful');
+        thumbsDown.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+            </svg>
+        `;
+        thumbsDown.addEventListener('click', () => this.openFeedbackModal(messageId, 'thumbs_down', thumbsDown));
+
+        controls.appendChild(thumbsUp);
+        controls.appendChild(thumbsDown);
+
+        return controls;
+    }
+
+    openFeedbackModal(messageId, feedbackType, buttonElement) {
+        this.currentFeedback = {
+            messageId,
+            feedbackType,
+            buttonElement
+        };
+
+        // Set feedback type display
+        const isPositive = feedbackType === 'thumbs_up';
+        this.feedbackType.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                ${isPositive ? 
+                    '<path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>' :
+                    '<path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>'
+                }
+            </svg>
+            <span>${isPositive ? 'This response was helpful' : 'This response was not helpful'}</span>
+        `;
+
+        // Clear previous comment
+        this.feedbackComment.value = '';
+
+        // Show modal
+        this.feedbackModal.classList.add('show');
+        this.feedbackModal.setAttribute('aria-hidden', 'false');
+        this.feedbackComment.focus();
+    }
+
+    closeFeedbackModal() {
+        this.feedbackModal.classList.remove('show');
+        this.feedbackModal.setAttribute('aria-hidden', 'true');
+        this.currentFeedback = null;
+    }
+
+    async submitFeedback() {
+        if (!this.currentFeedback) return;
+
+        const { messageId, feedbackType, buttonElement } = this.currentFeedback;
+        const comment = this.feedbackComment.value.trim();
+
+        // Disable submit button during request
+        this.feedbackSubmit.disabled = true;
+        this.feedbackSubmit.textContent = 'Submitting...';
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    feedback_type: feedbackType,
+                    comment: comment || null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Mark button as selected
+                buttonElement.classList.add('selected');
+                
+                // Track feedback submission
+                if (this.trackTelemetry) {
+                    this.trackTelemetry('feedback_submitted', {
+                        message_id: messageId,
+                        feedback_type: feedbackType,
+                        has_comment: !!comment
+                    });
+                }
+
+                this.closeFeedbackModal();
+            } else {
+                throw new Error(result.message || 'Failed to submit feedback');
+            }
+
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            alert('Failed to submit feedback. Please try again.');
+        } finally {
+            // Re-enable submit button
+            this.feedbackSubmit.disabled = false;
+            this.feedbackSubmit.textContent = 'Submit Feedback';
+        }
     }
 }
 
