@@ -14,6 +14,9 @@ from openai import OpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 from arize.otel import register
 
+# Import OpenTelemetry for span tracking
+from opentelemetry import trace
+
 from models import ChatRequest, Message, AIFilters
 from nuget_search import search_nuget_packages, get_nuget_package_details
 
@@ -291,19 +294,13 @@ async def generate_streaming_response(
     """Generate streaming response using OpenAI agents SDK."""
 
     try:
-        # Generate a unique message ID for this response
-        message_id = str(uuid.uuid4())
+        # Generate a tracer to capture span information
+        tracer = trace.get_tracer(__name__)
+        span_id = None
+        
         logger.info(
-            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''} (ID: {message_id})"
+            f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
         )
-
-        # Send the message ID first so frontend can track it
-        metadata_response = json.dumps({
-            "type": "metadata",
-            "message_id": message_id,
-            "timestamp": datetime.utcnow().isoformat()
-        }) + "\n"
-        yield metadata_response
 
         async with MCPServerStreamableHttp(
             name="Microsoft Learn Docs MCP Server",
@@ -320,8 +317,22 @@ async def generate_streaming_response(
             else:
                 input = f"user: {message}\n"
 
-            # Run the agent with streaming
+            # Run the agent with streaming and capture span information
             result = Runner.run_streamed(agent, input)
+            
+            # Try to get the current span context to capture span_id
+            current_span = trace.get_current_span()
+            if current_span and current_span.get_span_context().is_valid:
+                span_id = format(current_span.get_span_context().span_id, '016x')
+                logger.info(f"Captured span_id: {span_id}")
+            
+            # Send the span ID first so frontend can track it
+            metadata_response = json.dumps({
+                "type": "metadata",
+                "span_id": span_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }) + "\n"
+            yield metadata_response
             
             # Stream the response events
             async for event in result.stream_events():
@@ -338,9 +349,12 @@ async def generate_streaming_response(
                     elif event.type == "run_item_stream_event":
                         # Handle completed items (messages, tool calls, etc.)
                         if event.item.type == "message_output_item":
-                            # This is a completed message - we can extract the full text if needed
-                            # But we're already streaming deltas above, so this might be redundant
-                            pass
+                            # Try to capture span_id from the completed message if not already captured
+                            if not span_id:
+                                current_span = trace.get_current_span()
+                                if current_span and current_span.get_span_context().is_valid:
+                                    span_id = format(current_span.get_span_context().span_id, '016x')
+                                    logger.info(f"Captured span_id from completed message: {span_id}")
                         elif event.item.type == "tool_call_item":
                             # Optionally notify about tool usage
                             json_response = json.dumps({
@@ -361,10 +375,10 @@ async def generate_streaming_response(
                     # Continue processing other events
                     continue
             
-            # Send completion signal with message ID
+            # Send completion signal with span ID
             completion_response = json.dumps({
                 "type": "complete",
-                "message_id": message_id,
+                "span_id": span_id,
                 "timestamp": datetime.utcnow().isoformat()
             }) + "\n"
             yield completion_response

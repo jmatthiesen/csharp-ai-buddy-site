@@ -23,11 +23,11 @@ def test_feedback_models():
     
     # Test FeedbackRequest
     request = FeedbackRequest(
-        message_id="123e4567-e89b-12d3-a456-426614174000",
+        span_id="span-123e4567-e89b-12d3-a456-426614174000",
         feedback_type="thumbs_up",
         comment="Great response!"
     )
-    assert request.message_id == "123e4567-e89b-12d3-a456-426614174000"
+    assert request.span_id == "span-123e4567-e89b-12d3-a456-426614174000"
     assert request.feedback_type == "thumbs_up"
     assert request.comment == "Great response!"
     
@@ -42,7 +42,7 @@ async def test_feedback_endpoint_success(mock_arize):
     mock_arize.return_value = True
     
     feedback_data = {
-        "message_id": "123e4567-e89b-12d3-a456-426614174000",
+        "span_id": "span-123e4567-e89b-12d3-a456-426614174000",
         "feedback_type": "thumbs_up",
         "comment": "Great response!"
     }
@@ -56,7 +56,7 @@ async def test_feedback_endpoint_success(mock_arize):
     
     # Verify Arize function was called
     mock_arize.assert_called_once_with(
-        "123e4567-e89b-12d3-a456-426614174000",
+        "span-123e4567-e89b-12d3-a456-426614174000",
         "thumbs_up",
         "Great response!"
     )
@@ -67,7 +67,7 @@ async def test_feedback_without_comment(mock_arize):
     mock_arize.return_value = True
     
     feedback_data = {
-        "message_id": "123e4567-e89b-12d3-a456-426614174001",
+        "span_id": "span-123e4567-e89b-12d3-a456-426614174001",
         "feedback_type": "thumbs_down"
     }
     
@@ -79,7 +79,7 @@ async def test_feedback_without_comment(mock_arize):
     
     # Verify Arize function was called with None comment
     mock_arize.assert_called_once_with(
-        "123e4567-e89b-12d3-a456-426614174001",
+        "span-123e4567-e89b-12d3-a456-426614174001",
         "thumbs_down",
         None
     )
@@ -87,7 +87,7 @@ async def test_feedback_without_comment(mock_arize):
 def test_invalid_feedback_type():
     """Test invalid feedback type"""
     feedback_data = {
-        "message_id": "123e4567-e89b-12d3-a456-426614174000",
+        "span_id": "span-123e4567-e89b-12d3-a456-426614174000",
         "feedback_type": "invalid_type"
     }
     
@@ -96,26 +96,26 @@ def test_invalid_feedback_type():
     assert response.status_code == 400
     assert "Invalid feedback type" in response.json()["detail"]
 
-def test_invalid_message_id():
-    """Test invalid message ID format"""
+def test_invalid_span_id():
+    """Test invalid span ID format"""
     feedback_data = {
-        "message_id": "invalid-id-format",
+        "span_id": "",
         "feedback_type": "thumbs_up"
     }
     
     response = client.post("/api/feedback", json=feedback_data)
     
     assert response.status_code == 400
-    assert "Invalid message ID format" in response.json()["detail"]
+    assert "Invalid span ID format" in response.json()["detail"]
 
 def test_missing_required_fields():
     """Test missing required fields"""
-    # Missing message_id
+    # Missing span_id
     response = client.post("/api/feedback", json={"feedback_type": "thumbs_up"})
     assert response.status_code == 422  # Validation error
     
     # Missing feedback_type
-    response = client.post("/api/feedback", json={"message_id": "123e4567-e89b-12d3-a456-426614174000"})
+    response = client.post("/api/feedback", json={"span_id": "span-123e4567-e89b-12d3-a456-426614174000"})
     assert response.status_code == 422  # Validation error
 
 if __name__ == "__main__":

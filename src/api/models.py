@@ -65,7 +65,7 @@ class TelemetryEvent(BaseModel):
 
 # Feedback-related models
 class FeedbackRequest(BaseModel):
-    message_id: str
+    span_id: str
     feedback_type: str  # 'thumbs_up' or 'thumbs_down'
     comment: Optional[str] = None
 

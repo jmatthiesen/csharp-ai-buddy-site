@@ -13,8 +13,8 @@ class ChatApp {
         this.magicKey = null; // Store the magic key
 
         // Feedback tracking
-        this.currentMessageId = null;
-        this.messageIdMapping = new Map(); // Maps DOM elements to message IDs
+        this.currentSpanId = null;
+        this.spanIdMapping = new Map(); // Maps DOM elements to span IDs
 
         // AI configuration options
         this.aiOptions = {
@@ -304,7 +304,7 @@ class ChatApp {
         }
     }
 
-    addMessage(role, content, isStreaming = false, messageId = null) {
+    addMessage(role, content, isStreaming = false, spanId = null) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
         messageDiv.setAttribute('role', 'article');
@@ -324,9 +324,9 @@ class ChatApp {
                 contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
                 
                 // Add feedback controls for completed assistant messages
-                if (messageId) {
-                    this.messageIdMapping.set(messageDiv, messageId);
-                    const feedbackControls = this.createFeedbackControls(messageId);
+                if (spanId) {
+                    this.spanIdMapping.set(messageDiv, spanId);
+                    const feedbackControls = this.createFeedbackControls(spanId);
                     messageDiv.appendChild(feedbackControls);
                 }
             }
@@ -700,7 +700,7 @@ class ChatApp {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullContent = '';
-        let messageId = null;
+        let spanId = null;
 
         try {
             while (true) {
@@ -719,9 +719,9 @@ class ChatApp {
                         try {
                             const data = JSON.parse(line);
 
-                            if (data.type === 'metadata' && data.message_id) {
-                                messageId = data.message_id;
-                                this.currentMessageId = messageId;
+                            if (data.type === 'metadata' && data.span_id) {
+                                spanId = data.span_id;
+                                this.currentSpanId = spanId;
                             } else if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
@@ -733,11 +733,11 @@ class ChatApp {
 
                                 this.scrollToBottom();
                             } else if (data.type === 'complete') {
-                                // Streaming is complete, add feedback controls if we have a message ID
-                                if (messageId && contentElement.parentElement) {
+                                // Streaming is complete, add feedback controls if we have a span ID
+                                if (spanId && contentElement.parentElement) {
                                     const messageDiv = contentElement.parentElement;
-                                    this.messageIdMapping.set(messageDiv, messageId);
-                                    const feedbackControls = this.createFeedbackControls(messageId);
+                                    this.spanIdMapping.set(messageDiv, spanId);
+                                    const feedbackControls = this.createFeedbackControls(spanId);
                                     messageDiv.appendChild(feedbackControls);
                                 }
                             } else if (data.type === 'error') {
@@ -773,7 +773,7 @@ class ChatApp {
                     conversation_length: this.conversationHistory.length,
                     has_links: /\[.*?\]\(https?:\/\/.*?\)/.test(fullContent) || /\[.*?\]\(www\..*?\)/.test(fullContent),
                     session_chat_count: this.getSessionChatCount(),
-                    message_id: messageId
+                    span_id: spanId
                 });
                 
                 // Add click tracking to all links in the response
@@ -946,7 +946,7 @@ class ChatApp {
         this.currentFeedback = null;
     }
 
-    createFeedbackControls(messageId) {
+    createFeedbackControls(spanId) {
         const controls = document.createElement('div');
         controls.className = 'feedback-controls';
 
@@ -959,7 +959,7 @@ class ChatApp {
                 <path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
             </svg>
         `;
-        thumbsUp.addEventListener('click', () => this.openFeedbackModal(messageId, 'thumbs_up', thumbsUp));
+        thumbsUp.addEventListener('click', () => this.openFeedbackModal(spanId, 'thumbs_up', thumbsUp));
 
         // Thumbs down button
         const thumbsDown = document.createElement('button');
@@ -970,7 +970,7 @@ class ChatApp {
                 <path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
             </svg>
         `;
-        thumbsDown.addEventListener('click', () => this.openFeedbackModal(messageId, 'thumbs_down', thumbsDown));
+        thumbsDown.addEventListener('click', () => this.openFeedbackModal(spanId, 'thumbs_down', thumbsDown));
 
         controls.appendChild(thumbsUp);
         controls.appendChild(thumbsDown);
@@ -978,9 +978,9 @@ class ChatApp {
         return controls;
     }
 
-    openFeedbackModal(messageId, feedbackType, buttonElement) {
+    openFeedbackModal(spanId, feedbackType, buttonElement) {
         this.currentFeedback = {
-            messageId,
+            spanId,
             feedbackType,
             buttonElement
         };
@@ -1015,7 +1015,7 @@ class ChatApp {
     async submitFeedback() {
         if (!this.currentFeedback) return;
 
-        const { messageId, feedbackType, buttonElement } = this.currentFeedback;
+        const { spanId, feedbackType, buttonElement } = this.currentFeedback;
         const comment = this.feedbackComment.value.trim();
 
         // Disable submit button during request
@@ -1029,7 +1029,7 @@ class ChatApp {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    message_id: messageId,
+                    span_id: spanId,
                     feedback_type: feedbackType,
                     comment: comment || null
                 })
@@ -1048,7 +1048,7 @@ class ChatApp {
                 // Track feedback submission
                 if (this.trackTelemetry) {
                     this.trackTelemetry('feedback_submitted', {
-                        message_id: messageId,
+                        span_id: spanId,
                         feedback_type: feedbackType,
                         has_comment: !!comment
                     });
