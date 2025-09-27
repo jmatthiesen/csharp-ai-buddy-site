@@ -301,6 +301,24 @@ async def generate_streaming_response(
             f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
         )
 
+        # Try to get the current span context to capture span_id
+        current_span = trace.get_current_span()
+        if current_span and current_span.get_span_context().is_valid:
+            span_id = format(current_span.get_span_context().span_id, '016x')
+            logger.info(f"Captured initial span_id: {span_id}")
+        else:
+            # Fallback: generate a temporary span_id for development/testing
+            import uuid
+            span_id = f"temp-{str(uuid.uuid4())[:8]}"
+            logger.info(f"Using fallback span_id: {span_id}")
+        
+        # Send the span ID first so frontend can track it
+        metadata_response = json.dumps({
+            "type": "metadata",
+            "span_id": span_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }) + "\n"
+        yield metadata_response
         async with MCPServerStreamableHttp(
             name="Microsoft Learn Docs MCP Server",
             params={
@@ -316,22 +334,8 @@ async def generate_streaming_response(
             else:
                 input = f"user: {message}\n"
 
-            # Run the agent with streaming and capture span information
+            # Run the agent with streaming
             result = Runner.run_streamed(agent, input)
-            
-            # Try to get the current span context to capture span_id
-            current_span = trace.get_current_span()
-            if current_span and current_span.get_span_context().is_valid:
-                span_id = format(current_span.get_span_context().span_id, '016x')
-                logger.info(f"Captured span_id: {span_id}")
-            
-            # Send the span ID first so frontend can track it
-            metadata_response = json.dumps({
-                "type": "metadata",
-                "span_id": span_id,
-                "timestamp": datetime.utcnow().isoformat()
-            }) + "\n"
-            yield metadata_response
             
             # Stream the response events
             async for event in result.stream_events():

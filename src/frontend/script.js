@@ -722,6 +722,7 @@ class ChatApp {
                             if (data.type === 'metadata' && data.span_id) {
                                 spanId = data.span_id;
                                 this.currentSpanId = spanId;
+                                console.log('Captured span_id from metadata:', spanId);
                             } else if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
@@ -733,12 +734,16 @@ class ChatApp {
 
                                 this.scrollToBottom();
                             } else if (data.type === 'complete') {
+                                console.log('Processing complete event, spanId:', spanId);
                                 // Streaming is complete, add feedback controls if we have a span ID
                                 if (spanId && contentElement.parentElement) {
                                     const messageDiv = contentElement.parentElement;
+                                    console.log('Adding feedback controls to message div');
                                     this.spanIdMapping.set(messageDiv, spanId);
                                     const feedbackControls = this.createFeedbackControls(spanId);
                                     messageDiv.appendChild(feedbackControls);
+                                } else {
+                                    console.warn('Cannot add feedback controls - spanId:', spanId, 'parentElement:', contentElement.parentElement);
                                 }
                             } else if (data.type === 'error') {
                                 throw new Error(data.message);
