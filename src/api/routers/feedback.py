@@ -1,6 +1,6 @@
 """
 Feedback API router for handling user feedback on AI responses.
-Integrates with Arize Phoenix for feedback tracking and annotation.
+Integrates with Arize SDK for human annotations and feedback tracking.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -8,30 +8,37 @@ from typing import Dict, Any
 import os
 import logging
 from datetime import datetime
+import pandas as pd
 
 from models import FeedbackRequest, FeedbackResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Import Arize Phoenix Client API
+# Import Arize SDK for human annotations
 try:
-    from phoenix.client import Client
+    from arize import Client
     
-    # Initialize Phoenix client
-    phoenix_client = Client()
+    # Initialize Arize client with environment variables
+    arize_client = Client(
+        space_id=os.getenv("ARIZE_SPACE_ID"),
+        api_key=os.getenv("ARIZE_API_KEY")
+    )
     ARIZE_AVAILABLE = True
 except ImportError:
     ARIZE_AVAILABLE = False
-    logger.warning("Arize Phoenix not available - feedback will be logged only")
+    logger.warning("Arize SDK not available - feedback will be logged only")
+except Exception as e:
+    ARIZE_AVAILABLE = False
+    logger.warning(f"Arize SDK configuration error: {str(e)} - feedback will be logged only")
 
 
 async def send_feedback_to_arize(span_id: str, feedback_type: str, comment: str = None) -> bool:
     """
-    Send feedback to Arize Phoenix for tracking and annotation.
+    Send feedback to Arize using the Arize SDK for human annotations.
     
     Args:
-        span_id (str): The span ID from Arize Phoenix telemetry
+        span_id (str): The span ID from Arize telemetry
         feedback_type (str): 'thumbs_up' or 'thumbs_down'
         comment (str, optional): Optional user comment
         
@@ -44,21 +51,30 @@ async def send_feedback_to_arize(span_id: str, feedback_type: str, comment: str 
             return True
             
         # Convert feedback type to score for Arize
-        score = 1 if feedback_type == "thumbs_up" else 0
+        score = 1.0 if feedback_type == "thumbs_up" else 0.0
         
-        # Use Phoenix Client to add span annotation
-        annotation = phoenix_client.annotations.add_span_annotation(
-            annotation_name="user feedback",
-            annotator_kind="HUMAN",
-            span_id=span_id,
-            score=score,
-            notes=comment or ""
+        # Create annotation data using Arize SDK format
+        annotation_data = pd.DataFrame({
+            'span_id': [span_id],
+            'annotation_name': ['user_feedback'],
+            'score': [score],
+            'label': [feedback_type],
+            'metadata': [{'comment': comment or '', 'timestamp': datetime.utcnow().isoformat()}]
+        })
+        
+        # Send human annotations using Arize SDK
+        response = arize_client.log_human_annotations(
+            model_id="ai-chat-assistant",
+            model_version="1.0",
+            annotations_dataframe=annotation_data
         )
         
-        # Log successful feedback submission
-        logger.info(f"Feedback submitted to Arize: span_id={span_id}, type={feedback_type}, score={score}")
-        
-        return True
+        if response.status_code == 200:
+            logger.info(f"Human annotation sent to Arize: span_id={span_id}, type={feedback_type}, score={score}")
+            return True
+        else:
+            logger.error(f"Failed to send human annotation to Arize: status={response.status_code}")
+            return False
         
     except Exception as e:
         logger.error(f"Failed to send feedback to Arize: {str(e)}", exc_info=True)
@@ -96,7 +112,7 @@ async def submit_feedback(request: FeedbackRequest):
             f"type={request.feedback_type}, comment={'present' if request.comment else 'none'}"
         )
         
-        # Send feedback to Arize Phoenix
+        # Send feedback to Arize using human annotations
         success = await send_feedback_to_arize(
             request.span_id, 
             request.feedback_type, 
