@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Import Arize SDK for human annotations
 try:
-    from arize import Client
-    
+    from arize.pandas.logger import Client
+
     # Initialize Arize client with environment variables
     arize_client = Client(
         space_id=os.getenv("ARIZE_SPACE_ID"),
@@ -52,28 +52,32 @@ async def send_feedback_to_arize(span_id: str, feedback_type: str, comment: str 
             
         # Convert feedback type to score for Arize
         score = 1.0 if feedback_type == "thumbs_up" else 0.0
+        label = "👍" if feedback_type == "thumbs_up" else "👎"
         
         # Create annotation data using Arize SDK format
-        annotation_data = pd.DataFrame({
-            'span_id': [span_id],
-            'annotation_name': ['user_feedback'],
-            'score': [score],
-            'label': [feedback_type],
-            'metadata': [{'comment': comment or '', 'timestamp': datetime.utcnow().isoformat()}]
-        })
+        annotation_data = {
+            'context.span_id': [span_id],
+            'annotation.rating.score': [score],
+            'annotation.rating.label': [label],
+            'annotation.rating.updated_by': ['Website user'],
+            'annotation.notes': [comment or '']
+        }
+        annotations_df = pd.DataFrame(annotation_data)
         
         # Send human annotations using Arize SDK
-        response = arize_client.log_human_annotations(
-            model_id="ai-chat-assistant",
-            model_version="1.0",
-            annotations_dataframe=annotation_data
+        response = arize_client.log_annotations(
+            dataframe=annotations_df,
+            project_name="agents",
+            validate=True,
+            verbose=True
         )
         
-        if response.status_code == 200:
-            logger.info(f"Human annotation sent to Arize: span_id={span_id}, type={feedback_type}, score={score}")
+        if response:
+            logger.info("\n✅ Successfully logged annotations!")
+            logger.info(f"   Annotation Records Updated: {response.records_updated}")
             return True
         else:
-            logger.error(f"Failed to send human annotation to Arize: status={response.status_code}")
+            logger.error("\n⚠️ Annotation logging call completed, but no response received (check SDK logs/platform).")
             return False
         
     except Exception as e:
