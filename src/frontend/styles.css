@@ -431,21 +431,18 @@ a:focus {
 }
 
 .message.assistant .message-content {
+    position: relative;
     background: var(--assistant-message-bg);
     border: 1px solid var(--border-color);
     color: var(--assistant-message-text);
 }
 
 /* Feedback Controls */
-.message.assistant {
-    position: relative;
-}
-
 .feedback-controls {
     display: none;
     position: absolute;
-    bottom: 10px;
-    right: 10px;
+    bottom: -20px;
+    right: 20px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color-dark);
     border-radius: 6px;

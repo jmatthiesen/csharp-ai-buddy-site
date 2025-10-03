@@ -14,7 +14,6 @@ class ChatApp {
 
         // Feedback tracking
         this.currentSpanId = null;
-        this.spanIdMapping = new Map(); // Maps DOM elements to span IDs
 
         // AI configuration options
         this.aiOptions = {
@@ -325,9 +324,8 @@ class ChatApp {
                 
                 // Add feedback controls for completed assistant messages
                 if (spanId) {
-                    this.spanIdMapping.set(messageDiv, spanId);
                     const feedbackControls = this.createFeedbackControls(spanId);
-                    messageDiv.appendChild(feedbackControls);
+                    contentDiv.appendChild(feedbackControls);
                 }
             }
         }
@@ -667,7 +665,7 @@ class ChatApp {
             );
 
             // Generate follow-up suggestions
-            this.generateFollowUpSuggestions(assistantMessageContent.textContent);
+            //this.generateFollowUpSuggestions(assistantMessageContent.textContent);
             
             /*if (response.headers.get('content-type')?.includes('text/plain')) {
                 await this.handleStreamingResponse(response, assistantMessageContent);
@@ -722,7 +720,6 @@ class ChatApp {
                             if (data.type === 'metadata' && data.span_id) {
                                 spanId = data.span_id;
                                 this.currentSpanId = spanId;
-                                console.log('Captured span_id from metadata:', spanId);
                             } else if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
@@ -733,18 +730,6 @@ class ChatApp {
                                 });
 
                                 this.scrollToBottom();
-                            } else if (data.type === 'complete') {
-                                console.log('Processing complete event, spanId:', spanId);
-                                // Streaming is complete, add feedback controls if we have a span ID
-                                if (spanId && contentElement.parentElement) {
-                                    const messageDiv = contentElement.parentElement;
-                                    console.log('Adding feedback controls to message div');
-                                    this.spanIdMapping.set(messageDiv, spanId);
-                                    const feedbackControls = this.createFeedbackControls(spanId);
-                                    messageDiv.appendChild(feedbackControls);
-                                } else {
-                                    console.warn('Cannot add feedback controls - spanId:', spanId, 'parentElement:', contentElement.parentElement);
-                                }
                             } else if (data.type === 'error') {
                                 throw new Error(data.message);
                             }
@@ -772,6 +757,14 @@ class ChatApp {
             if (fullContent) {
                 this.conversationHistory.push({ role: 'assistant', content: fullContent });
                 
+                // Streaming is complete, add feedback controls if we have a span ID
+                if (spanId) {
+                    const feedbackControls = this.createFeedbackControls(spanId);
+                    contentElement.appendChild(feedbackControls);
+                } else {
+                    console.warn('Cannot add feedback controls - spanId:', spanId, 'parentElement:', contentElement.parentElement);
+                }
+
                 // Track chat response received
                 this.trackTelemetry('chat_response_received', {
                     response_length: fullContent.length,
