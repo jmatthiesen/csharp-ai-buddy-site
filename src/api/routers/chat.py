@@ -13,6 +13,9 @@ from openai import OpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 from arize.otel import register
 
+# Import OpenTelemetry for span tracking
+from opentelemetry import trace
+
 from models import ChatRequest, Message, AIFilters
 from nuget_search import search_nuget_packages, get_nuget_package_details
 
@@ -290,72 +293,106 @@ async def generate_streaming_response(
     """Generate streaming response using OpenAI agents SDK."""
 
     try:
+        # Generate a tracer to capture span information
+        span_id = None
+        
         logger.info(
             f"Generating streaming response for message: {message[:100]}{'...' if len(message) > 100 else ''}"
         )
 
-        async with MCPServerStreamableHttp(
-            name="Microsoft Learn Docs MCP Server",
-            params={
-                "url": "https://learn.microsoft.com/api/mcp",
-            },
-        ) as docsserver:
-            # Get the agent instance with filters
-            agent = await get_agent([docsserver], filters)
+        tracer = trace.get_tracer(__name__)
 
-            # Include history in the input for now, to keep things simple
-            if history:
-                input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+        with tracer.start_as_current_span(
+            "agent-call",
+            openinference_span_kind="agent",
+        ) as span:
+            # Try to get the current span context to capture span_id
+            current_span = trace.get_current_span()
+            print(current_span)
+            if current_span and current_span.get_span_context().is_valid:
+                span_id = format(current_span.get_span_context().span_id, '016x')
+                logger.info(f"Captured initial span_id: {span_id}")
             else:
-                input = f"user: {message}\n"
-
-            # Run the agent with streaming
-            result = Runner.run_streamed(agent, input)
+                # Fallback: generate a temporary span_id for development/testing
+                import uuid
+                span_id = f"temp-{str(uuid.uuid4())[:8]}"
+                logger.info(f"Using fallback span_id: {span_id}")
             
-            # Stream the response events
-            async for event in result.stream_events():
-                try:
-                    if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
-                        # Stream text deltas as they come from the LLM
-                        if hasattr(event.data, 'delta') and event.data.delta:
-                            json_response = json.dumps({
-                                "type": "content",
-                                "content": event.data.delta
-                            }) + "\n"
-                            yield json_response
-                            
-                    elif event.type == "run_item_stream_event":
-                        # Handle completed items (messages, tool calls, etc.)
-                        if event.item.type == "message_output_item":
-                            # This is a completed message - we can extract the full text if needed
-                            # But we're already streaming deltas above, so this might be redundant
-                            pass
-                        elif event.item.type == "tool_call_item":
-                            # Optionally notify about tool usage
-                            json_response = json.dumps({
-                                "type": "tool_call",
-                                "content": f"Tool called"
-                            }) + "\n"
-                            yield json_response
-                        elif event.item.type == "tool_call_output_item":
-                            # Optionally show tool output
-                            json_response = json.dumps({
-                                "type": "tool output",
-                                "content": f"Tool called {event.item.output}"
-                            }) + "\n"
-                            yield json_response
-
-                except Exception as e:
-                    logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
-                    # Continue processing other events
-                    continue
-            
-            # Send completion signal
-            completion_response = json.dumps({
-                "type": "complete",
+            # Send the span ID first so frontend can track it
+            metadata_response = json.dumps({
+                "type": "metadata",
+                "span_id": span_id,
                 "timestamp": datetime.utcnow().isoformat()
             }) + "\n"
-            yield completion_response
+            yield metadata_response
+            async with MCPServerStreamableHttp(
+                name="Microsoft Learn Docs MCP Server",
+                params={
+                    "url": "https://learn.microsoft.com/api/mcp",
+                },
+            ) as docsserver:
+                # Get the agent instance with filters
+                agent = await get_agent([docsserver], filters)
+
+                # Include history in the input for now, to keep things simple
+                if history:
+                    input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
+                else:
+                    input = f"user: {message}\n"
+
+                # Run the agent with streaming
+                result = Runner.run_streamed(agent, input)
+                
+                # Stream the response events
+                async for event in result.stream_events():
+                    try:
+                        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                            # Stream text deltas as they come from the LLM
+                            if hasattr(event.data, 'delta') and event.data.delta:
+                                json_response = json.dumps({
+                                    "type": "content",
+                                    "content": event.data.delta
+                                }) + "\n"
+                                yield json_response
+                                
+                        elif event.type == "run_item_stream_event":
+                            # Handle completed items (messages, tool calls, etc.)
+                            if event.item.type == "message_output_item":
+                                # Try to capture span_id from the completed message if not already captured
+                                if not span_id:
+                                    current_span = trace.get_current_span()
+                                    if current_span and current_span.get_span_context().is_valid:
+                                        span_id = format(current_span.get_span_context().span_id, '016x')
+                                        logger.info(f"Captured span_id from completed message: {span_id}")
+                            elif event.item.type == "tool_call_item":
+                                # Optionally notify about tool usage
+                                json_response = json.dumps({
+                                    "type": "tool_call",
+                                    "content": f"Tool called"
+                                }) + "\n"
+                                yield json_response
+                            elif event.item.type == "tool_call_output_item":
+                                # Optionally show tool output
+                                json_response = json.dumps({
+                                    "type": "tool output",
+                                    "content": f"Tool called {event.item.output}"
+                                }) + "\n"
+                                yield json_response
+
+                    except Exception as e:
+                        logger.error(f"Error processing stream event: {str(e)}", exc_info=True)
+                        # Continue processing other events
+                        continue
+                
+                # Send completion signal with span ID
+                span_id = trace.get_current_span().get_span_context().span_id
+                print(f"spanId: {span_id}")
+                completion_response = json.dumps({
+                    "type": "complete",
+                    "span_id": span_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }) + "\n"
+                yield completion_response
         
     except Exception as e:
         logger.error(f"Error in generate_streaming_response: {str(e)}", exc_info=True)

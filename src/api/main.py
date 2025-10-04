@@ -16,7 +16,7 @@ import logging
 # from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 # App specific modules
-from routers import chat, samples, news, telemetry
+from routers import chat, samples, news, telemetry, feedback
 from models import HealthResponse
 from datetime import datetime
 
@@ -53,6 +53,7 @@ app.include_router(chat.router)
 app.include_router(samples.router)
 app.include_router(news.router)
 app.include_router(telemetry.router)
+app.include_router(feedback.router)
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -75,7 +76,8 @@ async def root():
         "samples": "/api/samples",
         "news": "/api/news",
         "news_rss": "/api/news/rss",
-        "telemetry": "/api/telemetry"
+        "telemetry": "/api/telemetry",
+        "feedback": "/api/feedback"
     }
 
 if __name__ == "__main__":
