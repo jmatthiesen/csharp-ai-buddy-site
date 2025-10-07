@@ -1809,7 +1809,7 @@ class AppManager {
     }
 
     detectApiUrl() {
-        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/';
+        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com';
 
         // Check if we're running in development (localhost)
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
