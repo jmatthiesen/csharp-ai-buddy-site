@@ -19,7 +19,7 @@ from config import Config
 
 class TestRSSFeedSubscription(unittest.TestCase):
     """Test RSSFeedSubscription dataclass functionality."""
-    
+
     def setUp(self):
         """Set up test data."""
         self.test_subscription = RSSFeedSubscription(
@@ -32,9 +32,9 @@ class TestRSSFeedSubscription(unittest.TestCase):
             last_checked=datetime.now(timezone.utc),
             last_item_date=datetime.now(timezone.utc),
             created_date=datetime.now(timezone.utc),
-            updated_date=datetime.now(timezone.utc)
+            updated_date=datetime.now(timezone.utc),
         )
-    
+
     def test_from_dict_converts_iso_to_datetime(self):
         """Test that ISO strings are converted back to datetime objects."""
         # Create data with ISO strings
@@ -48,22 +48,22 @@ class TestRSSFeedSubscription(unittest.TestCase):
             "last_checked": "2024-01-01T12:00:00+00:00",
             "last_item_date": "2024-01-01T12:00:00+00:00",
             "created_date": "2024-01-01T12:00:00+00:00",
-            "updated_date": "2024-01-01T12:00:00+00:00"
+            "updated_date": "2024-01-01T12:00:00+00:00",
         }
-        
+
         subscription = RSSFeedSubscription.from_dict(data)
-        
+
         # Check that datetime fields are datetime objects
         self.assertIsInstance(subscription.last_checked, datetime)
         self.assertIsInstance(subscription.last_item_date, datetime)
         self.assertIsInstance(subscription.created_date, datetime)
         self.assertIsInstance(subscription.updated_date, datetime)
-        
+
         # Check that non-datetime fields remain unchanged
         self.assertEqual(subscription.feed_url, "https://example.com/feed.xml")
         self.assertEqual(subscription.name, "Test Feed")
         self.assertEqual(subscription.tags, ["test", "example"])
-    
+
     def test_from_dict_handles_invalid_datetime(self):
         """Test that invalid datetime strings are handled gracefully."""
         data = {
@@ -73,15 +73,15 @@ class TestRSSFeedSubscription(unittest.TestCase):
             "last_checked": "invalid-date",
             "last_item_date": None,
             "created_date": "2024-01-01T12:00:00+00:00",
-            "updated_date": "2024-01-01T12:00:00+00:00"
+            "updated_date": "2024-01-01T12:00:00+00:00",
         }
-        
+
         subscription = RSSFeedSubscription.from_dict(data)
-        
+
         # Invalid datetime should be None
         self.assertIsNone(subscription.last_checked)
         self.assertIsNone(subscription.last_item_date)
-        
+
         # Valid datetime should be parsed
         self.assertIsInstance(subscription.created_date, datetime)
         self.assertIsInstance(subscription.updated_date, datetime)
@@ -89,7 +89,7 @@ class TestRSSFeedSubscription(unittest.TestCase):
 
 class TestRSSFeedItem(unittest.TestCase):
     """Test RSSFeedItem dataclass functionality."""
-    
+
     def setUp(self):
         """Set up test data."""
         self.test_item = RSSFeedItem(
@@ -101,9 +101,9 @@ class TestRSSFeedItem(unittest.TestCase):
             description="This is a test article",
             published_date=datetime.now(timezone.utc),
             author="Test Author",
-            categories=["test", "article"]
+            categories=["test", "article"],
         )
-    
+
     def test_from_dict_converts_iso_to_datetime(self):
         """Test that ISO strings are converted back to datetime objects."""
         data = {
@@ -115,19 +115,19 @@ class TestRSSFeedItem(unittest.TestCase):
             "description": "This is a test article",
             "published_date": "2024-01-01T12:00:00+00:00",
             "author": "Test Author",
-            "categories": ["test", "article"]
+            "categories": ["test", "article"],
         }
-        
+
         item = RSSFeedItem.from_dict(data)
-        
+
         # Check that published_date is a datetime object
         self.assertIsInstance(item.published_date, datetime)
-        
+
         # Check that non-datetime fields remain unchanged
         self.assertEqual(item.feed_url, "https://example.com/feed.xml")
         self.assertEqual(item.title, "Test Article")
         self.assertEqual(item.categories, ["test", "article"])
-    
+
     def test_from_dict_handles_none_published_date(self):
         """Test that None published_date is handled correctly."""
         data = {
@@ -139,16 +139,16 @@ class TestRSSFeedItem(unittest.TestCase):
             "description": "This is a test article",
             "published_date": None,
             "author": "Test Author",
-            "categories": ["test", "article"]
+            "categories": ["test", "article"],
         }
-        
+
         item = RSSFeedItem.from_dict(data)
         self.assertIsNone(item.published_date)
 
 
 class TestRSSFeedMonitor(unittest.TestCase):
     """Test RSSFeedMonitor class functionality."""
-    
+
     def setUp(self):
         """Set up test fixtures."""
         # Create a mock config
@@ -158,174 +158,191 @@ class TestRSSFeedMonitor(unittest.TestCase):
         self.mock_config.mongodb_collection = "test_collection"
         self.mock_config.openai_api_key = "test-key"
         self.mock_config.embedding_model = "text-embedding-3-small"
-        
+
         # Mock MongoDB collections
         self.mock_subscriptions_collection = Mock()
         self.mock_processed_items_collection = Mock()
-        
+
         # Mock MongoDB database
         self.mock_db = MagicMock()
         self.mock_db.__getitem__.side_effect = lambda x: {
             "rss_subscriptions": self.mock_subscriptions_collection,
-            "rss_processed_items": self.mock_processed_items_collection
+            "rss_processed_items": self.mock_processed_items_collection,
         }[x]
-        
+
         # Mock MongoDB client
         self.mock_mongo_client = MagicMock()
         self.mock_mongo_client.__getitem__.return_value = self.mock_db
-        
+
         # Mock document pipeline
         self.mock_document_pipeline = Mock()
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_init_creates_indexes(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_init_creates_indexes(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test that initialization creates MongoDB indexes."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Create monitor instance
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Verify indexes were created
         self.mock_subscriptions_collection.create_index.assert_called()
         self.mock_processed_items_collection.create_index.assert_called()
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    @patch('rss_feed_monitor.feedparser')
-    def test_add_subscription_validates_feed_url(self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    @patch("rss_feed_monitor.feedparser")
+    def test_add_subscription_validates_feed_url(
+        self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test that adding a subscription validates the RSS feed URL."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock feedparser to return invalid feed
         mock_feed = Mock()
         mock_feed.bozo = True
         mock_feedparser.parse.return_value = mock_feed
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test adding invalid feed
         result = monitor.add_subscription(
-            feed_url="https://invalid-feed.com/feed.xml",
-            name="Invalid Feed"
+            feed_url="https://invalid-feed.com/feed.xml", name="Invalid Feed"
         )
-        
+
         self.assertFalse(result)
         mock_feedparser.parse.assert_called_with("https://invalid-feed.com/feed.xml")
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    @patch('rss_feed_monitor.feedparser')
-    def test_add_subscription_success(self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    @patch("rss_feed_monitor.feedparser")
+    def test_add_subscription_success(
+        self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test successful subscription addition."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock feedparser to return valid feed
         mock_feed = Mock()
         mock_feed.bozo = False
         mock_feedparser.parse.return_value = mock_feed
-        
+
         # Mock successful MongoDB insert
         mock_insert_result = Mock()
         mock_insert_result.inserted_id = "test-subscription-id"
         self.mock_subscriptions_collection.insert_one.return_value = mock_insert_result
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test adding valid feed
         result = monitor.add_subscription(
             feed_url="https://valid-feed.com/feed.xml",
             name="Valid Feed",
             description="A valid RSS feed",
-            tags=["valid", "test"]
+            tags=["valid", "test"],
         )
-        
+
         self.assertTrue(result)
         self.mock_subscriptions_collection.insert_one.assert_called_once()
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    @patch('rss_feed_monitor.feedparser')
-    def test_add_subscription_duplicate_key_error(self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    @patch("rss_feed_monitor.feedparser")
+    def test_add_subscription_duplicate_key_error(
+        self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test handling of duplicate subscription."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock feedparser to return valid feed
         mock_feed = Mock()
         mock_feed.bozo = False
         mock_feedparser.parse.return_value = mock_feed
-        
+
         # Mock duplicate key error
         from pymongo.errors import DuplicateKeyError
-        self.mock_subscriptions_collection.insert_one.side_effect = DuplicateKeyError("Duplicate key")
-        
+
+        self.mock_subscriptions_collection.insert_one.side_effect = DuplicateKeyError(
+            "Duplicate key"
+        )
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test adding duplicate feed
         result = monitor.add_subscription(
-            feed_url="https://duplicate-feed.com/feed.xml",
-            name="Duplicate Feed"
+            feed_url="https://duplicate-feed.com/feed.xml", name="Duplicate Feed"
         )
-        
+
         self.assertFalse(result)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_remove_subscription_success(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_remove_subscription_success(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test successful subscription removal."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock successful MongoDB delete
         mock_result = Mock()
         mock_result.deleted_count = 1
         self.mock_subscriptions_collection.delete_one.return_value = mock_result
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test removing subscription
         result = monitor.remove_subscription("https://test-feed.com/feed.xml")
-        
+
         self.assertTrue(result)
-        self.mock_subscriptions_collection.delete_one.assert_called_with({"feed_url": "https://test-feed.com/feed.xml"})
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_remove_subscription_not_found(self, mock_document_pipeline_class, mock_mongo_client_class):
+        self.mock_subscriptions_collection.delete_one.assert_called_with(
+            {"feed_url": "https://test-feed.com/feed.xml"}
+        )
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_remove_subscription_not_found(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test subscription removal when not found."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock unsuccessful MongoDB delete
         mock_result = Mock()
         mock_result.deleted_count = 0
         self.mock_subscriptions_collection.delete_one.return_value = mock_result
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test removing non-existent subscription
         result = monitor.remove_subscription("https://nonexistent-feed.com/feed.xml")
-        
+
         self.assertFalse(result)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_list_subscriptions(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_list_subscriptions(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test listing subscriptions."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock MongoDB documents
         mock_docs = [
             {
@@ -338,7 +355,7 @@ class TestRSSFeedMonitor(unittest.TestCase):
                 "last_checked": "2024-01-01T12:00:00+00:00",
                 "last_item_date": "2024-01-01T12:00:00+00:00",
                 "created_date": "2024-01-01T12:00:00+00:00",
-                "updated_date": "2024-01-01T12:00:00+00:00"
+                "updated_date": "2024-01-01T12:00:00+00:00",
             },
             {
                 "_id": 2,
@@ -350,127 +367,135 @@ class TestRSSFeedMonitor(unittest.TestCase):
                 "last_checked": "2024-01-01T12:00:00+00:00",
                 "last_item_date": "2024-01-01T12:00:00+00:00",
                 "created_date": "2024-01-01T12:00:00+00:00",
-                "updated_date": "2024-01-01T12:00:00+00:00"
-            }
+                "updated_date": "2024-01-01T12:00:00+00:00",
+            },
         ]
-        
+
         self.mock_subscriptions_collection.find.return_value = mock_docs
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test listing subscriptions
         subscriptions = monitor.list_subscriptions()
-        
+
         self.assertEqual(len(subscriptions), 2)
         self.assertEqual(subscriptions[0].name, "Feed 1")
         self.assertEqual(subscriptions[1].name, "Feed 2")
         self.assertTrue(subscriptions[0].enabled)
         self.assertFalse(subscriptions[1].enabled)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_is_item_processed(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_is_item_processed(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test checking if an item has been processed."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock processed item found
-        self.mock_processed_items_collection.find_one.return_value = {"item_id": "test-123"}
-        
+        self.mock_processed_items_collection.find_one.return_value = {
+            "item_id": "test-123"
+        }
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test checking processed item
         result = monitor._is_item_processed("https://feed.com/feed.xml", "test-123")
-        
+
         self.assertTrue(result)
-        self.mock_processed_items_collection.find_one.assert_called_with({
-            "feed_url": "https://feed.com/feed.xml",
-            "item_id": "test-123"
-        })
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_mark_item_processed(self, mock_document_pipeline_class, mock_mongo_client_class):
+        self.mock_processed_items_collection.find_one.assert_called_with(
+            {"feed_url": "https://feed.com/feed.xml", "item_id": "test-123"}
+        )
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_mark_item_processed(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test marking an item as processed."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test marking item as processed
         monitor._mark_item_processed("https://feed.com/feed.xml", "test-123")
-        
+
         self.mock_processed_items_collection.insert_one.assert_called_once()
         call_args = self.mock_processed_items_collection.insert_one.call_args[0][0]
         self.assertEqual(call_args["feed_url"], "https://feed.com/feed.xml")
         self.assertEqual(call_args["item_id"], "test-123")
         self.assertIn("processed_date", call_args)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
     def test_get_item_id(self, mock_document_pipeline_class, mock_mongo_client_class):
         """Test generating unique item ID from feed item."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock feedparser item
         mock_feed_item = Mock()
         mock_feed_item.get.side_effect = lambda key, default="": {
             "id": "test-item-id",
-            "link": "https://example.com/article"
+            "link": "https://example.com/article",
         }.get(key, default)
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test getting item ID
         item_id = monitor._get_item_id(mock_feed_item, "https://feed.com/feed.xml")
-        
+
         # Should return a consistent hash
         self.assertIsInstance(item_id, str)
         self.assertEqual(len(item_id), 32)  # MD5 hash length
-    
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_process_feed_integration(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_process_feed_integration(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test that RSS feed monitor integrates with document pipeline correctly."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock document pipeline methods - process_document now returns context
         mock_context = Mock()
         mock_context.processing_metadata = {"stored_chunk_ids": ["test-chunk-id"]}
         self.mock_document_pipeline.process_document.return_value = mock_context
         self.mock_document_pipeline.store_document.return_value = "test-doc-id"
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Verify that monitor has access to document pipeline
         self.assertIsNotNone(monitor.document_pipeline)
         self.assertIsNotNone(monitor.rss_retriever)
-    
-    @patch('rss_feed_monitor.MongoClient')
-    @patch('rss_feed_monitor.DocumentPipeline')
-    def test_cleanup_old_processed_items(self, mock_document_pipeline_class, mock_mongo_client_class):
+
+    @patch("rss_feed_monitor.MongoClient")
+    @patch("rss_feed_monitor.DocumentPipeline")
+    def test_cleanup_old_processed_items(
+        self, mock_document_pipeline_class, mock_mongo_client_class
+    ):
         """Test cleaning up old processed items."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
-        
+
         # Mock successful cleanup
         mock_result = Mock()
         mock_result.deleted_count = 5
         self.mock_processed_items_collection.delete_many.return_value = mock_result
-        
+
         monitor = RSSFeedMonitor(self.mock_config)
-        
+
         # Test cleanup
         deleted_count = monitor.cleanup_old_processed_items(days_to_keep=30)
-        
+
         self.assertEqual(deleted_count, 5)
         self.mock_processed_items_collection.delete_many.assert_called_once()
 

@@ -439,6 +439,7 @@ a:focus {
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -452,8 +453,13 @@ a:focus {
 }
 
 @keyframes twinkle {
-    0% { opacity: 0.5; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 .telemetry-btn {
@@ -641,6 +647,7 @@ a:focus {
         opacity: 0;
         transform: scale(0.95) translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -799,20 +806,20 @@ a:focus {
 }
 
 .message-content code::-webkit-scrollbar {
-  height: 8px;
+    height: 8px;
 }
 
 .message-content code::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 10px;
-  margin: 0px 10px;
+    background: transparent;
+    border-radius: 10px;
+    margin: 0px 10px;
 }
 
 .message-content code::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb-color);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+    background-color: var(--scrollbar-thumb-color);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
 }
 
 .message-content ul,
@@ -1095,7 +1102,9 @@ a:focus {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Responsive design */
@@ -1103,12 +1112,12 @@ a:focus {
     .app-container {
         height: 100vh;
     }
-    
+
     /* Hide sidebar by default on mobile */
     .sidebar {
         display: none;
     }
-    
+
     /* Show sidebar as overlay when expanded on mobile */
     .sidebar.expanded {
         display: flex;
@@ -1121,69 +1130,70 @@ a:focus {
         left: 0;
         overflow-y: auto;
     }
-    
+
     .sidebar-header {
         flex-shrink: 0;
     }
-    
+
     .main-container {
         margin-left: 0;
         width: 100%;
     }
-    
+
     /* Show mobile menu toggle on mobile */
     .mobile-menu-toggle {
         display: flex;
     }
-    
+
     /* Show tooltip only on mobile */
     .mobile-menu-tooltip {
         display: none;
     }
-    
+
     .mobile-menu-tooltip.visible {
         display: block;
     }
-    
+
     .suggestions-container,
     .input-form {
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    
+
     .chat-messages {
         padding: 1rem;
     }
-    
+
     .message-content {
         max-width: 90%;
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
-    
+
     .message-content pre {
         overflow-x: auto;
         max-width: 100%;
     }
-    
+
     .message-content code {
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: pre-wrap;
     }
-    
+
     .message-content pre code {
         white-space: pre;
     }
-    
+
     .suggestions {
         flex-wrap: wrap;
     }
-    
+
     .options-summary {
-        display: none; /* Hide summary on mobile to save space */
+        display: none;
+        /* Hide summary on mobile to save space */
     }
-    
+
     .options-container {
         justify-content: center;
     }
@@ -1194,7 +1204,7 @@ a:focus {
     .message.assistant .message-content {
         border-width: 2px;
     }
-    
+
     .question-input {
         border-width: 3px;
     }
@@ -1990,27 +2000,27 @@ a:focus {
         padding: 1rem;
         overflow-x: hidden;
     }
-    
+
     .samples-controls {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .search-container {
         min-width: auto;
         width: 100%;
     }
-    
+
     .samples-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .sample-card {
         max-width: 100%;
         min-width: 0;
     }
-    
+
     .filters-panel {
         position: fixed;
         top: 50%;
@@ -2021,38 +2031,38 @@ a:focus {
         max-height: 80vh;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     }
-    
+
     .filters-close-btn {
         display: flex;
         align-items: center;
         justify-content: center;
     }
-    
+
     .filters-panel-body {
         max-height: calc(80vh - 140px);
     }
-    
+
     .modal {
         padding: 0.5rem;
     }
-    
+
     .modal-content {
         max-height: 95vh;
         width: 100%;
         max-width: calc(100vw - 1rem);
     }
-    
+
     .sample-detail-meta {
         grid-template-columns: 1fr;
     }
-    
+
     .clone-instructions {
         word-wrap: break-word;
         overflow-wrap: break-word;
         overflow-x: auto;
         font-size: 0.75rem;
     }
-    
+
     /* Sidebar overlay on mobile when expanded */
     .sidebar.expanded {
         position: fixed;
@@ -2068,37 +2078,37 @@ a:focus {
         padding: 1rem;
         overflow-x: hidden;
     }
-    
+
     .news-controls {
         flex-direction: column;
         align-items: stretch;
         gap: 1rem;
     }
-    
+
     .news-item {
         padding: 1rem;
         max-width: 100%;
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
-    
+
     .news-item-header {
         flex-direction: column;
         gap: 0.5rem;
     }
-    
+
     .news-item-meta {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.25rem;
     }
-    
+
     .news-item-title h3 {
         font-size: 1rem;
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
-    
+
     .news-item-summary {
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -2122,6 +2132,7 @@ a:focus {
     from {
         transform: translateY(100%);
     }
+
     to {
         transform: translateY(0);
     }
@@ -2195,13 +2206,13 @@ a:focus {
         text-align: center;
         gap: 1rem;
     }
-    
+
     .privacy-actions {
         flex-direction: column;
         gap: 0.5rem;
         width: 100%;
     }
-    
+
     .privacy-btn {
         width: 100%;
     }
