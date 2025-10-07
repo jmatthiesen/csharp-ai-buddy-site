@@ -7,6 +7,14 @@ import json
 from typing import Optional
 from dataclasses import dataclass
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not available, continue without it
+    pass
+
 
 @dataclass
 class Config:
@@ -16,18 +24,18 @@ class Config:
     mongodb_connection_string: str
     mongodb_database: str
     mongodb_collection: str
-    
-    # OpenAI settings
     openai_api_key: str
-    embedding_model: str = "text-embedding-3-small"
     
-    # Pipeline settings
+    # Optional fields with defaults
+    mongodb_chunks_collection: str = "document_chunks"
+    embedding_model: str = "text-embedding-3-small"
     max_content_length: int = 8192  # Maximum content length for embeddings
     batch_size: int = 10  # Batch size for bulk operations
     
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
-        """Load configuration from JSON file."""
+        """Load configuration from JSON file (deprecated, use from_env instead)."""
+        print("Warning: JSON config files are deprecated. Please use environment variables or .env files.")
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         
@@ -43,11 +51,23 @@ class Config:
             mongodb_connection_string=os.getenv("MONGODB_CONNECTION_STRING", "mongodb://localhost:27017"),
             mongodb_database=os.getenv("MONGODB_DATABASE", "rag_pipeline"),
             mongodb_collection=os.getenv("MONGODB_COLLECTION", "documents"),
+            mongodb_chunks_collection=os.getenv("MONGODB_CHUNKS_COLLECTION", "document_chunks"),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
             max_content_length=int(os.getenv("MAX_CONTENT_LENGTH", "8192")),
             batch_size=int(os.getenv("BATCH_SIZE", "10"))
         )
+    
+    @classmethod
+    def load(cls) -> "Config":
+        """Load configuration with priority: environment variables > .env file > JSON file."""
+        # Try environment variables first
+        config = cls.from_env()
+        
+        # Validate the configuration
+        config.validate()
+        
+        return config
     
     def to_dict(self) -> dict:
         """Convert configuration to dictionary."""
@@ -55,6 +75,7 @@ class Config:
             "mongodb_connection_string": self.mongodb_connection_string,
             "mongodb_database": self.mongodb_database,
             "mongodb_collection": self.mongodb_collection,
+            "mongodb_chunks_collection": self.mongodb_chunks_collection,
             "openai_api_key": self.openai_api_key,
             "embedding_model": self.embedding_model,
             "max_content_length": self.max_content_length,
@@ -73,15 +94,15 @@ class Config:
     def validate(self) -> bool:
         """Validate configuration settings."""
         if not self.openai_api_key:
-            raise ValueError("OpenAI API key is required")
+            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
         
         if not self.mongodb_connection_string:
-            raise ValueError("MongoDB connection string is required")
+            raise ValueError("MongoDB connection string is required. Set MONGODB_CONNECTION_STRING environment variable.")
         
         if not self.mongodb_database:
-            raise ValueError("MongoDB database name is required")
+            raise ValueError("MongoDB database name is required. Set MONGODB_DATABASE environment variable.")
         
         if not self.mongodb_collection:
-            raise ValueError("MongoDB collection name is required")
+            raise ValueError("MongoDB collection name is required. Set MONGODB_COLLECTION environment variable.")
         
         return True 

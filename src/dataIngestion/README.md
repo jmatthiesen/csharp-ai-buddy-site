@@ -37,11 +37,12 @@ A Python-based data ingestion pipeline for Retrieval-Augmented Generation (RAG) 
    ```
 
 4. **Configure the pipeline:**
-   - Copy `config.json` and update with your settings
+   - Copy `env.example` to `.env` and update with your settings:
+     ```bash
+     cp env.example .env
+     ```
    - Set your OpenAI API key
    - Configure MongoDB connection string
-
-## Configuration
 
 ### Environment Variables
 
@@ -54,20 +55,29 @@ export MONGODB_DATABASE="rag_pipeline"
 export MONGODB_COLLECTION="documents"
 ```
 
-### Configuration File
+### Environment File
 
-Update `config.json` with your settings:
+Copy `env.example` to `.env` and update with your settings:
 
-```json
-{
-  "mongodb_connection_string": "mongodb://localhost:27017",
-  "mongodb_database": "rag_pipeline",
-  "mongodb_collection": "documents",
-  "openai_api_key": "your-openai-api-key-here",
-  "embedding_model": "text-embedding-3-small",
-  "max_content_length": 8192,
-  "batch_size": 10
-}
+```bash
+cp env.example .env
+```
+
+Then edit `.env` with your configuration:
+
+```env
+# MongoDB Configuration
+MONGODB_CONNECTION_STRING=mongodb+srv://username:password@cluster.mongodb.net
+MONGODB_DATABASE=csharpAIBuddy
+MONGODB_COLLECTION=documents
+
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+# Pipeline Settings
+MAX_CONTENT_LENGTH=8192
+BATCH_SIZE=10
 ```
 
 ## Usage

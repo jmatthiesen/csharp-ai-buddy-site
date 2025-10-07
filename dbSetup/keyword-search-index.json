@@ -1,0 +1,22 @@
+{
+    "database": "csharpAIBuddy",
+    "collectionName": "document_chunks",
+    "name": "search_index",
+    "mappings": {
+        "dynamic": false,
+        "fields": {
+            "title": {
+                "type": "string"
+            },
+            "content": {
+                "type": "string"
+            },
+            "sourceUrl": {
+                "type": "string"
+            },
+            "tags": {
+                "type": "string"
+            }
+        }
+    }
+}
