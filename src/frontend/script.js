@@ -1206,7 +1206,7 @@ class SamplesGallery {
         this.currentSample = null;
 
         this.initializeEventListeners();
-        this.loadMockData(); // Load mock data for demonstration
+        this.loadSamples(); // Load samples from API
     }
 
     initializeEventListeners() {
@@ -1233,10 +1233,11 @@ class SamplesGallery {
             }
         });
 
-        // Sort functionality
+        // Sort functionality (disabled - not implemented in API yet)
         this.sortSelect.addEventListener('change', () => {
             this.currentSort = this.sortSelect.value;
-            this.performSearch();
+            this.currentPage = 1;
+            this.loadSamples();
         });
 
         // Filters
@@ -1284,7 +1285,7 @@ class SamplesGallery {
     performSearch() {
         this.currentSearch = this.samplesSearch.value.trim();
         this.currentPage = 1;
-        this.loadMockData();
+        this.loadSamples();
     }
 
     clearSearch() {
@@ -1292,7 +1293,7 @@ class SamplesGallery {
         this.currentSearch = '';
         this.updateClearSearchButton();
         this.currentPage = 1;
-        this.loadMockData();
+        this.loadSamples();
     }
 
     updateClearSearchButton() {
@@ -1305,117 +1306,96 @@ class SamplesGallery {
         this.filtersPanel.style.display = isVisible ? 'none' : 'block';
     }
 
-    loadMockData() {
-        // Mock data for demonstration
-        const mockSamples = [
-            {
-                id: '1',
-                title: '.NET + Semantic Search + AI Search - eShopLite',
-                description: 'eShopLite - Semantic Search - Azure AI Search is a reference .NET application implementing an eCommerce site with advanced search capabilities using semantic search and Azure AI services.',
-                author: 'Bruno Capuano',
-                authorUrl: 'https://github.com/BrunoCapuano',
-                source: 'https://github.com/Microsoft/eshoplite-semantic-search',
-                tags: ['AI', 'Azure AI Search', '.NET/C#', 'msft'],
-                date: '2024-01-15'
-            },
-            {
-                id: '2',
-                title: 'Blazor Server Chat with SignalR',
-                description: 'A real-time chat application built with Blazor Server and SignalR, demonstrating real-time communication in .NET applications with modern web UI patterns.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/blazor-signalr-chat',
-                tags: ['.NET/C#', 'Blazor', 'SignalR', 'msft'],
-                date: '2024-02-10'
-            },
-            {
-                id: '3',
-                title: 'Minimal API with Entity Framework Core',
-                description: 'A simple yet powerful example of building RESTful APIs using .NET Minimal APIs with Entity Framework Core for data access and modern authentication patterns.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/minimal-api-ef-core',
-                tags: ['.NET/C#', 'Entity Framework', 'API', 'msft'],
-                date: '2024-01-28'
-            },
-            {
-                id: '4',
-                title: 'MAUI Cross-Platform App',
-                description: 'Cross-platform mobile and desktop application built with .NET MAUI, showcasing native UI patterns across iOS, Android, Windows, and macOS from a single codebase.',
-                author: 'Microsoft .NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/maui-cross-platform',
-                tags: ['.NET/C#', 'MAUI', 'Mobile', 'msft'],
-                date: '2024-02-05'
-            },
-            {
-                id: '5',
-                title: 'Clean Architecture Template',
-                description: 'A comprehensive Clean Architecture solution template for .NET applications, including CQRS, Domain-Driven Design patterns, and extensive testing examples.',
-                author: 'Jason Taylor',
-                authorUrl: 'https://github.com/jasontaylordev',
-                source: 'https://github.com/jasontaylordev/CleanArchitecture',
-                tags: ['.NET/C#', 'Architecture', 'CQRS', 'Testing'],
-                date: '2024-01-20'
-            },
-            {
-                id: '6',
-                title: 'Machine Learning with ML.NET',
-                description: 'Machine learning examples using ML.NET framework, including classification, regression, clustering, and recommendation systems with custom model training.',
-                author: 'Microsoft ML.NET Team',
-                authorUrl: 'https://github.com/dotnet',
-                source: 'https://github.com/dotnet-samples/mlnet-machine-learning',
-                tags: ['.NET/C#', 'ML.NET', 'AI', 'msft'],
-                date: '2024-02-12'
+    async loadSamples() {
+        try {
+            this.showSamplesLoading();
+            
+            // Build query parameters
+            const params = new URLSearchParams({
+                page: this.currentPage.toString(),
+                page_size: '20'
+            });
+            
+            if (this.currentSearch) {
+                params.append('search', this.currentSearch);
             }
-        ];
-
-        // Filter samples based on search and filters
-        let filteredSamples = mockSamples;
-        
-        if (this.currentSearch) {
-            const searchLower = this.currentSearch.toLowerCase();
-            filteredSamples = filteredSamples.filter(sample =>
-                sample.title.toLowerCase().includes(searchLower) ||
-                sample.description.toLowerCase().includes(searchLower) ||
-                sample.author.toLowerCase().includes(searchLower) ||
-                sample.tags.some(tag => tag.toLowerCase().includes(searchLower))
-            );
+            
+            if (this.currentFilters.length > 0) {
+                params.append('tags', this.currentFilters.join(','));
+            }
+            
+            const response = await fetch(`${this.apiBaseUrl}/samples?${params}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.samples.length === 0) {
+                this.showNoResults();
+                this.trackTelemetry('search_no_results', { 
+                    query: this.currentSearch, 
+                    filters: this.currentFilters,
+                    page: this.currentPage
+                });
+            } else {
+                this.renderSamples(data.samples);
+                this.renderPagination(data);
+            }
+            
+            // Load available tags if we haven't already
+            if (this.availableTags.length === 0) {
+                await this.loadAvailableTags();
+            }
+            
+        } catch (error) {
+            console.error('Error loading samples:', error);
+            this.showSamplesError();
+        } finally {
+            this.hideSamplesLoading();
         }
+    }
 
-        if (this.currentFilters.length > 0) {
-            filteredSamples = filteredSamples.filter(sample =>
-                this.currentFilters.some(filter => sample.tags.includes(filter))
-            );
+    async loadAvailableTags() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/samples/tags`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.availableTags = data.tags || [];
+            this.renderTagFilters();
+            
+        } catch (error) {
+            console.error('Error loading available tags:', error);
+            // Fallback to empty tags array
+            this.availableTags = [];
+            this.renderTagFilters();
         }
+    }
 
-        // Sort samples based on current sort option
-        if (this.currentSort === 'alphabetical') {
-            filteredSamples.sort((a, b) => b.title.localeCompare(a.title)); // Z-A (descending)
-        } else if (this.currentSort === 'date') {
-            filteredSamples.sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
-        }
+    showSamplesLoading() {
+        this.loadingSpinner.style.display = 'flex';
+        this.samplesGrid.style.display = 'none';
+        this.noResults.style.display = 'none';
+        this.pagination.style.display = 'none';
+    }
 
-        // Extract unique tags from all samples
-        this.availableTags = [...new Set(mockSamples.flatMap(sample => sample.tags))].sort();
-        this.renderTagFilters();
+    hideSamplesLoading() {
+        this.loadingSpinner.style.display = 'none';
+    }
 
-        if (filteredSamples.length === 0) {
-            this.showNoResults();
-            this.chatApp.trackTelemetry('search_no_results', { 
-                query: this.currentSearch, 
-                filters: this.currentFilters 
-            });
-        } else {
-            this.renderSamples(filteredSamples);
-            this.renderPagination({
-                samples: filteredSamples,
-                total: filteredSamples.length,
-                page: 1,
-                pages: 1,
-                page_size: 20
-            });
-        }
+    showSamplesError() {
+        this.samplesGrid.innerHTML = `
+            <div class="error-message">
+                <h3>Unable to load samples</h3>
+                <p>Please try again later.</p>
+            </div>
+        `;
+        this.samplesGrid.style.display = 'block';
     }
 
     renderTagFilters() {
@@ -1448,7 +1428,7 @@ class SamplesGallery {
         
         this.currentPage = 1;
         this.renderTagFilters();
-        this.loadMockData();
+        this.loadSamples();
         
         // Track filter usage
         this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
@@ -1458,7 +1438,7 @@ class SamplesGallery {
         this.currentFilters = [];
         this.renderTagFilters();
         this.currentPage = 1;
-        this.loadMockData();
+        this.loadSamples();
     }
 
     showNoResults() {
@@ -1517,12 +1497,67 @@ class SamplesGallery {
     }
 
     renderPagination(data) {
-        this.pagination.innerHTML = `
-            <div class="pagination-info">
-                Showing ${data.samples.length} of ${data.total} samples
-            </div>
-        `;
+        if (data.pages <= 1) {
+            this.pagination.style.display = 'none';
+            return;
+        }
+
+        this.pagination.innerHTML = '';
         this.pagination.style.display = 'flex';
+        
+        // Previous button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'pagination-btn';
+        prevBtn.textContent = '« Previous';
+        prevBtn.disabled = data.page === 1;
+        prevBtn.addEventListener('click', () => {
+            if (data.page > 1) {
+                this.currentPage = data.page - 1;
+                this.loadSamples();
+            }
+        });
+        this.pagination.appendChild(prevBtn);
+        
+        // Page numbers (show max 5 pages)
+        const maxVisiblePages = 5;
+        const startPage = Math.max(1, data.page - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(data.pages, startPage + maxVisiblePages - 1);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'pagination-btn';
+            pageBtn.textContent = i.toString();
+            
+            if (i === data.page) {
+                pageBtn.classList.add('active');
+            }
+            
+            pageBtn.addEventListener('click', () => {
+                this.currentPage = i;
+                this.loadSamples();
+            });
+            
+            this.pagination.appendChild(pageBtn);
+        }
+        
+        // Info
+        const info = document.createElement('div');
+        info.className = 'pagination-info';
+        info.textContent = `${data.page} of ${data.pages} (${data.total} samples)`;
+        this.pagination.appendChild(info);
+        
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'pagination-btn';
+        nextBtn.textContent = 'Next »';
+        nextBtn.disabled = data.page === data.pages;
+        nextBtn.addEventListener('click', () => {
+            if (data.page < data.pages) {
+                this.currentPage = data.page + 1;
+                this.loadSamples();
+            }
+        });
+        this.pagination.appendChild(nextBtn);
     }
 
     openSampleModal(sample) {
@@ -1634,7 +1669,11 @@ class AppManager {
         var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/';
 
         // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+        if (window.location.hostname === 'localhost' 
+            || window.location.hostname === '127.0.0.1'
+            || window.location.protocol === 'file:'
+            || window.location.hostname === '[::1]'
+            || window.location.hostname.startsWith('[') && window.location.hostname.includes('::')) {
             apiUrl = 'http://localhost:8000';
         }
 
@@ -1679,7 +1718,7 @@ class AppManager {
         }
         
         // Also send to backend telemetry endpoint if available
-        this.sendBackendTelemetry(eventType, data);
+        //this.sendBackendTelemetry(eventType, data);
     }
 
     async sendBackendTelemetry(eventType, data) {

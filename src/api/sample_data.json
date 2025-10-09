@@ -1,0 +1,195 @@
+[
+  {
+    "title": "Microsoft.Extensions.AI (Preview)",
+    "description": "A core set of .NET libraries including Semantic Kernel, providing unified abstractions for accessing AI services such as LLMs, SLMs, and embeddings in .NET applications.",
+    "preview": "./templates/images/ai-extensions.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/microsoft-extensions-ai",
+    "tags": ["AI", ".NET/C#", "SDK", "Semantic Kernel", "LLM", "msft"]
+  },
+  {
+    "title": "Microsoft.Extensions.AI.Evaluation (Preview)",
+    "description": "A .NET library to evaluate quality and efficacy of LLM responses in .NET-based intelligent applications.",
+    "preview": "./templates/images/ai-evaluation.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/microsoft-extensions-ai-evaluation",
+    "tags": ["AI", ".NET/C#", "Evaluation", "LLM", "msft"]
+  },
+  {
+    "title": "Text Summary Quickstart (OpenAI)",
+    "description": "A project sample showing how to summarize text using OpenAI services in .NET.",
+    "preview": "./templates/images/sample-summary-openai.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/quickstarts/openai/extensions-ai/01-HikeBenefitsSummary",
+    "tags": ["AI", ".NET/C#", "OpenAI", "Sample", "Summarization", "msft"]
+  },
+  {
+    "title": "Chat App Quickstart (OpenAI)",
+    "description": "A chat application example built with .NET using OpenAI for conversational response.",
+    "preview": "./templates/images/sample-chat-openai.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/quickstarts/openai/extensions-ai/02-build-chat-app/openai",
+    "tags": ["AI", ".NET/C#", "OpenAI", "Chatbot", "msft"]
+  },
+  {
+    "title": "Function Calling Quickstart (OpenAI)",
+    "description": "A practical example of implementing function calling with OpenAI in .NET applications.",
+    "preview": "./templates/images/sample-function-calling-openai.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/quickstarts/openai/extensions-ai/04-function-calling/openai",
+    "tags": ["AI", ".NET/C#", "OpenAI", "Function Calling", "Sample", "msft"]
+  },
+  {
+    "title": "Text Summary Quickstart (Azure OpenAI)",
+    "description": "Sample project demonstrating text summarization using Azure OpenAI SDK with .NET.",
+    "preview": "./templates/images/sample-summary-azure-openai.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/quickstarts/azure-openai/extensions-ai/01-HikeBenefitsSummary",
+    "tags": ["AI", ".NET/C#", "Azure OpenAI", "Sample", "Summarization", "msft"]
+  },
+  {
+    "title": "Customer Support Chat Sample",
+    "description": "A sample chat application for customer support scenarios leveraging LLMs in .NET.",
+    "preview": "./templates/images/customer-support-chat.png",
+    "authorUrl": "https://github.com/dotnet/ai-samples",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/chat/CustomerSupport",
+    "tags": ["AI", ".NET/C#", "LLM", "Chat", "Sample", "msft"]
+  },
+  {
+    "title": "Generative AI for Beginners (.NET)",
+    "description": "A series of five lessons and projects that teach generative AI using the OpenAI API within .NET console apps.",
+    "preview": "./templates/images/generative-ai-beginners.png",
+    "authorUrl": "https://github.com/microsoft/Generative-AI-for-beginners-dotnet",
+    "author": "Microsoft",
+    "source": "https://github.com/microsoft/Generative-AI-for-beginners-dotnet",
+    "tags": ["AI", ".NET/C#", "Generative AI", "OpenAI", "Beginner", "msft"]
+  },
+  {
+    "title": "eShopLite - Semantic Search .NET AI Sample",
+    "description": "Reference .NET eCommerce app showing Semantic Search using Azure AI Search service.",
+    "preview": "./templates/images/sample-eshop.png",
+    "authorUrl": "https://github.com/BrunoCapuano",
+    "author": "Bruno Capuano",
+    "source": "https://github.com/Microsoft/eshoplite-semantic-search",
+    "tags": ["AI", "Azure AI Search", ".NET/C#", "Semantic Search", "Reference App", "msft"]
+  },
+  {
+    "title": "eShopSupport – AI-Enhanced Customer Support Sample",
+    "description": "A comprehensive intelligent app sample demonstrating semantic search, summarization, classification, Q&A chatbot, sentiment analysis, data generation, evaluation tools, and E2E testing. Shows how to infuse real-world AI features into a modern .NET Aspire line-of-business app.",
+    "preview": "./templates/images/sample-eshopsupport.png",
+    "authorUrl": "https://github.com/dotnet",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/eshopsupport",
+    "tags": ["AI", ".NET/C#", "Semantic Search", "Summarization", "Classification", "Chatbot", "Sentiment", "E2E Testing", "Azure", "msft"]
+  },
+  {
+    "title": "OllamaSharp + Microsoft.Extensions.AI (Local LLM, GPT-OSS)",
+    "description": "Sample showing how to use the open-weight GPT-OSS model with Ollama and .NET—build private, fast, and offline-capable AI features with Microsoft.Extensions.AI and OllamaSharp.",
+    "preview": "./templates/images/sample-ollama.png",
+    "authorUrl": "https://github.com/ollama/ollama",
+    "author": "Ollama, Microsoft",
+    "source": "https://github.com/ollama/ollama",
+    "tags": ["AI", ".NET/C#", "Ollama", "LLM", "GPT-OSS", "Local Models", "Sample"]
+  },
+  {
+    "title": "eShopLite + GitHub Copilot Coding Agent",
+    "description": "A streamlined .NET sample used to demonstrate GitHub Copilot Coding Agent: automates unit tests, feature creation from PRDs, and GitHub issue/PR management in .NET solutions.",
+    "preview": "./templates/images/sample-eshoplite-copilot.png",
+    "authorUrl": "https://github.com/Azure-Samples/eShopLite",
+    "author": "Microsoft, Copilot Team",
+    "source": "https://aka.ms/eShopLite/repo",
+    "tags": ["AI", ".NET/C#", "Copilot", "Automation", "Unit Testing", "Sample", "msft"]
+  },
+  {
+    "title": "Microsoft.Extensions.AI.Evaluation Usage Examples",
+    "description": "Sample projects showing how to use the Microsoft.Extensions.AI.Evaluation libraries including new agent quality, NLP, and content safety evaluators for LLM outputs.",
+    "preview": "./templates/images/sample-aieval.png",
+    "authorUrl": "https://github.com/dotnet",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/ai-samples/tree/main/src/microsoft-extensions-ai-evaluation",
+    "tags": ["AI", ".NET/C#", "LLM", "NLP", "Evaluation", "Content Safety", "Sample", "msft"]
+  },
+  {
+    "title": "AI-powered Test Data Generators",
+    "description": "Realistic, AI-powered tools for large volumes of test data generation in .NET. Automates the creation of category, brand, and other seed data via LLM prompts.",
+    "preview": "./templates/images/test-data-gen.png",
+    "authorUrl": "https://github.com/dotnet",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/eShopSupport/tree/main/seeddata/DataGenerator/Generators",
+    "tags": ["AI", ".NET/C#", "Test Data", "Generation", "Seed Data", "Sample", "msft"]
+  },
+  {
+    "title": "eShopSupport - Ticket Summarizer Service",
+    "description": "A backend service for automatic summarization and sentiment scoring of customer support tickets using LLMs.",
+    "preview": "./templates/images/ticket-summarizer.png",
+    "authorUrl": "https://github.com/dotnet",
+    "author": "Microsoft .NET Team",
+    "source": "https://github.com/dotnet/eShopSupport/blob/main/src/Backend/Services/TicketSummarizer.cs",
+    "tags": ["AI", ".NET/C#", "Summarization", "Sentiment Analysis", "Backend", "msft"]
+  },
+  {
+    "title": "Semantic Kernel Main Samples for .NET",
+    "description": "Comprehensive Semantic Kernel samples for .NET, covering chat completion, embeddings, function calling, hybrid model orchestration, agent frameworks, and Microsoft.Extensions.AI integration.",
+    "preview": "./templates/images/sample-semantic-kernel-main.png",
+    "authorUrl": "https://github.com/microsoft/semantic-kernel",
+    "author": "Microsoft Semantic Kernel Team",
+    "source": "https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples",
+    "tags": ["AI", ".NET/C#", "Semantic Kernel", "LLM", "Embeddings", "Agents", "Hybrid Orchestration", "Microsoft.Extensions.AI", "Sample"]
+  },
+  {
+    "title": "Chat Completion with Audio (OpenAI GPT-4o-preview + Semantic Kernel)",
+    "description": "Sample showing how to use OpenAI's gpt-4o-audio-preview model for both audio input and output chat completions in .NET with Semantic Kernel.",
+    "preview": "./templates/images/sample-audio-preview-sk.png",
+    "authorUrl": "https://github.com/microsoft/semantic-kernel",
+    "author": "Microsoft Semantic Kernel Team",
+    "source": "https://github.com/microsoft/semantic-kernel/blob/main/dotnet/samples/Concepts/ChatCompletion/OpenAI_ChatCompletionWithAudio.cs",
+    "tags": [".NET/C#", "Semantic Kernel", "OpenAI", "Audio", "Chat Completion", "Sample"]
+  },
+  {
+    "title": "Hybrid Model Orchestration Sample (FallbackChatClient)",
+    "description": "Sample for orchestrating multiple LLM providers (local/cloud) using a fallback-based chat client for enhanced reliability. Implements hybrid model patterns in .NET apps with Semantic Kernel.",
+    "preview": "./templates/images/sample-hybrid-fallback.png",
+    "authorUrl": "https://github.com/microsoft/semantic-kernel",
+    "author": "Microsoft Semantic Kernel Team",
+    "source": "https://github.com/microsoft/semantic-kernel/blob/main/dotnet/samples/Concepts/ChatCompletion/HybridCompletion_Fallback.cs",
+    "tags": [".NET/C#", "Semantic Kernel", "Hybrid Model", "LLM", "Fallback", "Sample"]
+  },
+  {
+    "title": "Model Context Protocol (MCP) Server Demo with Semantic Kernel",
+    "description": "Demonstrates building a Model Context Protocol server in C# that exposes Semantic Kernel plugins as MCP-compatible AI tools, enabling cross-platform and multi-agent integration.",
+    "preview": "./templates/images/sample-mcp-server.png",
+    "authorUrl": "https://github.com/microsoft/semantic-kernel",
+    "author": "Microsoft Semantic Kernel Team",
+    "source": "https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples/Demos/ModelContextProtocolClientServer",
+    "tags": ["AI", ".NET/C#", "Semantic Kernel", "MCP", "Server", "Cross-platform", "Sample"]
+  },
+  {
+  "id": "str(uuid.uuid4())",
+  "title": "DeepSeek R1 Intelligent App Demo (.NET + MEAI)",
+  "description": "A starter .NET console app that uses the Microsoft.Extensions.AI (MEAI) abstractions to connect with the DeepSeek R1 reasoning model via GitHub Models, Azure AI Foundry, or locally with Ollama. The sample demonstrates initializing the IChatClient with the appropriate package, sending a chat prompt, and streaming the response. Includes alternate samples and setup for running locally or with different endpoints.",
+  "preview": "./templates/images/sample-deepseek.png",
+  "authorUrl": "https://github.com/codemillmatt",
+  "author": "Matt Soucoup",
+  "source": "https://github.com/codemillmatt/deepseek-dotnet",
+  "tags": [
+    "AI",
+    ".NET/C#",
+    "DeepSeek",
+    "Reasoning Model",
+    "Console App",
+    "MEAI",
+    "Microsoft.Extensions.AI",
+    "Chat Streaming",
+    "GitHub Models",
+    "Ollama",
+    "Azure"
+  ]
+ }
+]
