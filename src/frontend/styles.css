@@ -1022,6 +1022,21 @@ a:focus {
         overflow-wrap: break-word;
     }
     
+    .message-content pre {
+        overflow-x: auto;
+        max-width: 100%;
+    }
+    
+    .message-content code {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    
+    .message-content pre code {
+        white-space: pre;
+    }
+    
     .suggestions {
         flex-wrap: wrap;
     }
@@ -1379,6 +1394,8 @@ a:focus {
     color: var(--text-primary);
     line-height: 1.6;
     margin-top: 0.75rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .news-item-footer {
@@ -1483,6 +1500,8 @@ a:focus {
     -webkit-box-orient: vertical;
     overflow: hidden;
     flex: 1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .sample-tags {
@@ -1688,6 +1707,8 @@ a:focus {
 .meta-value {
     color: var(--text-secondary);
     transition: color 0.3s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .meta-value a {
