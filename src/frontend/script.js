@@ -636,7 +636,7 @@ class ChatApp {
                     magic_key: this.magicKey
                 })
             });
-
+            
             if (!response.ok) {
                 // Handle magic key validation errors specifically
                 if (response.status === 401 || response.status === 403) {
