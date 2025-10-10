@@ -33,7 +33,7 @@ class ChatApp {
 
         // Initialize markdown and syntax highlighting when libraries are loaded
         this.initializeMarkdownSupport();
-        
+
         // Initialize magic key functionality
         this.initializeMagicKey();
     }
@@ -209,11 +209,11 @@ class ChatApp {
         const optionsModal = document.getElementById('options-modal');
         optionsModal.style.display = 'flex';
         optionsModal.setAttribute('aria-hidden', 'false');
-        
+
         // Focus first element
         const firstSelect = document.getElementById('dotnet-version');
         firstSelect.focus();
-        
+
         // Update experimental notice
         this.updateExperimentalNotice();
     }
@@ -222,7 +222,7 @@ class ChatApp {
         const optionsModal = document.getElementById('options-modal');
         optionsModal.style.display = 'none';
         optionsModal.setAttribute('aria-hidden', 'true');
-        
+
         // Return focus to options button
         document.getElementById('options-btn').focus();
     }
@@ -248,7 +248,7 @@ class ChatApp {
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiProviderSelect = document.getElementById('ai-provider');
 
-        const isExperimental = 
+        const isExperimental =
             dotnetVersionSelect.selectedOptions[0]?.dataset.experimental === 'true' ||
             aiProviderSelect.selectedOptions[0]?.dataset.experimental === 'true';
 
@@ -270,12 +270,12 @@ class ChatApp {
 
         try {
             // Track that a developer started a chat
-            this.trackTelemetry('chat_started', { 
+            this.trackTelemetry('chat_started', {
                 question_length: question.length,
                 conversation_length: this.conversationHistory.length,
                 session_chat_count: this.getSessionChatCount() + 1
             });
-            
+
             // Increment session chat count
             this.incrementSessionChatCount();
 
@@ -321,7 +321,7 @@ class ChatApp {
                 contentDiv.innerHTML = '<div class="loading">Thinking...</div>';
             } else {
                 contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
-                
+
                 // Add feedback controls for completed assistant messages
                 if (spanId) {
                     const feedbackControls = this.createFeedbackControls(spanId);
@@ -373,7 +373,7 @@ class ChatApp {
     sanitizeAndRenderMarkdown(content) {
         // Basic HTML sanitization to prevent XSS
         const tempDiv = document.createElement('div');
-        
+
         // Use marked if available, otherwise fall back to basic formatting
         if (typeof marked !== 'undefined' && marked.parse) {
             tempDiv.innerHTML = marked.parse(content);
@@ -439,7 +439,7 @@ class ChatApp {
             if (el.tagName.toLowerCase() === 'a') {
                 el.setAttribute('target', '_blank');
                 el.setAttribute('rel', 'noopener noreferrer');
-                
+
                 // Only allow http/https links
                 const href = el.getAttribute('href');
                 if (href && !href.match(/^https?:\/\//)) {
@@ -453,7 +453,7 @@ class ChatApp {
         // Check URL parameters for magic key (works in both dev and production)
         const urlParams = new URLSearchParams(window.location.search);
         const urlMagicKey = urlParams.get('key');
-        
+
         if (urlMagicKey) {
             // Store the key from URL and remove it from URL for security
             this.storeMagicKey(urlMagicKey);
@@ -463,21 +463,21 @@ class ChatApp {
             window.history.replaceState({}, '', url);
             return; // Key loaded from URL, we're done
         }
-        
+
         // In development environment, skip magic key requirement
         if (this.isDevelopmentEnvironment()) {
             this.magicKey = null; // No key needed in development
             console.log('Development environment detected - magic key not required');
             return;
         }
-        
+
         // Check localStorage for existing valid key (production only)
         const storedKeyData = localStorage.getItem('ai_buddy_magic_key');
         if (storedKeyData) {
             try {
                 const keyData = JSON.parse(storedKeyData);
                 const now = new Date().getTime();
-                
+
                 // Check if key is still valid (not expired)
                 if (keyData.expiry && now < keyData.expiry) {
                     this.magicKey = keyData.key;
@@ -494,7 +494,7 @@ class ChatApp {
                 console.log('Invalid stored magic key data removed');
             }
         }
-        
+
         // If no valid key found, will prompt user when they try to chat (production only)
         this.magicKey = null;
     }
@@ -506,7 +506,7 @@ class ChatApp {
             key: key,
             expiry: expiryTime
         };
-        
+
         localStorage.setItem('ai_buddy_magic_key', JSON.stringify(keyData));
         this.magicKey = key;
         console.log('Magic key stored successfully');
@@ -571,7 +571,7 @@ class ChatApp {
             // Event listeners
             submitBtn.addEventListener('click', handleSubmit);
             cancelBtn.addEventListener('click', handleCancel);
-            
+
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -596,7 +596,7 @@ class ChatApp {
         if (this.isDevelopmentEnvironment()) {
             return 'dev-bypass';
         }
-        
+
         if (!this.magicKey) {
             const key = await this.promptForMagicKey();
             if (!key) {
@@ -617,7 +617,7 @@ class ChatApp {
         try {
             // Ensure magic key is available
             await this.ensureMagicKey();
-            
+
             const response = await fetch(`${this.apiBaseUrl}/chat`, {
                 method: 'POST',
                 headers: {
@@ -630,16 +630,16 @@ class ChatApp {
                     magic_key: this.magicKey
                 })
             });
-            
+
             if (!response.ok) {
                 // Handle magic key validation errors specifically
                 if (response.status === 401 || response.status === 403) {
                     const errorData = await response.json().catch(() => ({ detail: 'Magic key validation failed' }));
-                    
+
                     // Remove invalid key from storage
                     localStorage.removeItem('ai_buddy_magic_key');
                     this.magicKey = null;
-                    
+
                     // Show error and prompt for new key
                     assistantMessageContent.innerHTML = `
                         <div class="error-message">
@@ -651,10 +651,10 @@ class ChatApp {
                 }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             // Add to conversation history
             this.conversationHistory.push({ role: 'user', content: question });
-            
+
             // Handle streaming response
             await this.handleStreamingResponse(response, assistantMessageContent);
 
@@ -666,7 +666,7 @@ class ChatApp {
 
             // Generate follow-up suggestions
             //this.generateFollowUpSuggestions(assistantMessageContent.textContent);
-            
+
             /*if (response.headers.get('content-type')?.includes('text/plain')) {
                 await this.handleStreamingResponse(response, assistantMessageContent);
             } else {
@@ -756,7 +756,7 @@ class ChatApp {
             // Add final response to conversation history
             if (fullContent) {
                 this.conversationHistory.push({ role: 'assistant', content: fullContent });
-                
+
                 // Streaming is complete, add feedback controls if we have a span ID
                 if (spanId) {
                     const feedbackControls = this.createFeedbackControls(spanId);
@@ -773,7 +773,7 @@ class ChatApp {
                     session_chat_count: this.getSessionChatCount(),
                     span_id: spanId
                 });
-                
+
                 // Add click tracking to all links in the response
                 this.addLinkClickTracking(contentElement);
             }
@@ -802,7 +802,7 @@ class ChatApp {
                 });
             });
         });
-        
+
         // Track if user interacts with the response (clicks, selects text, etc.)
         let hasInteracted = false;
         const trackInteraction = () => {
@@ -814,10 +814,10 @@ class ChatApp {
                 });
             }
         };
-        
+
         contentElement.addEventListener('click', trackInteraction);
         contentElement.addEventListener('mouseup', trackInteraction); // For text selection
-        
+
         // Track if user does not interact with response after a timeout
         setTimeout(() => {
             if (!hasInteracted) {
@@ -828,7 +828,7 @@ class ChatApp {
             }
         }, 30000); // 30 second timeout
     }
-    
+
     generateFollowUpSuggestions(assistantResponse) {
         // Simple follow-up suggestion generation based on response content
         const suggestions = [];
@@ -859,10 +859,10 @@ class ChatApp {
         ];
         this.updateSuggestions(defaultSuggestions);
     }
-    
+
     updateSuggestions(suggestions) {
         this.suggestionsContainer.innerHTML = '';
-        
+
         suggestions.forEach(suggestion => {
             const button = document.createElement('button');
             button.className = 'suggestion-btn';
@@ -870,17 +870,17 @@ class ChatApp {
             button.dataset.suggestion = suggestion;
             button.setAttribute('tabindex', '0');
             button.setAttribute('aria-label', `Suggestion: ${suggestion}`);
-            
+
             this.suggestionsContainer.appendChild(button);
         });
-        
+
         this.suggestionsContainer.style.display = 'block';
     }
-    
+
     startNewChat() {
         // Clear conversation history
         this.conversationHistory = [];
-        
+
         // Clear chat messages
         this.chatMessages.innerHTML = `
             <div class="welcome-message">
@@ -888,10 +888,10 @@ class ChatApp {
                 <p>Ask me anything about C# programming, and I'll help you out.</p>
             </div>
         `;
-        
+
         // Reset suggestions
         this.loadDefaultSuggestions();
-        
+
         // Announce to screen readers
         const announcement = document.createElement('div');
         announcement.setAttribute('aria-live', 'polite');
@@ -907,11 +907,10 @@ class ChatApp {
         // Focus input
         this.questionInput.focus();
     }
-    
+
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
-}
 
     initializeFeedback() {
         // Get feedback modal elements
@@ -988,10 +987,10 @@ class ChatApp {
         const isPositive = feedbackType === 'thumbs_up';
         this.feedbackType.innerHTML = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                ${isPositive ? 
-                    '<path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>' :
-                    '<path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>'
-                }
+                ${isPositive ?
+                '<path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>' :
+                '<path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>'
+            }
             </svg>
             <span>${isPositive ? 'This response was helpful' : 'This response was not helpful'}</span>
         `;
@@ -1039,11 +1038,11 @@ class ChatApp {
             }
 
             const result = await response.json();
-            
+
             if (result.success) {
                 // Mark button as selected
                 buttonElement.classList.add('selected');
-                
+
                 // Track feedback submission
                 if (this.trackTelemetry) {
                     this.trackTelemetry('feedback_submitted', {
@@ -1077,7 +1076,7 @@ class NewsApp {
         this.newsPageSize = 20;
         this.newsInitialized = false;
         this.trackTelemetry = trackTelemetry;
-        
+
         // DOM elements (will be set during initialization)
         this.newsSearchInput = null;
         this.newsClearSearchBtn = null;
@@ -1091,7 +1090,7 @@ class NewsApp {
 
     initialize() {
         if (this.newsInitialized) return;
-        
+
         // Get DOM elements
         this.newsSearchInput = document.getElementById('news-search');
         this.newsClearSearchBtn = document.getElementById('news-clear-search-btn');
@@ -1100,20 +1099,20 @@ class NewsApp {
         this.newsFeed = document.getElementById('news-feed');
         this.newsNoResults = document.getElementById('news-no-results');
         this.newsPagination = document.getElementById('news-pagination');
-        
+
         // Setup event listeners
         this.newsSearchInput.addEventListener('input', () => {
             this.debounceNewsSearch();
         });
-        
+
         this.newsClearSearchBtn.addEventListener('click', () => {
             this.clearNewsSearch();
         });
-        
+
         this.newsSearchBtn.addEventListener('click', () => {
             this.performNewsSearch();
         });
-        
+
         // Load initial news
         this.loadNews();
         this.newsInitialized = true;
@@ -1124,7 +1123,7 @@ class NewsApp {
         this.newsSearchTimeout = setTimeout(() => {
             this.performNewsSearch();
         }, 500);
-        
+
         // Show/hide clear button
         if (this.newsSearchInput.value.trim()) {
             this.newsClearSearchBtn.style.display = 'block';
@@ -1150,27 +1149,27 @@ class NewsApp {
     async loadNews() {
         try {
             this.showNewsLoading();
-            
+
             // Build query parameters
             const params = new URLSearchParams({
                 page: this.newsCurrentPage.toString(),
                 page_size: this.newsPageSize.toString()
             });
-            
+
             if (this.newsSearchQuery) {
                 params.append('search', this.newsSearchQuery);
             }
-            
+
             const response = await fetch(`${this.apiBaseUrl}/news?${params}`);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             this.renderNews(data);
             this.renderNewsPagination(data);
-            
+
         } catch (error) {
             console.error('Error loading news:', error);
             this.showNewsError();
@@ -1204,7 +1203,7 @@ class NewsApp {
         if (!data.news || data.news.length === 0) {
             this.newsFeed.style.display = 'none';
             this.newsNoResults.style.display = 'block';
-          
+
             // Track no results for news search
             if (this.newsSearchQuery) {
                 this.trackTelemetry('news_search_no_results', {
@@ -1221,7 +1220,7 @@ class NewsApp {
 
         data.news.forEach(item => {
             const newsCard = this.createNewsCard(item);
-          
+
             // Track successful news search results
             if (this.newsSearchQuery && data.news.length > 0) {
                 this.trackTelemetry('news_search_results_found', {
@@ -1242,7 +1241,7 @@ class NewsApp {
         card.setAttribute('aria-label', `Read news article: ${this.escapeHtml(item.title)}`);
 
         const publishedDate = this.formatDate(item.published_date);
-        
+
         card.innerHTML = `
             <div class="news-item-header">
                 <div class="news-item-title">
@@ -1260,12 +1259,12 @@ class NewsApp {
         card.addEventListener('click', () => {
             window.open(item.url, '_blank', 'noopener,noreferrer');
             this.trackTelemetry('news_item_clicked', {
-                    url: item.url,
-                    title: item.title,
-                    source: item.source,
-                    search_query: this.newsSearchQuery || null,
-                    current_page: this.newsCurrentPage
-                });
+                url: item.url,
+                title: item.title,
+                source: item.source,
+                search_query: this.newsSearchQuery || null,
+                current_page: this.newsCurrentPage
+            });
         });
 
         return card;
@@ -1279,7 +1278,7 @@ class NewsApp {
 
         this.newsPagination.innerHTML = '';
         this.newsPagination.style.display = 'flex';
-        
+
         // Previous button
         const prevBtn = document.createElement('button');
         prevBtn.className = 'pagination-btn';
@@ -1292,35 +1291,35 @@ class NewsApp {
             }
         });
         this.newsPagination.appendChild(prevBtn);
-        
+
         // Page numbers (show max 5 pages)
         const maxVisiblePages = 5;
         const startPage = Math.max(1, data.page - Math.floor(maxVisiblePages / 2));
         const endPage = Math.min(data.pages, startPage + maxVisiblePages - 1);
-        
+
         for (let i = startPage; i <= endPage; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.className = 'pagination-btn';
             pageBtn.textContent = i.toString();
-            
+
             if (i === data.page) {
                 pageBtn.classList.add('active');
             }
-            
+
             pageBtn.addEventListener('click', () => {
                 this.newsCurrentPage = i;
                 this.loadNews();
             });
-            
+
             this.newsPagination.appendChild(pageBtn);
         }
-        
+
         // Info
         const info = document.createElement('div');
         info.className = 'pagination-info';
         info.textContent = `${data.page} of ${data.pages} (${data.total} articles)`;
         this.newsPagination.appendChild(info);
-        
+
         // Next button
         const nextBtn = document.createElement('button');
         nextBtn.className = 'pagination-btn';
@@ -1488,33 +1487,33 @@ class SamplesGallery {
     async loadSamples() {
         try {
             this.showSamplesLoading();
-            
+
             // Build query parameters
             const params = new URLSearchParams({
                 page: this.currentPage.toString(),
                 page_size: '20'
             });
-            
+
             if (this.currentSearch) {
                 params.append('search', this.currentSearch);
             }
-            
+
             if (this.currentFilters.length > 0) {
                 params.append('tags', this.currentFilters.join(','));
             }
-            
+
             const response = await fetch(`${this.apiBaseUrl}/samples?${params}`);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             if (data.samples.length === 0) {
                 this.showNoResults();
-                this.trackTelemetry('search_no_results', { 
-                    query: this.currentSearch, 
+                this.trackTelemetry('search_no_results', {
+                    query: this.currentSearch,
                     filters: this.currentFilters,
                     page: this.currentPage
                 });
@@ -1522,12 +1521,12 @@ class SamplesGallery {
                 this.renderSamples(data.samples);
                 this.renderPagination(data);
             }
-            
+
             // Load available tags if we haven't already
             if (this.availableTags.length === 0) {
                 await this.loadAvailableTags();
             }
-            
+
         } catch (error) {
             console.error('Error loading samples:', error);
             this.showSamplesError();
@@ -1539,15 +1538,15 @@ class SamplesGallery {
     async loadAvailableTags() {
         try {
             const response = await fetch(`${this.apiBaseUrl}/samples/tags`);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             this.availableTags = data.tags || [];
             this.renderTagFilters();
-            
+
         } catch (error) {
             console.error('Error loading available tags:', error);
             // Fallback to empty tags array
@@ -1567,41 +1566,23 @@ class SamplesGallery {
         this.loadingSpinner.style.display = 'none';
     }
 
-        if (filteredSamples.length === 0) {
-            this.showNoResults();
-            this.chatApp.trackTelemetry('search_no_results', { 
-                query: this.currentSearch, 
-                filters: this.currentFilters 
-            });
-        } else {
-            this.renderSamples(filteredSamples);
-            this.renderPagination({
-                samples: filteredSamples,
-                total: filteredSamples.length,
-                page: 1,
-                pages: 1,
-                page_size: 20
-            });
-        }
-    }
-
     renderTagFilters() {
         this.tagFilters.innerHTML = '';
-        
+
         this.availableTags.forEach(tag => {
             const button = document.createElement('button');
             button.className = 'tag-filter';
             button.textContent = tag;
             button.dataset.tag = tag;
-            
+
             if (this.currentFilters.includes(tag)) {
                 button.classList.add('active');
             }
-            
+
             button.addEventListener('click', () => {
                 this.toggleTagFilter(tag);
             });
-            
+
             this.tagFilters.appendChild(button);
         });
     }
@@ -1612,11 +1593,11 @@ class SamplesGallery {
         } else {
             this.currentFilters.push(tag);
         }
-        
+
         this.currentPage = 1;
         this.renderTagFilters();
         this.loadSamples();
-        
+
         // Track filter usage
         this.trackTelemetry('filter_used', { filter: tag, action: this.currentFilters.includes(tag) ? 'add' : 'remove' });
     }
@@ -1638,7 +1619,7 @@ class SamplesGallery {
         this.samplesGrid.innerHTML = '';
         this.samplesGrid.style.display = 'grid';
         this.noResults.style.display = 'none';
-        
+
         samples.forEach(sample => {
             const card = this.createSampleCard(sample);
             this.samplesGrid.appendChild(card);
@@ -1651,7 +1632,7 @@ class SamplesGallery {
         card.setAttribute('tabindex', '0');
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `View details for ${sample.title}`);
-             
+
         card.innerHTML = `
             <h3 class="sample-title">${this.escapeHtml(sample.title)}</h3>
             <div class="sample-author">by ${this.escapeHtml(sample.author)}</div>
@@ -1662,18 +1643,18 @@ class SamplesGallery {
                 `).join('')}
             </div>
         `;
-        
+
         card.addEventListener('click', () => {
             this.openSampleModal(sample);
         });
-        
+
         card.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 this.openSampleModal(sample);
             }
         });
-        
+
         return card;
     }
 
@@ -1691,7 +1672,7 @@ class SamplesGallery {
 
         this.pagination.innerHTML = '';
         this.pagination.style.display = 'flex';
-        
+
         // Previous button
         const prevBtn = document.createElement('button');
         prevBtn.className = 'pagination-btn';
@@ -1704,35 +1685,35 @@ class SamplesGallery {
             }
         });
         this.pagination.appendChild(prevBtn);
-        
+
         // Page numbers (show max 5 pages)
         const maxVisiblePages = 5;
         const startPage = Math.max(1, data.page - Math.floor(maxVisiblePages / 2));
         const endPage = Math.min(data.pages, startPage + maxVisiblePages - 1);
-        
+
         for (let i = startPage; i <= endPage; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.className = 'pagination-btn';
             pageBtn.textContent = i.toString();
-            
+
             if (i === data.page) {
                 pageBtn.classList.add('active');
             }
-            
+
             pageBtn.addEventListener('click', () => {
                 this.currentPage = i;
                 this.loadSamples();
             });
-            
+
             this.pagination.appendChild(pageBtn);
         }
-        
+
         // Info
         const info = document.createElement('div');
         info.className = 'pagination-info';
         info.textContent = `${data.page} of ${data.pages} (${data.total} samples)`;
         this.pagination.appendChild(info);
-        
+
         // Next button
         const nextBtn = document.createElement('button');
         nextBtn.className = 'pagination-btn';
@@ -1749,10 +1730,10 @@ class SamplesGallery {
 
     openSampleModal(sample) {
         this.currentSample = sample;
-        
+
         // Track sample view
         this.trackTelemetry('sample_viewed', { sample_id: sample.id, title: sample.title });
-        
+
         this.renderSampleModal(sample);
         this.sampleModal.style.display = 'flex';
         this.sampleModal.setAttribute('aria-hidden', 'false');
@@ -1801,19 +1782,19 @@ class SamplesGallery {
                 <div>git clone ${this.escapeHtml(sample.source)}</div>
             </div>
         `;
-        
+
         // Add external link tracking
         this.modalSampleDetails.querySelectorAll('a[target="_blank"]').forEach(link => {
             link.addEventListener('click', () => {
                 const linkType = link.href.includes(sample.authorUrl) ? 'author' : 'source';
-                
+
                 // Mark that source links were viewed for this sample
                 if (linkType === 'source') {
                     sample._viewedSourceLinks = true;
                 }
-                
-                this.trackTelemetry('external_click', { 
-                    url: link.href, 
+
+                this.trackTelemetry('external_click', {
+                    url: link.href,
                     sample_id: sample.id,
                     link_type: linkType
                 });
@@ -1824,13 +1805,13 @@ class SamplesGallery {
     closeSampleModal() {
         // Track modal close behavior
         if (this.currentSample) {
-            this.trackTelemetry('sample_modal_closed', { 
+            this.trackTelemetry('sample_modal_closed', {
                 sample_id: this.currentSample.id,
                 title: this.currentSample.title,
                 viewed_source_links: this.currentSample._viewedSourceLinks || false
             });
         }
-        
+
         this.sampleModal.style.display = 'none';
         this.sampleModal.setAttribute('aria-inert', 'true');
         this.currentSample = null;
@@ -1844,7 +1825,7 @@ class AppManager {
         this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry);
         this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry);
         this.currentTab = 'chat';
-        
+
         this.initializeSidebarState();
         this.initializeNavigation();
         this.initializePrivacyNotice();
@@ -1853,10 +1834,10 @@ class AppManager {
     }
 
     detectApiUrl() {
-        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/;
+        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com';
 
         // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' 
+        if (window.location.hostname === 'localhost'
             || window.location.hostname === '127.0.0.1'
             || window.location.protocol === 'file:'
             || window.location.hostname === '[::1]'
@@ -1877,23 +1858,23 @@ class AppManager {
     trackTelemetry(eventType, data) {
         // Check if telemetry is enabled
         const telemetryEnabled = localStorage.getItem('telemetry_enabled') !== 'false';
-        
+
         if (!telemetryEnabled) {
             return;
         }
-        
+
         // Only log telemetry in development environment
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
             console.log('Telemetry:', eventType, data);
         }
-        
+
         // Send event to Goat Counter if available
         if (window.goatcounter && window.goatcounter.count) {
             try {
                 // Construct a meaningful path for Goat Counter
                 const eventPath = `/analytics/${eventType}`;
                 const title = `${eventType}: ${JSON.stringify(data)}`;
-                
+
                 window.goatcounter.count({
                     path: eventPath,
                     title: title,
@@ -1903,7 +1884,7 @@ class AppManager {
                 console.error('Error sending analytics event:', error);
             }
         }
-        
+
         // Also send to backend telemetry endpoint if available
         //this.sendBackendTelemetry(eventType, data);
     }
@@ -1922,7 +1903,7 @@ class AppManager {
                     timestamp: new Date().toISOString()
                 })
             });
-            
+
             if (!response.ok) {
                 console.warn('Backend telemetry request failed:', response.status);
             }
@@ -2002,12 +1983,12 @@ class AppManager {
         newsSection.style.display = tab === 'news' ? 'flex' : 'none';
 
         this.currentTab = tab;
-        
+
         // Initialize news if switching to news tab
         if (tab === 'news' && !this.newsApp.newsInitialized) {
             this.newsApp.initialize();
         }
-        
+
         // Update URL for deep linking
         const url = new URL(window.location);
         if (tab === 'samples') {
@@ -2032,7 +2013,7 @@ class AppManager {
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         const isExpanded = sidebar.classList.contains('expanded');
-        
+
         if (isExpanded) {
             sidebar.classList.remove('expanded');
             sidebar.classList.add('collapsed');
@@ -2040,7 +2021,7 @@ class AppManager {
             sidebar.classList.remove('collapsed');
             sidebar.classList.add('expanded');
         }
-        
+
         // Save sidebar state to localStorage
         localStorage.setItem('sidebarExpanded', !isExpanded);
     }
@@ -2048,7 +2029,7 @@ class AppManager {
     initializeSidebarState() {
         const sidebar = document.getElementById('sidebar');
         const savedState = localStorage.getItem('sidebarExpanded');
-        
+
         // Default to expanded on desktop, collapsed on mobile
         if (window.innerWidth <= 768) {
             sidebar.classList.remove('expanded');
@@ -2069,21 +2050,21 @@ class AppManager {
         const privacyNotice = document.getElementById('privacy-notice');
         const acceptBtn = document.getElementById('accept-privacy');
         const declineBtn = document.getElementById('decline-privacy');
-        
+
         // Check if user has already made a choice
         const privacyChoice = localStorage.getItem('privacy_choice');
-        
+
         if (!privacyChoice) {
             // Show privacy notice if no choice has been made
             privacyNotice.style.display = 'block';
         }
-        
+
         acceptBtn.addEventListener('click', () => {
             localStorage.setItem('privacy_choice', 'accepted');
             localStorage.setItem('telemetry_enabled', 'true');
             privacyNotice.style.display = 'none';
         });
-        
+
         declineBtn.addEventListener('click', () => {
             localStorage.setItem('privacy_choice', 'declined');
             localStorage.setItem('telemetry_enabled', 'false');
@@ -2095,13 +2076,13 @@ class AppManager {
         // Handle initial URL
         const urlParams = new URLSearchParams(window.location.search);
         const initialTab = urlParams.get('tab');
-        
+
         if (initialTab === 'samples') {
             this.switchTab('samples');
         } else if (initialTab === 'news') {
             this.switchTab('news');
         }
-        
+
         // Handle back/forward navigation
         window.addEventListener('popstate', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -2114,15 +2095,15 @@ class AppManager {
         this.themeToggle = document.getElementById('theme-toggle');
         this.sunIcon = this.themeToggle.querySelector('.sun-icon');
         this.moonIcon = this.themeToggle.querySelector('.moon-icon');
-        
+
         // Set initial theme based on system preference or saved preference
         this.setInitialTheme();
-        
+
         // Add click event listener for manual toggle
         this.themeToggle.addEventListener('click', () => {
             this.toggleTheme();
         });
-        
+
         // Listen for system theme changes
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         mediaQuery.addEventListener('change', (e) => {
@@ -2135,7 +2116,7 @@ class AppManager {
 
     setInitialTheme() {
         const savedTheme = localStorage.getItem('theme_preference');
-        
+
         if (savedTheme) {
             // User has manually set a theme preference
             this.applyTheme(savedTheme);
@@ -2149,13 +2130,13 @@ class AppManager {
     toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
+
         // Save user preference
         localStorage.setItem('theme_preference', newTheme);
-        
+
         // Apply the new theme
         this.applyTheme(newTheme);
-        
+
         // Update tooltip
         this.updateThemeTooltip(newTheme);
     }
@@ -2163,7 +2144,7 @@ class AppManager {
     applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         const hljsTheme = document.getElementById('hljs-theme');
-        
+
         // Update icon visibility
         if (theme === 'dark') {
             this.sunIcon.style.display = 'none';
@@ -2174,10 +2155,10 @@ class AppManager {
             this.moonIcon.style.display = 'none';
             hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
         }
-        
+
         // Update tooltip
         this.updateThemeTooltip(theme);
-        
+
         // Add transition class for smooth transitions
         document.body.classList.add('theme-transitioning');
         setTimeout(() => {
@@ -2196,15 +2177,15 @@ class AppManager {
         this.themeToggle = document.getElementById('theme-toggle');
         this.sunIcon = this.themeToggle.querySelector('.sun-icon');
         this.moonIcon = this.themeToggle.querySelector('.moon-icon');
-        
+
         // Set initial theme based on system preference or saved preference
         this.setInitialTheme();
-        
+
         // Add click event listener for manual toggle
         this.themeToggle.addEventListener('click', () => {
             this.toggleTheme();
         });
-        
+
         // Listen for system theme changes
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         mediaQuery.addEventListener('change', (e) => {
@@ -2217,7 +2198,7 @@ class AppManager {
 
     setInitialTheme() {
         const savedTheme = localStorage.getItem('theme_preference');
-        
+
         if (savedTheme) {
             // User has manually set a theme preference
             this.applyTheme(savedTheme);
@@ -2231,13 +2212,13 @@ class AppManager {
     toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
+
         // Save user preference
         localStorage.setItem('theme_preference', newTheme);
-        
+
         // Apply the new theme
         this.applyTheme(newTheme);
-        
+
         // Update tooltip
         this.updateThemeTooltip(newTheme);
     }
@@ -2245,7 +2226,7 @@ class AppManager {
     applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         const hljsTheme = document.getElementById('hljs-theme');
-        
+
         // Update icon visibility
         if (theme === 'dark') {
             this.sunIcon.style.display = 'none';
@@ -2256,10 +2237,10 @@ class AppManager {
             this.moonIcon.style.display = 'none';
             hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
         }
-        
+
         // Update tooltip
         this.updateThemeTooltip(theme);
-        
+
         // Add transition class for smooth transitions
         document.body.classList.add('theme-transitioning');
         setTimeout(() => {

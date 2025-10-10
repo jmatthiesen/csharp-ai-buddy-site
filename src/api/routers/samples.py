@@ -102,6 +102,33 @@ async def get_samples(
             logger.error(f"Error in get_samples: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.get("/api/samples/tags")
+async def get_available_tags():
+    """
+    Get all available tags from samples.
+    """
+    with tracer.start_as_current_span("get_available_tags"):
+        try:
+            # Connect to MongoDB
+            mongodb_uri = os.getenv("MONGODB_URI")
+            database_name = os.getenv("DATABASE_NAME")
+            
+            if not mongodb_uri or not database_name:
+                raise HTTPException(status_code=500, detail="Database not configured")
+            
+            mongoClient = MongoClient(mongodb_uri)
+            db = mongoClient[database_name]
+            samples_collection = db["samples"]
+            
+            # Get all unique tags
+            tags = samples_collection.distinct("tags")
+            
+            return {"tags": sorted(tags)}
+            
+        except Exception as e:
+            logger.error(f"Error in get_available_tags: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/api/samples/{sample_id}")
 async def get_sample(sample_id: str):
     """
@@ -146,31 +173,4 @@ async def get_sample(sample_id: str):
         except Exception as e:
             span.record_exception(e)
             logger.error(f"Error in get_sample: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.get("/api/samples/tags")
-async def get_available_tags():
-    """
-    Get all available tags from samples.
-    """
-    with tracer.start_as_current_span("get_available_tags"):
-        try:
-            # Connect to MongoDB
-            mongodb_uri = os.getenv("MONGODB_URI")
-            database_name = os.getenv("DATABASE_NAME")
-            
-            if not mongodb_uri or not database_name:
-                raise HTTPException(status_code=500, detail="Database not configured")
-            
-            mongoClient = MongoClient(mongodb_uri)
-            db = mongoClient[database_name]
-            samples_collection = db["samples"]
-            
-            # Get all unique tags
-            tags = samples_collection.distinct("tags")
-            
-            return {"tags": sorted(tags)}
-            
-        except Exception as e:
-            logger.error(f"Error in get_available_tags: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error")
