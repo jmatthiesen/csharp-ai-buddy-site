@@ -1,31 +1,25 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import os
-import logging
 from dotenv import load_dotenv
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-from routers import chat, samples, news, telemetry
-from models import HealthResponse
-from datetime import datetime
-
 # Load environment variables
 load_dotenv()
 
-# Configure OpenTelemetry
-trace.set_tracer_provider(TracerProvider())
-tracer = trace.get_tracer(__name__)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# Configure OTLP exporter if endpoint is provided
-otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-if otlp_endpoint:
-    otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-    span_processor = BatchSpanProcessor(otlp_exporter)
-    trace.get_tracer_provider().add_span_processor(span_processor)
+# Logging & observability related modules
+import logging
+
+# from opentelemetry import trace
+# from opentelemetry.sdk.trace import TracerProvider
+# from opentelemetry.sdk.trace.export import BatchSpanProcessor
+# from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+# App specific modules
+from routers import chat, samples, news, telemetry, feedback
+from models import HealthResponse
+from datetime import datetime
+
 
 # Configure logging
 logging.basicConfig(
@@ -44,7 +38,7 @@ app = FastAPI(
 )
 
 # Instrument FastAPI with OpenTelemetry
-FastAPIInstrumentor.instrument_app(app)
+# FastAPIInstrumentor.instrument_app(app)
 
 # CORS middleware for frontend integration
 app.add_middleware(
@@ -59,6 +53,7 @@ app.include_router(chat.router)
 app.include_router(samples.router)
 app.include_router(news.router)
 app.include_router(telemetry.router)
+app.include_router(feedback.router)
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -81,7 +76,8 @@ async def root():
         "samples": "/api/samples",
         "news": "/api/news",
         "news_rss": "/api/news/rss",
-        "telemetry": "/api/telemetry"
+        "telemetry": "/api/telemetry",
+        "feedback": "/api/feedback"
     }
 
 if __name__ == "__main__":

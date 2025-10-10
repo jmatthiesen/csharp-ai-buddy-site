@@ -115,9 +115,11 @@ class RSSFeedRetriever:
             rss_metadata = {k: v for k, v in rss_metadata.items() if v is not None}
             
             # Create the raw document
+            url = feed_item.get('link', '')
             raw_document = RawDocument(
+                documentId=url,
                 content=content or '',
-                source_url=feed_item.get('link', ''),
+                source_url=url,
                 title=feed_item.get('title', ''),
                 content_type="rss",
                 source_metadata=rss_metadata,

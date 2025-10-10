@@ -12,6 +12,9 @@ class ChatApp {
         this.isStreaming = false;
         this.magicKey = null; // Store the magic key
 
+        // Feedback tracking
+        this.currentSpanId = null;
+
         // AI configuration options
         this.aiOptions = {
             dotnetVersion: '.NET 9',
@@ -24,6 +27,7 @@ class ChatApp {
 
         this.initializeEventListeners();
         this.initializeAccessibility();
+        this.initializeFeedback();
         this.loadDefaultSuggestions();
         this.updateOptionsSummary(); // Initialize the options summary
 
@@ -299,7 +303,7 @@ class ChatApp {
         }
     }
 
-    addMessage(role, content, isStreaming = false) {
+    addMessage(role, content, isStreaming = false, spanId = null) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
         messageDiv.setAttribute('role', 'article');
@@ -317,6 +321,12 @@ class ChatApp {
                 contentDiv.innerHTML = '<div class="loading">Thinking...</div>';
             } else {
                 contentDiv.innerHTML = this.sanitizeAndRenderMarkdown(content);
+                
+                // Add feedback controls for completed assistant messages
+                if (spanId) {
+                    const feedbackControls = this.createFeedbackControls(spanId);
+                    contentDiv.appendChild(feedbackControls);
+                }
             }
         }
 
@@ -655,7 +665,7 @@ class ChatApp {
             );
 
             // Generate follow-up suggestions
-            this.generateFollowUpSuggestions(assistantMessageContent.textContent);
+            //this.generateFollowUpSuggestions(assistantMessageContent.textContent);
             
             /*if (response.headers.get('content-type')?.includes('text/plain')) {
                 await this.handleStreamingResponse(response, assistantMessageContent);
@@ -688,6 +698,7 @@ class ChatApp {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullContent = '';
+        let spanId = null;
 
         try {
             while (true) {
@@ -706,7 +717,10 @@ class ChatApp {
                         try {
                             const data = JSON.parse(line);
 
-                            if (data.type === 'content') {
+                            if (data.type === 'metadata' && data.span_id) {
+                                spanId = data.span_id;
+                                this.currentSpanId = spanId;
+                            } else if (data.type === 'content') {
                                 fullContent += data.content;
                                 contentElement.innerHTML = this.sanitizeAndRenderMarkdown(fullContent);
 
@@ -743,12 +757,21 @@ class ChatApp {
             if (fullContent) {
                 this.conversationHistory.push({ role: 'assistant', content: fullContent });
                 
+                // Streaming is complete, add feedback controls if we have a span ID
+                if (spanId) {
+                    const feedbackControls = this.createFeedbackControls(spanId);
+                    contentElement.appendChild(feedbackControls);
+                } else {
+                    console.warn('Cannot add feedback controls - spanId:', spanId, 'parentElement:', contentElement.parentElement);
+                }
+
                 // Track chat response received
                 this.trackTelemetry('chat_response_received', {
                     response_length: fullContent.length,
                     conversation_length: this.conversationHistory.length,
                     has_links: /\[.*?\]\(https?:\/\/.*?\)/.test(fullContent) || /\[.*?\]\(www\..*?\)/.test(fullContent),
-                    session_chat_count: this.getSessionChatCount()
+                    session_chat_count: this.getSessionChatCount(),
+                    span_id: spanId
                 });
                 
                 // Add click tracking to all links in the response
@@ -887,6 +910,162 @@ class ChatApp {
     
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+}
+
+    initializeFeedback() {
+        // Get feedback modal elements
+        this.feedbackModal = document.getElementById('feedback-modal');
+        this.feedbackModalClose = document.getElementById('feedback-modal-close');
+        this.feedbackCancel = document.getElementById('feedback-cancel');
+        this.feedbackSubmit = document.getElementById('feedback-submit');
+        this.feedbackType = document.getElementById('feedback-type');
+        this.feedbackComment = document.getElementById('feedback-comment');
+
+        // Initialize event listeners
+        this.feedbackModalClose.addEventListener('click', () => this.closeFeedbackModal());
+        this.feedbackCancel.addEventListener('click', () => this.closeFeedbackModal());
+        this.feedbackSubmit.addEventListener('click', () => this.submitFeedback());
+
+        // Close modal on backdrop click
+        this.feedbackModal.addEventListener('click', (e) => {
+            if (e.target === this.feedbackModal) {
+                this.closeFeedbackModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.feedbackModal.classList.contains('show')) {
+                this.closeFeedbackModal();
+            }
+        });
+
+        // Current feedback state
+        this.currentFeedback = null;
+    }
+
+    createFeedbackControls(spanId) {
+        const controls = document.createElement('div');
+        controls.className = 'feedback-controls';
+
+        // Thumbs up button
+        const thumbsUp = document.createElement('button');
+        thumbsUp.className = 'feedback-btn';
+        thumbsUp.setAttribute('aria-label', 'Rate response as helpful');
+        thumbsUp.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+            </svg>
+        `;
+        thumbsUp.addEventListener('click', () => this.openFeedbackModal(spanId, 'thumbs_up', thumbsUp));
+
+        // Thumbs down button
+        const thumbsDown = document.createElement('button');
+        thumbsDown.className = 'feedback-btn';
+        thumbsDown.setAttribute('aria-label', 'Rate response as not helpful');
+        thumbsDown.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+            </svg>
+        `;
+        thumbsDown.addEventListener('click', () => this.openFeedbackModal(spanId, 'thumbs_down', thumbsDown));
+
+        controls.appendChild(thumbsUp);
+        controls.appendChild(thumbsDown);
+
+        return controls;
+    }
+
+    openFeedbackModal(spanId, feedbackType, buttonElement) {
+        this.currentFeedback = {
+            spanId,
+            feedbackType,
+            buttonElement
+        };
+
+        // Set feedback type display
+        const isPositive = feedbackType === 'thumbs_up';
+        this.feedbackType.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                ${isPositive ? 
+                    '<path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>' :
+                    '<path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>'
+                }
+            </svg>
+            <span>${isPositive ? 'This response was helpful' : 'This response was not helpful'}</span>
+        `;
+
+        // Clear previous comment
+        this.feedbackComment.value = '';
+
+        // Show modal
+        this.feedbackModal.classList.add('show');
+        this.feedbackModal.setAttribute('aria-hidden', 'false');
+        this.feedbackComment.focus();
+    }
+
+    closeFeedbackModal() {
+        this.feedbackModal.classList.remove('show');
+        this.feedbackModal.setAttribute('aria-hidden', 'true');
+        this.currentFeedback = null;
+    }
+
+    async submitFeedback() {
+        if (!this.currentFeedback) return;
+
+        const { spanId, feedbackType, buttonElement } = this.currentFeedback;
+        const comment = this.feedbackComment.value.trim();
+
+        // Disable submit button during request
+        this.feedbackSubmit.disabled = true;
+        this.feedbackSubmit.textContent = 'Submitting...';
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    span_id: spanId,
+                    feedback_type: feedbackType,
+                    comment: comment || null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Mark button as selected
+                buttonElement.classList.add('selected');
+                
+                // Track feedback submission
+                if (this.trackTelemetry) {
+                    this.trackTelemetry('feedback_submitted', {
+                        span_id: spanId,
+                        feedback_type: feedbackType,
+                        has_comment: !!comment
+                    });
+                }
+
+                this.closeFeedbackModal();
+            } else {
+                throw new Error(result.message || 'Failed to submit feedback');
+            }
+
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            alert('Failed to submit feedback. Please try again.');
+        } finally {
+            // Re-enable submit button
+            this.feedbackSubmit.disabled = false;
+            this.feedbackSubmit.textContent = 'Submit Feedback';
+        }
     }
 }
 
@@ -1388,14 +1567,22 @@ class SamplesGallery {
         this.loadingSpinner.style.display = 'none';
     }
 
-    showSamplesError() {
-        this.samplesGrid.innerHTML = `
-            <div class="error-message">
-                <h3>Unable to load samples</h3>
-                <p>Please try again later.</p>
-            </div>
-        `;
-        this.samplesGrid.style.display = 'block';
+        if (filteredSamples.length === 0) {
+            this.showNoResults();
+            this.chatApp.trackTelemetry('search_no_results', { 
+                query: this.currentSearch, 
+                filters: this.currentFilters 
+            });
+        } else {
+            this.renderSamples(filteredSamples);
+            this.renderPagination({
+                samples: filteredSamples,
+                total: filteredSamples.length,
+                page: 1,
+                pages: 1,
+                page_size: 20
+            });
+        }
     }
 
     renderTagFilters() {
@@ -1666,7 +1853,7 @@ class AppManager {
     }
 
     detectApiUrl() {
-        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/';
+        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com/;
 
         // Check if we're running in development (localhost)
         if (window.location.hostname === 'localhost' 
@@ -1824,10 +2011,19 @@ class AppManager {
         // Update URL for deep linking
         const url = new URL(window.location);
         if (tab === 'samples') {
+            this.trackTelemetry('samples_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
             url.searchParams.set('tab', 'samples');
         } else if (tab === 'news') {
+            this.trackTelemetry('news_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
             url.searchParams.set('tab', 'news');
         } else {
+            this.trackTelemetry('chat_section_viewed', {
+                previous_tab: this.currentTab || 'chat'
+            });
             url.searchParams.delete('tab');
         }
         window.history.replaceState({}, '', url);
@@ -1912,6 +2108,88 @@ class AppManager {
             const tab = urlParams.get('tab') || 'chat';
             this.switchTab(tab);
         });
+    }
+
+    initializeThemeToggle() {
+        this.themeToggle = document.getElementById('theme-toggle');
+        this.sunIcon = this.themeToggle.querySelector('.sun-icon');
+        this.moonIcon = this.themeToggle.querySelector('.moon-icon');
+        
+        // Set initial theme based on system preference or saved preference
+        this.setInitialTheme();
+        
+        // Add click event listener for manual toggle
+        this.themeToggle.addEventListener('click', () => {
+            this.toggleTheme();
+        });
+        
+        // Listen for system theme changes
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+            // Only update if user hasn't manually set a theme
+            if (!localStorage.getItem('theme_preference')) {
+                this.applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+
+    setInitialTheme() {
+        const savedTheme = localStorage.getItem('theme_preference');
+        
+        if (savedTheme) {
+            // User has manually set a theme preference
+            this.applyTheme(savedTheme);
+        } else {
+            // Use system preference
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.applyTheme(systemPrefersDark ? 'dark' : 'light');
+        }
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Save user preference
+        localStorage.setItem('theme_preference', newTheme);
+        
+        // Apply the new theme
+        this.applyTheme(newTheme);
+        
+        // Update tooltip
+        this.updateThemeTooltip(newTheme);
+    }
+
+    applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const hljsTheme = document.getElementById('hljs-theme');
+        
+        // Update icon visibility
+        if (theme === 'dark') {
+            this.sunIcon.style.display = 'none';
+            this.moonIcon.style.display = 'block';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
+        } else {
+            this.sunIcon.style.display = 'block';
+            this.moonIcon.style.display = 'none';
+            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+        }
+        
+        // Update tooltip
+        this.updateThemeTooltip(theme);
+        
+        // Add transition class for smooth transitions
+        document.body.classList.add('theme-transitioning');
+        setTimeout(() => {
+            document.body.classList.remove('theme-transitioning');
+        }, 300);
+    }
+
+    updateThemeTooltip(currentTheme) {
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        const tooltipText = `Switch to ${nextTheme} theme`;
+        this.themeToggle.setAttribute('title', tooltipText);
+        this.themeToggle.setAttribute('aria-label', tooltipText);
     }
 
     initializeThemeToggle() {
