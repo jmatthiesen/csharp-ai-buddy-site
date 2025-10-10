@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="api-url" content="">
     <title>C# AI Buddy</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="site-icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
     <link rel="shortcut icon" href="images/favicon.ico">
-    
+
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" id="hljs-theme" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    
+    <link rel="stylesheet" id="hljs-theme"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+
     <!-- Goat Counter Analytics -->
-    <script data-goatcounter="https://csharp-ai-buddy.goatcounter.com/count"
-            async src="//gc.zgo.at/count.js"></script>
+    <script data-goatcounter="https://csharp-ai-buddy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar Navigation -->
@@ -36,24 +38,27 @@
                     <h1 class="app-title">C# AI Buddy</h1>
                 </div>
             </div>
-            
+
             <nav class="sidebar-nav">
                 <button id="new-chat-btn" class="sidebar-item" aria-label="Start new chat">
-                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
                         <path d="M12 5v14M5 12h14"></path>
                     </svg>
                     <span class="sidebar-text">New Chat</span>
                 </button>
-                
+
                 <button id="chat-tab" class="sidebar-item nav-item active" data-tab="chat" aria-label="AI Chat">
-                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span class="sidebar-text">AI Chat</span>
                 </button>
-                
+
                 <button id="samples-tab" class="sidebar-item nav-item" data-tab="samples" aria-label="Sample Gallery">
-                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="7" height="7"></rect>
                         <rect x="14" y="3" width="7" height="7"></rect>
                         <rect x="14" y="14" width="7" height="7"></rect>
@@ -61,9 +66,10 @@
                     </svg>
                     <span class="sidebar-text">Sample Gallery</span>
                 </button>
-                
+
                 <button id="news-tab" class="sidebar-item nav-item" data-tab="news" aria-label="Latest News">
-                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
                         <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2z"></path>
                         <path d="M6 12h8"></path>
                         <path d="M6 8h8"></path>
@@ -80,7 +86,8 @@
                 <div class="header-actions">
                     <!-- Theme Toggle -->
                     <button id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme">
-                        <svg class="theme-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="theme-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="5"></circle>
                             <line x1="12" y1="1" x2="12" y2="3"></line>
                             <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -91,7 +98,8 @@
                             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                         </svg>
-                        <svg class="theme-icon moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <svg class="theme-icon moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" style="display: none;">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                             <g class="stars">
                                 <circle cx="3" cy="5" r="0.5" fill="currentColor"></circle>
@@ -106,14 +114,14 @@
 
             <!-- Chat Section -->
             <main id="chat-section" class="chat-container">
-            <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
-                <div class="welcome-message">
-                    <h2>Welcome to C# AI Buddy!</h2>
-                    <p>Ask me anything about C# programming, and I'll help you out.</p>
+                <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+                    <div class="welcome-message">
+                        <h2>Welcome to C# AI Buddy!</h2>
+                        <p>Ask me anything about C# programming, and I'll help you out.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="suggestions-container">
+                <!-- <div class="suggestions-container">
                 <div id="suggestions" class="suggestions" role="region" aria-label="Suggested questions">
                     <button class="suggestion-btn" data-suggestion="How do I create a class in C#?">
                         How do I create a class in C#?
@@ -125,153 +133,161 @@
                         How do I handle exceptions in C#?
                     </button>
                 </div>
-            </div>
+            </div> -->
 
-            <form class="input-form" id="chat-form">
-                <div class="input-container">
-                    <textarea 
-                        id="question-input" 
-                        class="question-input" 
-                        placeholder="Ask a question about C#..." 
-                        rows="1"
-                        aria-label="Enter your question"
-                        required
-                    ></textarea>
-                    <button type="submit" class="send-btn" aria-label="Send message">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22,2 15,22 11,13 2,9"></polygon>
-                        </svg>
-                    </button>
-                </div>
-                <div class="options-container">
-                    <div class="options-summary" id="options-summary" aria-label="Current AI configuration">
-                        .NET 9 | OpenAI | OpenAI
+                <form class="input-form" id="chat-form">
+                    <div class="input-container">
+                        <textarea id="question-input" class="question-input" placeholder="Ask a question about C#..."
+                            rows="1" aria-label="Enter your question" required></textarea>
+                        <button type="submit" class="send-btn" aria-label="Send message">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                            </svg>
+                        </button>
                     </div>
-                    <button type="button" class="options-btn" id="options-btn" aria-label="Configure AI settings">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6m11-5.5h-6m-6 0H1m10-5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 11a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"></path>
-                        </svg>
-                        Options
-                    </button>
-                </div>
-            </form>
-        </main>
+                    <div class="options-container">
+                        <div class="options-summary" id="options-summary" aria-label="Current AI configuration">
+                            .NET 9 | OpenAI | OpenAI
+                        </div>
+                        <button type="button" class="options-btn" id="options-btn" aria-label="Configure AI settings">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path
+                                    d="M12 1v6m0 6v6m11-5.5h-6m-6 0H1m10-5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 11a2 2 0 1 1-4 0 2 2 0 0 1 4 0z">
+                                </path>
+                            </svg>
+                            Options
+                        </button>
+                    </div>
+                </form>
+            </main>
 
             <!-- Samples Gallery Section -->
             <main id="samples-section" class="samples-container" style="display: none;">
-            <div class="samples-header">
-                <h2>Sample Gallery</h2>
-                <div class="samples-controls">
-                    <div class="search-container">
-                        <input type="text" id="samples-search" class="samples-search" placeholder="Search samples..." aria-label="Search samples">
-                        <button id="clear-search-btn" class="clear-search-btn" aria-label="Clear search" style="display: none;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                        <button id="search-btn" class="search-btn" aria-label="Search">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="sort-container">
-                        <select id="sort-select" class="sort-select" aria-label="Sort samples">
-                            <option value="alphabetical">Alphabetical (Z-A)</option>
-                            <option value="date">Newest First</option>
-                        </select>
-                    </div>
-                    <div class="filters-container">
-                        <button id="filters-toggle" class="filters-btn">Filters</button>
-                        <div id="filters-panel" class="filters-panel" style="display: none;">
-                            <div id="tag-filters" class="tag-filters">
-                                <!-- Tag filters will be populated dynamically -->
+                <div class="samples-header">
+                    <h2>Sample Gallery</h2>
+                    <div class="samples-controls">
+                        <div class="search-container">
+                            <input type="text" id="samples-search" class="samples-search"
+                                placeholder="Search samples..." aria-label="Search samples">
+                            <button id="clear-search-btn" class="clear-search-btn" aria-label="Clear search"
+                                style="display: none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button id="search-btn" class="search-btn" aria-label="Search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="sort-container">
+                            <select id="sort-select" class="sort-select" aria-label="Sort samples">
+                                <option value="alphabetical">Alphabetical (Z-A)</option>
+                                <option value="date">Newest First</option>
+                            </select>
+                        </div>
+                        <div class="filters-container">
+                            <button id="filters-toggle" class="filters-btn">Filters</button>
+                            <div id="filters-panel" class="filters-panel" style="display: none;">
+                                <div id="tag-filters" class="tag-filters">
+                                    <!-- Tag filters will be populated dynamically -->
+                                </div>
+                                <button id="clear-filters" class="clear-filters-btn">Clear All</button>
                             </div>
-                            <button id="clear-filters" class="clear-filters-btn">Clear All</button>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="samples-loading" class="loading-spinner" style="display: none;">
-                <div class="spinner"></div>
-                <p>Loading samples...</p>
-            </div>
+                <div id="samples-loading" class="loading-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading samples...</p>
+                </div>
 
-            <div id="samples-grid" class="samples-grid">
-                <!-- Sample cards will be populated here -->
-            </div>
+                <div id="samples-grid" class="samples-grid">
+                    <!-- Sample cards will be populated here -->
+                </div>
 
-            <div id="no-results" class="no-results" style="display: none;">
-                <h3>No samples found</h3>
-                <p>Try adjusting your search or filters.</p>
-            </div>
+                <div id="no-results" class="no-results" style="display: none;">
+                    <h3>No samples found</h3>
+                    <p>Try adjusting your search or filters.</p>
+                </div>
 
-            <div id="pagination" class="pagination">
-                <!-- Pagination controls will be populated here -->
-            </div>
+                <div id="pagination" class="pagination">
+                    <!-- Pagination controls will be populated here -->
+                </div>
             </main>
 
             <!-- Latest News Section -->
             <main id="news-section" class="news-container" style="display: none;">
-            <div class="news-header">
-                <h2>Latest .NET AI News</h2>
-                <div class="news-controls">
-                    <div class="search-container">
-                        <input type="text" id="news-search" class="news-search" placeholder="Search news..." aria-label="Search news">
-                        <button id="news-clear-search-btn" class="clear-search-btn" aria-label="Clear search" style="display: none;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                        <button id="news-search-btn" class="search-btn" aria-label="Search">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="rss-container">
-                        <a href="/api/news/rss" class="rss-link" aria-label="RSS Feed" title="RSS Feed">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 11a9 9 0 0 1 9 9"></path>
-                                <path d="M4 4a16 16 0 0 1 16 16"></path>
-                                <circle cx="5" cy="19" r="1"></circle>
-                            </svg>
-                            RSS
-                        </a>
+                <div class="news-header">
+                    <h2>Latest .NET AI News</h2>
+                    <div class="news-controls">
+                        <div class="search-container">
+                            <input type="text" id="news-search" class="news-search" placeholder="Search news..."
+                                aria-label="Search news">
+                            <button id="news-clear-search-btn" class="clear-search-btn" aria-label="Clear search"
+                                style="display: none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button id="news-search-btn" class="search-btn" aria-label="Search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="rss-container">
+                            <a href="/api/news/rss" class="rss-link" aria-label="RSS Feed" title="RSS Feed">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M4 11a9 9 0 0 1 9 9"></path>
+                                    <path d="M4 4a16 16 0 0 1 16 16"></path>
+                                    <circle cx="5" cy="19" r="1"></circle>
+                                </svg>
+                                RSS
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="news-loading" class="loading-spinner" style="display: none;">
-                <div class="spinner"></div>
-                <p>Loading news...</p>
-            </div>
+                <div id="news-loading" class="loading-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading news...</p>
+                </div>
 
-            <div id="news-feed" class="news-feed">
-                <!-- News items will be populated here -->
-            </div>
+                <div id="news-feed" class="news-feed">
+                    <!-- News items will be populated here -->
+                </div>
 
-            <div id="news-no-results" class="no-results" style="display: none;">
-                <h3>No news found</h3>
-                <p>Try adjusting your search.</p>
-            </div>
+                <div id="news-no-results" class="no-results" style="display: none;">
+                    <h3>No news found</h3>
+                    <p>Try adjusting your search.</p>
+                </div>
 
-            <div id="news-pagination" class="pagination">
-                <!-- Pagination controls will be populated here -->
-            </div>
+                <div id="news-pagination" class="pagination">
+                    <!-- Pagination controls will be populated here -->
+                </div>
             </main>
         </div>
     </div>
 
     <!-- Options Modal -->
-    <div id="options-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="options-modal-title" aria-hidden="true">
+    <div id="options-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="options-modal-title"
+        aria-hidden="true">
         <div class="modal-content options-modal-content">
             <div class="modal-header">
                 <h2 id="options-modal-title">AI Configuration Options</h2>
@@ -285,10 +301,11 @@
                             <option value=".NET 10">.NET 10</option>
                             <option value=".NET 9" selected>.NET 9</option>
                             <option value=".NET 8">.NET 8</option>
-                            <option value=".NET Framework" data-experimental="true">.NET Framework (Experimental)</option>
+                            <option value=".NET Framework" data-experimental="true">.NET Framework (Experimental)
+                            </option>
                         </select>
                     </div>
-                    
+
                     <div class="option-group">
                         <label for="ai-library" class="option-label">AI Library</label>
                         <select id="ai-library" class="option-select" aria-label="Select AI library">
@@ -301,25 +318,30 @@
                             <option value="ML.NET">ML.NET</option>
                             <option value="Other">Other (Specify)</option>
                         </select>
-                        <input type="text" id="custom-library" class="option-input" placeholder="Specify custom library..." style="display: none;" aria-label="Specify custom AI library">
+                        <input type="text" id="custom-library" class="option-input"
+                            placeholder="Specify custom library..." style="display: none;"
+                            aria-label="Specify custom AI library">
                     </div>
-                    
+
                     <div class="option-group">
                         <label for="ai-provider" class="option-label">AI Model Provider</label>
                         <select id="ai-provider" class="option-select" aria-label="Select AI model provider">
                             <option value="OpenAI" selected>OpenAI</option>
                             <option value="Azure AI Foundry">Azure AI Foundry</option>
-                            <option value="Amazon Bedrock" data-experimental="true">Amazon Bedrock (Experimental)</option>
+                            <option value="Amazon Bedrock" data-experimental="true">Amazon Bedrock (Experimental)
+                            </option>
                             <option value="Google Cloud" data-experimental="true">Google Cloud (Experimental)</option>
                         </select>
                     </div>
-                    
+
                     <div class="experimental-notice" style="display: none;">
                         <div class="experimental-warning">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <path d="m21 16-4 4-4-4M17 20V4m-6 4-4 4 4 4M7 4v16"></path>
                             </svg>
-                            <span>You've selected experimental options. Results may be less accurate and some features might not work as expected.</span>
+                            <span>You've selected experimental options. Results may be less accurate and some features
+                                might not work as expected.</span>
                         </div>
                     </div>
                 </div>
@@ -328,7 +350,8 @@
     </div>
 
     <!-- Options Modal -->
-    <div id="options-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="options-modal-title" aria-hidden="true">
+    <div id="options-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="options-modal-title"
+        aria-hidden="true">
         <div class="modal-content options-modal-content">
             <div class="modal-header">
                 <h2 id="options-modal-title">AI Configuration Options</h2>
@@ -342,10 +365,11 @@
                             <option value=".NET 10">.NET 10</option>
                             <option value=".NET 9" selected>.NET 9</option>
                             <option value=".NET 8">.NET 8</option>
-                            <option value=".NET Framework" data-experimental="true">.NET Framework (Experimental)</option>
+                            <option value=".NET Framework" data-experimental="true">.NET Framework (Experimental)
+                            </option>
                         </select>
                     </div>
-                    
+
                     <div class="option-group">
                         <label for="ai-library" class="option-label">AI Library</label>
                         <select id="ai-library" class="option-select" aria-label="Select AI library">
@@ -358,25 +382,30 @@
                             <option value="ML.NET">ML.NET</option>
                             <option value="Other">Other (Specify)</option>
                         </select>
-                        <input type="text" id="custom-library" class="option-input" placeholder="Specify custom library..." style="display: none;" aria-label="Specify custom AI library">
+                        <input type="text" id="custom-library" class="option-input"
+                            placeholder="Specify custom library..." style="display: none;"
+                            aria-label="Specify custom AI library">
                     </div>
-                    
+
                     <div class="option-group">
                         <label for="ai-provider" class="option-label">AI Model Provider</label>
                         <select id="ai-provider" class="option-select" aria-label="Select AI model provider">
                             <option value="OpenAI" selected>OpenAI</option>
                             <option value="Azure AI Foundry">Azure AI Foundry</option>
-                            <option value="Amazon Bedrock" data-experimental="true">Amazon Bedrock (Experimental)</option>
+                            <option value="Amazon Bedrock" data-experimental="true">Amazon Bedrock (Experimental)
+                            </option>
                             <option value="Google Cloud" data-experimental="true">Google Cloud (Experimental)</option>
                         </select>
                     </div>
-                    
+
                     <div class="experimental-notice" style="display: none;">
                         <div class="experimental-warning">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <path d="m21 16-4 4-4-4M17 20V4m-6 4-4 4 4 4M7 4v16"></path>
                             </svg>
-                            <span>You've selected experimental options. Results may be less accurate and some features might not work as expected.</span>
+                            <span>You've selected experimental options. Results may be less accurate and some features
+                                might not work as expected.</span>
                         </div>
                     </div>
                 </div>
@@ -385,7 +414,8 @@
     </div>
 
     <!-- Sample Detail Modal -->
-    <div id="sample-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
+    <div id="sample-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="modal-title"
+        aria-hidden="true">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-title">Sample Details</h2>
@@ -400,11 +430,13 @@
     </div>
 
     <!-- Feedback Modal -->
-    <div id="feedback-modal" class="feedback-modal" role="dialog" aria-labelledby="feedback-modal-title" aria-hidden="true">
+    <div id="feedback-modal" class="feedback-modal" role="dialog" aria-labelledby="feedback-modal-title"
+        aria-hidden="true">
         <div class="feedback-modal-content">
             <div class="feedback-modal-header">
                 <h2 id="feedback-modal-title" class="feedback-modal-title">Provide Feedback</h2>
-                <button id="feedback-modal-close" class="feedback-modal-close" aria-label="Close feedback modal">&times;</button>
+                <button id="feedback-modal-close" class="feedback-modal-close"
+                    aria-label="Close feedback modal">&times;</button>
             </div>
             <div class="feedback-modal-body">
                 <div id="feedback-type" class="feedback-type">
@@ -412,7 +444,8 @@
                 </div>
                 <div class="feedback-comment-group">
                     <label for="feedback-comment" class="feedback-comment-label">Additional Comments (Optional)</label>
-                    <textarea id="feedback-comment" class="feedback-comment" placeholder="Tell us more about your experience with this response..."></textarea>
+                    <textarea id="feedback-comment" class="feedback-comment"
+                        placeholder="Tell us more about your experience with this response..."></textarea>
                 </div>
                 <div class="feedback-modal-actions">
                     <button id="feedback-cancel" class="feedback-btn-secondary">Cancel</button>
@@ -425,7 +458,8 @@
     <!-- Privacy Notice -->
     <div id="privacy-notice" class="privacy-notice" style="display: none;">
         <div class="privacy-content">
-            <p>We use cookies and similar technologies to improve your experience and analyze usage. This helps us make our service better.</p>
+            <p>We use cookies and similar technologies to improve your experience and analyze usage. This helps us make
+                our service better.</p>
             <div class="privacy-actions">
                 <button id="accept-privacy" class="privacy-btn primary">Accept</button>
                 <button id="decline-privacy" class="privacy-btn secondary">Decline</button>
@@ -442,4 +476,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

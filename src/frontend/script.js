@@ -28,7 +28,7 @@ class ChatApp {
         this.initializeEventListeners();
         this.initializeAccessibility();
         this.initializeFeedback();
-        this.loadDefaultSuggestions();
+        //this.loadDefaultSuggestions();
         this.updateOptionsSummary(); // Initialize the options summary
 
         // Initialize markdown and syntax highlighting when libraries are loaded
@@ -113,14 +113,16 @@ class ChatApp {
         });
 
         // Suggestion clicks
-        this.suggestionsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('suggestion-btn')) {
-                const suggestion = e.target.dataset.suggestion;
-                this.questionInput.value = suggestion;
-                this.questionInput.focus();
-                this.autoResizeTextarea();
-            }
-        });
+        if (this.suggestionsContainer !== null) {
+            this.suggestionsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('suggestion-btn')) {
+                    const suggestion = e.target.dataset.suggestion;
+                    this.questionInput.value = suggestion;
+                    this.questionInput.focus();
+                    this.autoResizeTextarea();
+                }
+            });
+        }
 
         // Options modal
         this.initializeOptionsModal();
@@ -131,14 +133,16 @@ class ChatApp {
         this.questionInput.focus();
 
         // Add keyboard navigation for suggestions
-        this.suggestionsContainer.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                if (e.target.classList.contains('suggestion-btn')) {
-                    e.target.click();
+        if (this.suggestionsContainer !== null) {
+            this.suggestionsContainer.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (e.target.classList.contains('suggestion-btn')) {
+                        e.target.click();
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     autoResizeTextarea() {
@@ -287,7 +291,9 @@ class ChatApp {
             this.questionInput.style.height = 'auto';
 
             // Hide suggestions temporarily
-            this.suggestionsContainer.style.display = 'none';
+            if (this.suggestionsContainer !== null) {
+                this.suggestionsContainer.style.display = 'none';
+            }
 
             // Send message to backend
             await this.sendMessage(question);
@@ -853,9 +859,9 @@ class ChatApp {
 
     loadDefaultSuggestions() {
         const defaultSuggestions = [
-            'How do I create a class in C#?',
-            'What are the differences between var and explicit types?',
-            'How do I handle exceptions in C#?'
+            'How do I create an MCP server?',
+            'What is the Microsoft Agent framework?',
+            'How do I create an agentic RAG solution?'
         ];
         this.updateSuggestions(defaultSuggestions);
     }
@@ -890,7 +896,7 @@ class ChatApp {
         `;
 
         // Reset suggestions
-        this.loadDefaultSuggestions();
+        //this.loadDefaultSuggestions();
 
         // Announce to screen readers
         const announcement = document.createElement('div');

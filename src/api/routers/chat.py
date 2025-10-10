@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Setup OTel via our convenience function
 tracer_provider = register(
-    space_id = os.getenv("ARIZE_SPACE_ID"),    # in app space settings page
-    api_key = os.getenv("ARIZE_API_KEY"),      # in app space settings page
-    project_name="agents"          # As used in the example, or your preferred project name
+    space_id = os.getenv("ARIZE_SPACE_ID"),
+    api_key = os.getenv("ARIZE_API_KEY"),
+    project_name=os.getenv("ARIZE_PROJECT_NAME")
 )
 
 from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
