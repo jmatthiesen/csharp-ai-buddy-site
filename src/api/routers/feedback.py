@@ -67,7 +67,7 @@ async def send_feedback_to_arize(span_id: str, feedback_type: str, comment: str 
         # Send human annotations using Arize SDK
         response = arize_client.log_annotations(
             dataframe=annotations_df,
-            project_name="agents",
+            project_name=os.getenv("ARIZE_PROJECT_NAME"),
             validate=True,
             verbose=True
         )
