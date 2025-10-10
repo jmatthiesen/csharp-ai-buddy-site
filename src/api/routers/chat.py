@@ -34,13 +34,16 @@ OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
 
 async def validate_magic_key(magic_key: str) -> bool:
     """
-    Validate the magic key against the database configuration.
+    Validate the magic key against the userRegistrations collection.
+    
+    Each key is stored as a separate document in the userRegistrations collection
+    with an is_enabled field to control access.
     
     Args:
         magic_key (str): The magic key to validate.
         
     Returns:
-        bool: True if the key is valid, False otherwise.
+        bool: True if the key is valid and enabled, False otherwise.
     """
     try:
         # Check environment variables
@@ -54,20 +57,25 @@ async def validate_magic_key(magic_key: str) -> bool:
         # Connect to MongoDB
         mongoClient = MongoClient(mongodb_uri)
         db = mongoClient[database_name]
-        config_collection = db["chatFeatures"]
+        user_registrations_collection = db["userRegistrations"]
         
-        # Look for the magic key configuration
-        config_doc = config_collection.find_one({"_id": "magic_key_config"})
+        # Look for the key in userRegistrations collection
+        # Each key is stored as a document with the key as _id
+        key_doc = user_registrations_collection.find_one({"_id": magic_key})
         
-        if not config_doc:
-            logger.warning("Magic key configuration not found in database")
+        if not key_doc:
+            logger.info(f"Magic key not found in userRegistrations")
             return False
-            
-        valid_key = config_doc.get("magic_key")
-        is_valid = valid_key is not None and magic_key == valid_key
         
-        logger.info(f"Magic key validation result: {is_valid}")
-        return is_valid
+        # Check if the key is enabled
+        is_enabled = key_doc.get("is_enabled", True)  # Default to True for backwards compatibility
+        
+        if not is_enabled:
+            logger.info(f"Magic key found but is disabled")
+            return False
+        
+        logger.info(f"Magic key validation successful")
+        return True
         
     except Exception as e:
         logger.error(f"Error validating magic key: {str(e)}", exc_info=True)
