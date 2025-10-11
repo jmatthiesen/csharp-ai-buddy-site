@@ -204,9 +204,9 @@ async def test_validate_magic_key_multiple_keys_scenario(mock_getenv, mock_mongo
     def mock_find_one(query):
         key_id = query.get("_id")
         keys_db = {
-            "user-1-key": {"_id": "user-1-key", "is_enabled": True, "user": "user1@example.com"},
-            "user-2-key": {"_id": "user-2-key", "is_enabled": True, "user": "user2@example.com"},
-            "user-3-key": {"_id": "user-3-key", "is_enabled": False, "user": "user3@example.com"},
+            "user-1-key": {"_id": "user-1-key", "is_enabled": True},
+            "user-2-key": {"_id": "user-2-key", "is_enabled": True},
+            "user-3-key": {"_id": "user-3-key", "is_enabled": False},
         }
         return keys_db.get(key_id)
     

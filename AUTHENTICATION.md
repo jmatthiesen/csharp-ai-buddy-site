@@ -20,7 +20,6 @@ Each API key is stored as a separate document in the `userRegistrations` collect
 {
   "_id": "your-api-key-here",
   "is_enabled": true,
-  "user": "user@example.com",
   "created_at": "2025-10-10T00:00:00Z",
   "notes": "Optional notes about this key"
 }
@@ -29,7 +28,6 @@ Each API key is stored as a separate document in the `userRegistrations` collect
 **Fields:**
 - `_id` (string, required): The API key itself (used as the document ID for efficient lookups)
 - `is_enabled` (boolean, optional): Whether the key is active. Defaults to `true` if not present
-- `user` (string, optional): Email or identifier of the user associated with this key
 - `created_at` (string, optional): ISO 8601 timestamp of when the key was created
 - `notes` (string, optional): Any additional notes about the key
 - `disabled_at` (string, optional): ISO 8601 timestamp of when the key was disabled
@@ -58,7 +56,7 @@ python migrate_keys_to_user_registrations.py --migrate --remove-old
 ### Adding a New Key
 
 ```bash
-python migrate_keys_to_user_registrations.py --add-key "new-api-key-xyz" --user "user@example.com" --notes "Key for John Doe"
+python migrate_keys_to_user_registrations.py --add-key "new-api-key-xyz" --notes "Key for John Doe"
 ```
 
 ### Disabling a Key
@@ -230,10 +228,9 @@ If migration fails:
 
 1. **Key Generation**: Use cryptographically secure random strings for keys (e.g., UUID v4, secure random bytes)
 2. **Key Length**: Use keys of at least 32 characters
-3. **User Association**: Always associate keys with a user email or identifier
-4. **Audit Trail**: Keep track of when keys are created, disabled, or deleted
-5. **Regular Review**: Periodically review and clean up unused or old keys
-6. **Documentation**: Document the purpose of each key in the `notes` field
+3. **Audit Trail**: Keep track of when keys are created, disabled, or deleted
+4. **Regular Review**: Periodically review and clean up unused or old keys
+5. **Documentation**: Document the purpose of each key in the `notes` field
 
 ## Future Enhancements
 

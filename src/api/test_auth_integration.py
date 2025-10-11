@@ -41,18 +41,15 @@ async def setup_test_data(db):
         {
             "_id": "test-enabled-key-123",
             "is_enabled": True,
-            "user": "test-user-1@example.com",
             "created_at": datetime.now(timezone.utc).isoformat()
         },
         {
             "_id": "test-disabled-key-456",
             "is_enabled": False,
-            "user": "test-user-2@example.com",
             "created_at": datetime.now(timezone.utc).isoformat()
         },
         {
             "_id": "test-legacy-key-789",
-            "user": "test-user-3@example.com",
             "created_at": datetime.now(timezone.utc).isoformat()
             # Note: no is_enabled field to test backwards compatibility
         }

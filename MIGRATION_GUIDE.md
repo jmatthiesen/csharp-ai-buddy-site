@@ -81,7 +81,6 @@ After migration, you can add new keys for different users:
 ```bash
 python migrate_keys_to_user_registrations.py \
   --add-key "user-2-key-xyz" \
-  --user "user2@example.com" \
   --notes "Key for User 2"
 ```
 
@@ -132,7 +131,7 @@ The old key might not exist. Create a new key manually:
 ```bash
 python migrate_keys_to_user_registrations.py \
   --add-key "your-new-key-here" \
-  --user "admin@example.com"
+  --notes "Admin key"
 ```
 
 ### Frontend still using old key
