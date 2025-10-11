@@ -12,7 +12,8 @@ FRAMEWORK_CATEGORIES = [
     "Semantic Kernel Agents",
     "Semantic Kernel Process Framework",
     "OpenAI SDK",
-    "Azure AI Services"
+    "Azure AI Services",
+    "Microsoft Agent Framework"
 ]
 
 # Semantic Kernel sub-frameworks (these will get both their specific tag and "Semantic Kernel")
@@ -58,6 +59,7 @@ def categorize_with_ai(content: str, openai_client) -> list:
         - Semantic Kernel Process Framework
         - OpenAI SDK
         - Azure AI Services
+        - Microsoft Agent Framework
         
         Rules:
         1. Only return framework names that are clearly mentioned or directly used in code examples
@@ -65,8 +67,9 @@ def categorize_with_ai(content: str, openai_client) -> list:
         3. Look for specific API calls, namespaces, and class names to identify frameworks
         4. Azure Cognitive Services, TextAnalyticsClient, and similar Azure AI APIs should be categorized as "Azure AI Services"
         5. OpenAIClient and similar OpenAI APIs should be categorized as "OpenAI SDK"
-        6. Return framework names in the exact format listed above, separated by commas
-        7. If no AI frameworks are detected, return "None"
+        6. Microsoft.Agent and similar Microsoft Agent APIs should be categorized as "Microsoft Agent Framework"
+        7. Return framework names in the exact format listed above, separated by commas
+        8. If no AI frameworks are detected, return "None"
         
         Content to analyze:
         {content[:2000]}  # Limit content length for API call
@@ -118,6 +121,9 @@ def suggest_tags_simple(content: str) -> list:
     suggested_tags = []
     
     # Simple keyword matching
+    if "microsoft.agents" in content_lower:
+        suggested_tags.append("Microsoft Agent Framework")
+        
     if "semantic kernel" in content_lower:
         suggested_tags.append("Semantic Kernel")
         
