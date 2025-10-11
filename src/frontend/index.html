@@ -23,6 +23,9 @@
 
 <body>
     <div class="app-container">
+        <!-- Mobile Sidebar Backdrop -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+        
         <!-- Sidebar Navigation -->
         <aside id="sidebar" class="sidebar expanded">
             <div class="sidebar-header">
@@ -84,6 +87,14 @@
         <div class="main-container">
             <header class="main-header">
                 <div class="header-actions">
+                    <!-- Mobile Menu Toggle (only visible on mobile) -->
+                    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Open menu" title="Open menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
                     <!-- Theme Toggle -->
                     <button id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme">
                         <svg class="theme-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
