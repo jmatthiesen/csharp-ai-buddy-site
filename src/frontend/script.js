@@ -1431,7 +1431,24 @@ class SamplesGallery {
 
         this.clearFiltersBtn.addEventListener('click', () => {
             this.clearAllFilters();
+            this.closeFilters();
         });
+        
+        // Filters close button
+        const filtersCloseBtn = document.getElementById('filters-close');
+        if (filtersCloseBtn) {
+            filtersCloseBtn.addEventListener('click', () => {
+                this.closeFilters();
+            });
+        }
+        
+        // Filters backdrop
+        const filtersBackdrop = document.getElementById('filters-backdrop');
+        if (filtersBackdrop) {
+            filtersBackdrop.addEventListener('click', () => {
+                this.closeFilters();
+            });
+        }
 
         // Modal
         this.modalClose.addEventListener('click', () => {
@@ -1451,10 +1468,10 @@ class SamplesGallery {
             }
         });
 
-        // Outside click to close filters
+        // Outside click to close filters (only on desktop)
         document.addEventListener('click', (e) => {
-            if (!this.filtersToggle.contains(e.target) && !this.filtersPanel.contains(e.target)) {
-                this.filtersPanel.style.display = 'none';
+            if (window.innerWidth > 768 && !this.filtersToggle.contains(e.target) && !this.filtersPanel.contains(e.target)) {
+                this.closeFilters();
             }
         });
     }
@@ -1487,7 +1504,33 @@ class SamplesGallery {
 
     toggleFilters() {
         const isVisible = this.filtersPanel.style.display !== 'none';
-        this.filtersPanel.style.display = isVisible ? 'none' : 'block';
+        if (isVisible) {
+            this.closeFilters();
+        } else {
+            this.openFilters();
+        }
+    }
+    
+    openFilters() {
+        this.filtersPanel.style.display = 'flex';
+        
+        // Show backdrop on mobile
+        if (window.innerWidth <= 768) {
+            const filtersBackdrop = document.getElementById('filters-backdrop');
+            if (filtersBackdrop) {
+                filtersBackdrop.classList.add('active');
+            }
+        }
+    }
+    
+    closeFilters() {
+        this.filtersPanel.style.display = 'none';
+        
+        // Hide backdrop
+        const filtersBackdrop = document.getElementById('filters-backdrop');
+        if (filtersBackdrop) {
+            filtersBackdrop.classList.remove('active');
+        }
     }
 
     async loadSamples() {

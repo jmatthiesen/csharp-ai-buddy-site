@@ -26,6 +26,9 @@
         <!-- Mobile Sidebar Backdrop -->
         <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
         
+        <!-- Filters Backdrop (for mobile) -->
+        <div id="filters-backdrop" class="filters-backdrop"></div>
+        
         <!-- Sidebar Navigation -->
         <aside id="sidebar" class="sidebar expanded">
             <div class="sidebar-header">
@@ -209,10 +212,23 @@
                         <div class="filters-container">
                             <button id="filters-toggle" class="filters-btn">Filters</button>
                             <div id="filters-panel" class="filters-panel" style="display: none;">
-                                <div id="tag-filters" class="tag-filters">
-                                    <!-- Tag filters will be populated dynamically -->
+                                <div class="filters-panel-header">
+                                    <h3 class="filters-panel-title">Filter by Tags</h3>
+                                    <button id="filters-close" class="filters-close-btn" aria-label="Close filters">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
                                 </div>
-                                <button id="clear-filters" class="clear-filters-btn">Clear All</button>
+                                <div class="filters-panel-body">
+                                    <div id="tag-filters" class="tag-filters">
+                                        <!-- Tag filters will be populated dynamically -->
+                                    </div>
+                                </div>
+                                <div class="filters-panel-footer">
+                                    <button id="clear-filters" class="clear-filters-btn">Clear All</button>
+                                </div>
                             </div>
                         </div>
                     </div>
