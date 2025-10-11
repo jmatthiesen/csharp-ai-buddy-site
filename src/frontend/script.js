@@ -891,7 +891,7 @@ class ChatApp {
         this.chatMessages.innerHTML = `
             <div class="welcome-message">
                 <h2>Welcome to C# AI Buddy!</h2>
-                <p>Ask me anything about C# programming, and I'll help you out.</p>
+                <p>I'm here to help you build AI solutions with C# & .NET. Ask me anything about AI development, and let's code together!</p>
             </div>
         `;
 
