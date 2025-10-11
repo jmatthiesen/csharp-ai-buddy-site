@@ -1431,7 +1431,24 @@ class SamplesGallery {
 
         this.clearFiltersBtn.addEventListener('click', () => {
             this.clearAllFilters();
+            this.closeFilters();
         });
+        
+        // Filters close button
+        const filtersCloseBtn = document.getElementById('filters-close');
+        if (filtersCloseBtn) {
+            filtersCloseBtn.addEventListener('click', () => {
+                this.closeFilters();
+            });
+        }
+        
+        // Filters backdrop
+        const filtersBackdrop = document.getElementById('filters-backdrop');
+        if (filtersBackdrop) {
+            filtersBackdrop.addEventListener('click', () => {
+                this.closeFilters();
+            });
+        }
 
         // Modal
         this.modalClose.addEventListener('click', () => {
@@ -1451,10 +1468,10 @@ class SamplesGallery {
             }
         });
 
-        // Outside click to close filters
+        // Outside click to close filters (only on desktop)
         document.addEventListener('click', (e) => {
-            if (!this.filtersToggle.contains(e.target) && !this.filtersPanel.contains(e.target)) {
-                this.filtersPanel.style.display = 'none';
+            if (window.innerWidth > 768 && !this.filtersToggle.contains(e.target) && !this.filtersPanel.contains(e.target)) {
+                this.closeFilters();
             }
         });
     }
@@ -1487,7 +1504,33 @@ class SamplesGallery {
 
     toggleFilters() {
         const isVisible = this.filtersPanel.style.display !== 'none';
-        this.filtersPanel.style.display = isVisible ? 'none' : 'block';
+        if (isVisible) {
+            this.closeFilters();
+        } else {
+            this.openFilters();
+        }
+    }
+    
+    openFilters() {
+        this.filtersPanel.style.display = 'flex';
+        
+        // Show backdrop on mobile
+        if (window.innerWidth <= 768) {
+            const filtersBackdrop = document.getElementById('filters-backdrop');
+            if (filtersBackdrop) {
+                filtersBackdrop.classList.add('active');
+            }
+        }
+    }
+    
+    closeFilters() {
+        this.filtersPanel.style.display = 'none';
+        
+        // Hide backdrop
+        const filtersBackdrop = document.getElementById('filters-backdrop');
+        if (filtersBackdrop) {
+            filtersBackdrop.classList.remove('active');
+        }
     }
 
     async loadSamples() {
@@ -1924,6 +1967,7 @@ class AppManager {
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
         const sidebarToggle = document.getElementById('sidebar-toggle');
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         const sidebar = document.getElementById('sidebar');
 
         // Tab navigation
@@ -1949,6 +1993,23 @@ class AppManager {
             this.toggleSidebar();
         });
 
+        // Mobile menu toggle
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
+
+        // Sidebar backdrop (close sidebar when clicking outside on mobile)
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', () => {
+                if (window.innerWidth <= 768 && sidebar.classList.contains('expanded')) {
+                    this.toggleSidebar();
+                }
+            });
+        }
+
         // Auto-collapse sidebar on mobile when clicking nav items
         if (window.innerWidth <= 768) {
             [chatTab, samplesTab, newsTab].forEach(tab => {
@@ -1964,6 +2025,10 @@ class AppManager {
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.add('expanded');
+                const backdrop = document.getElementById('sidebar-backdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('active');
+                }
             } else {
                 sidebar.classList.remove('expanded');
             }
@@ -2018,18 +2083,28 @@ class AppManager {
 
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
         const isExpanded = sidebar.classList.contains('expanded');
 
         if (isExpanded) {
             sidebar.classList.remove('expanded');
             sidebar.classList.add('collapsed');
+            if (backdrop) {
+                backdrop.classList.remove('active');
+            }
         } else {
             sidebar.classList.remove('collapsed');
             sidebar.classList.add('expanded');
+            // Show backdrop on mobile
+            if (window.innerWidth <= 768 && backdrop) {
+                backdrop.classList.add('active');
+            }
         }
 
-        // Save sidebar state to localStorage
-        localStorage.setItem('sidebarExpanded', !isExpanded);
+        // Save sidebar state to localStorage (only for desktop)
+        if (window.innerWidth > 768) {
+            localStorage.setItem('sidebarExpanded', !isExpanded);
+        }
     }
 
     initializeSidebarState() {
