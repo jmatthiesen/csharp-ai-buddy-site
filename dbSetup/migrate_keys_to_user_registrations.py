@@ -14,7 +14,7 @@ Usage:
     python migrate_keys_to_user_registrations.py --migrate
     
     # Add a new key
-    python migrate_keys_to_user_registrations.py --add-key "new-key-123" --user "user@example.com"
+    python migrate_keys_to_user_registrations.py --add-key "new-key-123" --notes "Optional notes"
     
     # Disable a key
     python migrate_keys_to_user_registrations.py --disable-key "old-key-456"
@@ -115,14 +115,13 @@ def migrate_existing_key(db, remove_old=False):
     return True
 
 
-def add_key(db, key, user=None, notes=None):
+def add_key(db, key, notes=None):
     """
     Add a new API key to userRegistrations.
     
     Args:
         db: Database object
         key (str): The API key to add
-        user (str, optional): Associated user email
         notes (str, optional): Additional notes
     
     Returns:
@@ -137,7 +136,6 @@ def add_key(db, key, user=None, notes=None):
         print(f"Error: Key already exists")
         print(f"  Key: {key[:10]}...")
         print(f"  Enabled: {existing_key.get('is_enabled', True)}")
-        print(f"  User: {existing_key.get('user', 'N/A')}")
         return False
     
     # Create new document
@@ -147,16 +145,12 @@ def add_key(db, key, user=None, notes=None):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
-    if user:
-        new_doc["user"] = user
-    
     if notes:
         new_doc["notes"] = notes
     
     user_registrations.insert_one(new_doc)
     print(f"✓ Successfully added new key")
     print(f"  Key: {key[:10]}...")
-    print(f"  User: {user or 'N/A'}")
     print(f"  Enabled: True")
     
     return True
@@ -241,13 +235,11 @@ def list_keys(db):
     for i, key_doc in enumerate(keys, 1):
         key_id = key_doc.get("_id", "N/A")
         enabled = key_doc.get("is_enabled", True)
-        user = key_doc.get("user", "N/A")
         created = key_doc.get("created_at", "N/A")
         notes = key_doc.get("notes", "")
         
         print(f"\n{i}. Key: {key_id[:10]}... (full key hidden)")
         print(f"   Enabled: {enabled}")
-        print(f"   User: {user}")
         print(f"   Created: {created}")
         if notes:
             print(f"   Notes: {notes}")
@@ -277,12 +269,6 @@ def main():
         "--add-key",
         type=str,
         help="Add a new API key"
-    )
-    
-    parser.add_argument(
-        "--user",
-        type=str,
-        help="User email associated with the key (for --add-key)"
     )
     
     parser.add_argument(
@@ -324,7 +310,7 @@ def main():
         migrate_existing_key(db, remove_old=args.remove_old)
     
     if args.add_key:
-        add_key(db, args.add_key, user=args.user, notes=args.notes)
+        add_key(db, args.add_key, notes=args.notes)
     
     if args.disable_key:
         disable_key(db, args.disable_key)
