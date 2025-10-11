@@ -353,6 +353,79 @@ a:focus {
     transform: scale(0.95);
 }
 
+/* Mobile Menu Tooltip */
+.mobile-menu-tooltip {
+    display: none;
+    position: absolute;
+    top: 60px;
+    left: 10px;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: 12px;
+    padding: 0;
+    z-index: 1100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    max-width: 250px;
+    animation: tooltipFadeIn 0.3s ease-out;
+}
+
+.mobile-menu-tooltip.visible {
+    display: block;
+}
+
+.tooltip-arrow {
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--accent-primary);
+}
+
+.tooltip-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.tooltip-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+
+.tooltip-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Theme Toggle */
 .theme-toggle {
     display: flex;
@@ -1074,6 +1147,15 @@ a:focus {
     /* Show mobile menu toggle on mobile */
     .mobile-menu-toggle {
         display: flex;
+    }
+    
+    /* Show tooltip only on mobile */
+    .mobile-menu-tooltip {
+        display: none;
+    }
+    
+    .mobile-menu-tooltip.visible {
+        display: block;
     }
     
     .main-header,

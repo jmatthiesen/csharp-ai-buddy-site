@@ -891,7 +891,7 @@ class ChatApp {
         this.chatMessages.innerHTML = `
             <div class="welcome-message">
                 <h2>Welcome to C# AI Buddy!</h2>
-                <p>Ask me anything about C# programming, and I'll help you out.</p>
+                <p>I'm here to help you build AI solutions with C# & .NET. Ask me anything about AI development, and let's code together!</p>
             </div>
         `;
 
@@ -2000,6 +2000,9 @@ class AppManager {
             });
         }
 
+        // Mobile menu tooltip
+        this.initializeMobileMenuTooltip();
+
         // Sidebar backdrop (close sidebar when clicking outside on mobile)
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
         if (sidebarBackdrop) {
@@ -2031,6 +2034,52 @@ class AppManager {
                 }
             } else {
                 sidebar.classList.remove('expanded');
+            }
+        });
+    }
+
+    initializeMobileMenuTooltip() {
+        // Only show tooltip on mobile devices
+        if (window.innerWidth > 768) {
+            return;
+        }
+
+        const tooltip = document.getElementById('mobile-menu-tooltip');
+        const tooltipClose = tooltip?.querySelector('.tooltip-close');
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        
+        if (!tooltip || !tooltipClose || !mobileMenuToggle) {
+            return;
+        }
+
+        // Check if tooltip has been dismissed before
+        const tooltipDismissed = localStorage.getItem('mobileMenuTooltipDismissed');
+        
+        if (!tooltipDismissed) {
+            // Show tooltip after a short delay
+            setTimeout(() => {
+                tooltip.classList.add('visible');
+            }, 1500);
+        }
+
+        // Close tooltip when close button is clicked
+        tooltipClose.addEventListener('click', () => {
+            tooltip.classList.remove('visible');
+            localStorage.setItem('mobileMenuTooltipDismissed', 'true');
+        });
+
+        // Close tooltip when mobile menu is opened
+        mobileMenuToggle.addEventListener('click', () => {
+            if (tooltip.classList.contains('visible')) {
+                tooltip.classList.remove('visible');
+                localStorage.setItem('mobileMenuTooltipDismissed', 'true');
+            }
+        });
+
+        // Hide tooltip on window resize to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                tooltip.classList.remove('visible');
             }
         });
     }
