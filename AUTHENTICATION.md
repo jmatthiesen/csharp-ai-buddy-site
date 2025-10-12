@@ -32,51 +32,6 @@ Each API key is stored as a separate document in the `userRegistrations` collect
 - `notes` (string, optional): Any additional notes about the key
 - `disabled_at` (string, optional): ISO 8601 timestamp of when the key was disabled
 
-## Migration from Legacy System
-
-The previous system stored a single magic key in the `chatFeatures` collection under the document ID `magic_key_config`. This has been replaced with the new `userRegistrations` collection.
-
-### Migration Script
-
-Use the provided migration script to migrate from the old system:
-
-```bash
-cd dbSetup
-python migrate_keys_to_user_registrations.py --migrate
-```
-
-To also remove the old configuration:
-
-```bash
-python migrate_keys_to_user_registrations.py --migrate --remove-old
-```
-
-## Key Management
-
-### Adding a New Key
-
-```bash
-python migrate_keys_to_user_registrations.py --add-key "new-api-key-xyz" --notes "Key for John Doe"
-```
-
-### Disabling a Key
-
-```bash
-python migrate_keys_to_user_registrations.py --disable-key "api-key-to-disable"
-```
-
-### Enabling a Key
-
-```bash
-python migrate_keys_to_user_registrations.py --enable-key "api-key-to-enable"
-```
-
-### Listing All Keys
-
-```bash
-python migrate_keys_to_user_registrations.py --list
-```
-
 ## Implementation Details
 
 ### Backend Validation
@@ -121,7 +76,6 @@ Tests cover:
 - Valid enabled keys
 - Valid disabled keys
 - Non-existent keys
-- Backwards compatibility
 - Error handling
 - Multiple keys scenarios
 
@@ -186,43 +140,15 @@ db.userRegistrations.deleteOne({ _id: "my-secure-api-key-123" });
 
 ### "Invalid magic key" Error
 
-1. Verify the key exists in the database:
-   ```bash
-   python migrate_keys_to_user_registrations.py --list
-   ```
-
-2. Check if the key is enabled:
+1. Check if the key is enabled:
    ```javascript
    db.userRegistrations.findOne({ _id: "your-key-here" })
    ```
 
-3. Ensure environment variables are set correctly:
+2. Ensure environment variables are set correctly:
    - `MONGODB_URI`
    - `DATABASE_NAME`
    - `ENVIRONMENT` (should not be "development" in production)
-
-### Migration Issues
-
-If migration fails:
-
-1. Check the old configuration exists:
-   ```javascript
-   db.chatFeatures.findOne({ _id: "magic_key_config" })
-   ```
-
-2. Manually migrate if needed:
-   ```javascript
-   // Get old key
-   const oldConfig = db.chatFeatures.findOne({ _id: "magic_key_config" });
-   
-   // Insert into new collection
-   db.userRegistrations.insertOne({
-     _id: oldConfig.magic_key,
-     is_enabled: true,
-     created_at: new Date().toISOString(),
-     notes: "Migrated from legacy system"
-   });
-   ```
 
 ## Best Practices
 
