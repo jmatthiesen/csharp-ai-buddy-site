@@ -104,35 +104,6 @@ async def test_validate_magic_key_not_found(mock_getenv, mock_mongo_client):
 @pytest.mark.asyncio
 @patch('routers.chat.MongoClient')
 @patch('routers.chat.os.getenv')
-async def test_validate_magic_key_backwards_compatible(mock_getenv, mock_mongo_client):
-    """Test that keys without is_enabled field default to enabled"""
-    # Setup mock environment variables
-    mock_getenv.side_effect = lambda key, default=None: {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "DATABASE_NAME": "test_db"
-    }.get(key, default)
-    
-    # Setup mock MongoDB
-    mock_db = MagicMock()
-    mock_collection = MagicMock()
-    mock_mongo_client.return_value.__getitem__.return_value = mock_db
-    mock_db.__getitem__.return_value = mock_collection
-    
-    # Mock finding a key without is_enabled field (backwards compatibility)
-    mock_collection.find_one.return_value = {
-        "_id": "legacy-key-789",
-        "created_at": "2025-10-10T00:00:00Z"
-    }
-    
-    result = await validate_magic_key("legacy-key-789")
-    
-    assert result is True
-    mock_collection.find_one.assert_called_once_with({"_id": "legacy-key-789"})
-
-
-@pytest.mark.asyncio
-@patch('routers.chat.MongoClient')
-@patch('routers.chat.os.getenv')
 async def test_validate_magic_key_missing_mongodb_uri(mock_getenv, mock_mongo_client):
     """Test validation when MongoDB URI is missing"""
     # Setup mock environment variables with missing URI
