@@ -166,6 +166,7 @@ class ChatApp {
     }
 
     autoResizeTextarea() {
+        if (!this.questionInput) return;
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
     }
