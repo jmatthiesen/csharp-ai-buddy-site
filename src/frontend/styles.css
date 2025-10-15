@@ -2466,7 +2466,7 @@ a:focus {
 .main-footer {
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
-    padding: 1.5rem 2rem;
+    padding: 1rem 2rem;
     margin-top: auto;
 }
 
@@ -2474,9 +2474,10 @@ a:focus {
     max-width: 1200px;
     margin: 0 auto;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
 .footer-links {
@@ -2484,14 +2485,14 @@ a:focus {
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
-    justify-content: center;
 }
 
 .footer-link {
     color: var(--text-secondary);
     text-decoration: none;
     transition: color 0.2s ease;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 .footer-link:hover {
@@ -2500,11 +2501,13 @@ a:focus {
 
 .footer-divider {
     color: var(--text-muted);
+    font-size: 0.875rem;
 }
 
 .footer-attribution {
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 /* Feedback Link in Header */
@@ -2559,16 +2562,19 @@ a:focus {
     }
 
     .footer-content {
-        font-size: 0.85rem;
-    }
-
-    .footer-links {
         flex-direction: column;
+        align-items: flex-start;
         gap: 0.5rem;
     }
 
-    .footer-divider {
-        display: none;
+    .footer-links {
+        flex-wrap: wrap;
+    }
+
+    .footer-link,
+    .footer-divider,
+    .footer-attribution {
+        font-size: 0.75rem;
     }
 }
 }

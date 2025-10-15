@@ -290,11 +290,16 @@ class ChatApp {
     }
 
     updateSendButton(isStreaming) {
-        // Get the button by its type since it's always the submit button
-        const submitBtn = document.querySelector('button[type="submit"]') || document.querySelector('.send-btn') || document.querySelector('.stop-btn');
+        // Get the button specifically from the chat form to avoid affecting the home page button
+        const chatForm = document.getElementById('chat-form');
+        if (!chatForm) {
+            return; // Chat form not available (probably on home page)
+        }
+        
+        const submitBtn = chatForm.querySelector('button[type="submit"]') || chatForm.querySelector('.send-btn') || chatForm.querySelector('.stop-btn');
         
         if (!submitBtn) {
-            console.error('Could not find submit button');
+            console.error('Could not find submit button in chat form');
             return;
         }
         
@@ -2529,6 +2534,10 @@ class AppManager {
                     if (chatInput) {
                         chatInput.value = question;
                     }
+                    
+                    // Clear the home page input
+                    homeQuestionInput.value = '';
+                    homeQuestionInput.style.height = 'auto';
                     
                     // Switch to chat tab
                     this.switchTab('chat');
