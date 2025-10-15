@@ -88,33 +88,39 @@ class ChatApp {
 
     initializeEventListeners() {
         // Form submission
-        this.chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleSubmit();
-        });
-
-        // Auto-resize textarea
-        this.questionInput.addEventListener('input', () => {
-            this.autoResizeTextarea();
-        });
-
-        // Enter key handling (Shift+Enter for new line, Enter to submit)
-        this.questionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        if (this.chatForm) {
+            this.chatForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleSubmit();
-            } else if (e.key === 'Escape' && this.isStreaming) {
-                e.preventDefault();
-                this.stopStreaming();
-            }
-        });
+            });
+        }
+
+        // Auto-resize textarea
+        if (this.questionInput) {
+            this.questionInput.addEventListener('input', () => {
+                this.autoResizeTextarea();
+            });
+
+            // Enter key handling (Shift+Enter for new line, Enter to submit)
+            this.questionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSubmit();
+                } else if (e.key === 'Escape' && this.isStreaming) {
+                    e.preventDefault();
+                    this.stopStreaming();
+                }
+            });
+        }
 
         // New chat button
-        this.newChatBtn.addEventListener('click', () => {
-            this.startNewChat();
-            // Switch to chat tab when starting a new chat
-            document.dispatchEvent(new CustomEvent('switchToChat'));
-        });
+        if (this.newChatBtn) {
+            this.newChatBtn.addEventListener('click', () => {
+                this.startNewChat();
+                // Switch to chat tab when starting a new chat
+                document.dispatchEvent(new CustomEvent('switchToChat'));
+            });
+        }
 
         // Suggestion clicks
         if (this.suggestionsContainer !== null) {
@@ -142,7 +148,9 @@ class ChatApp {
 
     initializeAccessibility() {
         // Ensure proper focus management
-        this.questionInput.focus();
+        if (this.questionInput) {
+            this.questionInput.focus();
+        }
 
         // Add keyboard navigation for suggestions
         if (this.suggestionsContainer !== null) {
