@@ -987,6 +987,7 @@ a:focus {
     cursor: pointer;
     font-size: 0.875rem;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 .options-btn:hover {
@@ -997,13 +998,6 @@ a:focus {
 .options-btn:focus {
     outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
-}
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
 }
 
 .options-btn:hover {
@@ -1042,7 +1036,6 @@ a:focus {
 
 .option-label {
     font-weight: 600;
-    color: #2d3748;
     font-size: 0.9rem;
 }
 
@@ -1086,6 +1079,30 @@ a:focus {
 .experimental-warning svg {
     flex-shrink: 0;
     color: #ed8936;
+}
+
+.stop-btn {
+    background: #e53e3e;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    transition: background-color 0.2s ease;
+}
+
+.stop-btn:hover {
+    background: #c53030;
+}
+
+.stop-btn:focus {
+    outline: 2px solid #e53e3e;
+    outline-offset: 2px;
 }
 
 /* Loading animation */
