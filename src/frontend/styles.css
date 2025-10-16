@@ -91,7 +91,6 @@ body {
 
 /* General link styling for better accessibility */
 a {
-    background-color: var(--link-bg);
     color: var(--link-text);
     text-decoration: underline;
     padding: 0.1rem 0.3rem;
@@ -101,7 +100,6 @@ a {
 
 a:hover,
 a:focus {
-    background-color: var(--link-hover-bg);
     color: var(--link-hover-text);
     outline: none;
 }
@@ -2466,7 +2464,6 @@ a:focus {
 .main-footer {
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
-    padding: 1rem 2rem;
     margin-top: auto;
 }
 
@@ -2489,9 +2486,8 @@ a:focus {
 
 .footer-link {
     color: var(--text-secondary);
-    text-decoration: none;
     transition: color 0.2s ease;
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     white-space: nowrap;
 }
 
@@ -2506,7 +2502,7 @@ a:focus {
 
 .footer-attribution {
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     white-space: nowrap;
 }
 
@@ -2576,5 +2572,4 @@ a:focus {
     .footer-attribution {
         font-size: 0.75rem;
     }
-}
 }
