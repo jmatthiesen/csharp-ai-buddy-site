@@ -102,7 +102,6 @@ class TestPipelineTypes(unittest.TestCase):
         
         chunk = Chunk(
             chunk_id="507f1f77bcf86cd799439011",
-            original_document_id="https://example.com/serialization",
             title="Serialization Test",
             source_url="https://example.com/serialization", 
             content="Content for serialization testing.",
@@ -124,7 +123,7 @@ class TestPipelineTypes(unittest.TestCase):
         
         # Verify all fields present
         expected_keys = {
-            'chunk_id', 'original_document_id', 'title', 'source_url', 'content',
+            'chunk_id', 'title', 'source_url', 'content',
             'embeddings', 'chunk_index', 'total_chunks', 'chunk_size',
             'metadata', 'tags', 'created_date', 'indexed_date'
         }
@@ -132,7 +131,7 @@ class TestPipelineTypes(unittest.TestCase):
         
         # Verify data types and values
         self.assertEqual(chunk_dict['chunk_id'], "507f1f77bcf86cd799439011")
-        self.assertEqual(chunk_dict['original_document_id'], "https://example.com/serialization")
+        self.assertEqual(chunk_dict['source_url'], "https://example.com/serialization")
         self.assertEqual(chunk_dict['title'], "Serialization Test")
         self.assertEqual(chunk_dict['content'], "Content for serialization testing.")
         self.assertEqual(chunk_dict['embeddings'], [0.1, 0.2, 0.3])
@@ -150,7 +149,6 @@ class TestPipelineTypes(unittest.TestCase):
         """Test Chunk to_dict() with None date values."""
         chunk = Chunk(
             chunk_id="507f1f77bcf86cd799439011",
-            original_document_id="https://example.com/none-dates",
             title="None Dates Test",
             source_url="https://example.com/none-dates",
             content="Testing with None dates.",
@@ -168,7 +166,6 @@ class TestPipelineTypes(unittest.TestCase):
         """Test that Chunk mutable fields can be modified."""
         chunk = Chunk(
             chunk_id="507f1f77bcf86cd799439011",
-            original_document_id="https://example.com/mutable",
             title="Mutable Test",
             source_url="https://example.com/mutable",
             content="Testing mutable fields."

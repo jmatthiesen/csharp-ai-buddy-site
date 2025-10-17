@@ -441,8 +441,10 @@ class TestRSSFeedMonitor(unittest.TestCase):
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
         
-        # Mock document pipeline methods
-        self.mock_document_pipeline.process_document.return_value = Mock()
+        # Mock document pipeline methods - process_document now returns context
+        mock_context = Mock()
+        mock_context.processing_metadata = {"stored_chunk_ids": ["test-chunk-id"]}
+        self.mock_document_pipeline.process_document.return_value = mock_context
         self.mock_document_pipeline.store_document.return_value = "test-doc-id"
         
         monitor = RSSFeedMonitor(self.mock_config)

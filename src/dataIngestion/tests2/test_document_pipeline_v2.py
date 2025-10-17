@@ -99,9 +99,11 @@ class TestDocumentPipelineV2(unittest.TestCase):
         )
 
         # Process document
-        chunk_ids = pipeline.process_document(raw_doc, use_ai_categorization=False)
+        context = pipeline.process_document(raw_doc, use_ai_categorization=False)
 
-        # Verify results
+        # Verify results - now returns context instead of chunk_ids
+        self.assertIsInstance(context, ProcessingContext)
+        chunk_ids = context.processing_metadata.get("stored_chunk_ids", [])
         self.assertIsInstance(chunk_ids, list)
         self.assertGreater(len(chunk_ids), 0)
         
@@ -203,9 +205,10 @@ class TestDocumentPipelineV2(unittest.TestCase):
         )
 
         # Process RSS document
-        chunk_ids = pipeline.process_document(rss_doc, use_ai_categorization=False)
+        context = pipeline.process_document(rss_doc, use_ai_categorization=False)
 
         # Should complete successfully
+        chunk_ids = context.processing_metadata.get("stored_chunk_ids", [])
         self.assertGreater(len(chunk_ids), 0)
 
         # Verify storage was called with RSS-enriched data
@@ -253,9 +256,10 @@ class TestDocumentPipelineV2(unittest.TestCase):
         )
 
         # Process document with small chunk size to force multiple chunks
-        chunk_ids = pipeline.process_document(raw_doc, use_ai_categorization=False, chunk_size=50)
+        context = pipeline.process_document(raw_doc, use_ai_categorization=False, chunk_size=50)
 
         # Verify multiple chunks were created
+        chunk_ids = context.processing_metadata.get("stored_chunk_ids", [])
         self.assertGreater(len(chunk_ids), 1)
 
         # Verify all chunk IDs are unique and valid ObjectIDs
@@ -279,7 +283,6 @@ class TestDocumentPipelineV2(unittest.TestCase):
         # Mock find_one for get_chunk
         test_chunk_data = {
             "chunk_id": "507f1f77bcf86cd799439011",
-            "original_document_id": "https://example.com/test",
             "title": "Test Document",
             "source_url": "https://example.com/test",
             "content": "Test content",
@@ -323,7 +326,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
         chunks = pipeline.get_document_chunks("https://example.com/test")
         self.assertEqual(len(chunks), 1)
         self.assertIsInstance(chunks[0], Chunk)
-        self.assertEqual(chunks[0].original_document_id, "https://example.com/test")
+        self.assertEqual(chunks[0].source_url, "https://example.com/test")
 
     @patch('document_pipeline_v2.MongoClient')
     @patch('document_pipeline_v2.OpenAI')
@@ -366,7 +369,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
 
         # Verify cleanup was called before processing
         mock_documents_collection.delete_many.assert_called_with(
-            {"original_document_id": "https://example.com/test"}
+            {"source_url": "https://example.com/test"}
         )
 
         # Verify new chunks were inserted after cleanup
