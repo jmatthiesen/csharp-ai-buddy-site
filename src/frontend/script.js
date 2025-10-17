@@ -88,33 +88,39 @@ class ChatApp {
 
     initializeEventListeners() {
         // Form submission
-        this.chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleSubmit();
-        });
-
-        // Auto-resize textarea
-        this.questionInput.addEventListener('input', () => {
-            this.autoResizeTextarea();
-        });
-
-        // Enter key handling (Shift+Enter for new line, Enter to submit)
-        this.questionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        if (this.chatForm) {
+            this.chatForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleSubmit();
-            } else if (e.key === 'Escape' && this.isStreaming) {
-                e.preventDefault();
-                this.stopStreaming();
-            }
-        });
+            });
+        }
+
+        // Auto-resize textarea
+        if (this.questionInput) {
+            this.questionInput.addEventListener('input', () => {
+                this.autoResizeTextarea();
+            });
+
+            // Enter key handling (Shift+Enter for new line, Enter to submit)
+            this.questionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSubmit();
+                } else if (e.key === 'Escape' && this.isStreaming) {
+                    e.preventDefault();
+                    this.stopStreaming();
+                }
+            });
+        }
 
         // New chat button
-        this.newChatBtn.addEventListener('click', () => {
-            this.startNewChat();
-            // Switch to chat tab when starting a new chat
-            document.dispatchEvent(new CustomEvent('switchToChat'));
-        });
+        if (this.newChatBtn) {
+            this.newChatBtn.addEventListener('click', () => {
+                this.startNewChat();
+                // Switch to chat tab when starting a new chat
+                document.dispatchEvent(new CustomEvent('switchToChat'));
+            });
+        }
 
         // Suggestion clicks
         if (this.suggestionsContainer !== null) {
@@ -142,7 +148,9 @@ class ChatApp {
 
     initializeAccessibility() {
         // Ensure proper focus management
-        this.questionInput.focus();
+        if (this.questionInput) {
+            this.questionInput.focus();
+        }
 
         // Add keyboard navigation for suggestions
         if (this.suggestionsContainer !== null) {
@@ -158,6 +166,7 @@ class ChatApp {
     }
 
     autoResizeTextarea() {
+        if (!this.questionInput) return;
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
     }
@@ -281,11 +290,16 @@ class ChatApp {
     }
 
     updateSendButton(isStreaming) {
-        // Get the button by its type since it's always the submit button
-        const submitBtn = document.querySelector('button[type="submit"]') || document.querySelector('.send-btn') || document.querySelector('.stop-btn');
+        // Get the button specifically from the chat form to avoid affecting the home page button
+        const chatForm = document.getElementById('chat-form');
+        if (!chatForm) {
+            return; // Chat form not available (probably on home page)
+        }
+        
+        const submitBtn = chatForm.querySelector('button[type="submit"]') || chatForm.querySelector('.send-btn') || chatForm.querySelector('.stop-btn');
         
         if (!submitBtn) {
-            console.error('Could not find submit button');
+            console.error('Could not find submit button in chat form');
             return;
         }
         
@@ -1979,6 +1993,7 @@ class AppManager {
         this.initializePrivacyNotice();
         this.initializeUrlHandling();
         this.initializeThemeToggle();
+        this.initializeHomeSection();
     }
 
     detectApiUrl() {
@@ -2062,6 +2077,7 @@ class AppManager {
     }
 
     initializeNavigation() {
+        const homeTab = document.getElementById('home-tab');
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
@@ -2070,6 +2086,10 @@ class AppManager {
         const sidebar = document.getElementById('sidebar');
 
         // Tab navigation
+        homeTab.addEventListener('click', () => {
+            this.switchTab('home');
+        });
+
         chatTab.addEventListener('click', () => {
             this.switchTab('chat');
         });
@@ -2184,19 +2204,23 @@ class AppManager {
     }
 
     switchTab(tab) {
+        const homeTab = document.getElementById('home-tab');
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
+        const homeSection = document.getElementById('home-section');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
         const newsSection = document.getElementById('news-section');
 
         // Update tab states
+        homeTab.classList.toggle('active', tab === 'home');
         chatTab.classList.toggle('active', tab === 'chat');
         samplesTab.classList.toggle('active', tab === 'samples');
         newsTab.classList.toggle('active', tab === 'news');
 
         // Update section visibility
+        homeSection.style.display = tab === 'home' ? 'flex' : 'none';
         chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
         samplesSection.style.display = tab === 'samples' ? 'flex' : 'none';
         newsSection.style.display = tab === 'news' ? 'flex' : 'none';
@@ -2210,21 +2234,26 @@ class AppManager {
 
         // Update URL for deep linking
         const url = new URL(window.location);
-        if (tab === 'samples') {
+        if (tab === 'home') {
+            this.trackTelemetry('home_section_viewed', {
+                previous_tab: this.currentTab || 'home'
+            });
+            url.searchParams.delete('tab');
+        } else if (tab === 'samples') {
             this.trackTelemetry('samples_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
             url.searchParams.set('tab', 'samples');
         } else if (tab === 'news') {
             this.trackTelemetry('news_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
             url.searchParams.set('tab', 'news');
-        } else {
+        } else if (tab === 'chat') {
             this.trackTelemetry('chat_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
-            url.searchParams.delete('tab');
+            url.searchParams.set('tab', 'chat');
         }
         window.history.replaceState({}, '', url);
     }
@@ -2306,16 +2335,21 @@ class AppManager {
         const urlParams = new URLSearchParams(window.location.search);
         const initialTab = urlParams.get('tab');
 
-        if (initialTab === 'samples') {
+        if (initialTab === 'chat') {
+            this.switchTab('chat');
+        } else if (initialTab === 'samples') {
             this.switchTab('samples');
         } else if (initialTab === 'news') {
             this.switchTab('news');
+        } else {
+            // Default to home tab
+            this.switchTab('home');
         }
 
         // Handle back/forward navigation
         window.addEventListener('popstate', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab') || 'chat';
+            const tab = urlParams.get('tab') || 'home';
             this.switchTab(tab);
         });
     }
@@ -2482,6 +2516,77 @@ class AppManager {
         const tooltipText = `Switch to ${nextTheme} theme`;
         this.themeToggle.setAttribute('title', tooltipText);
         this.themeToggle.setAttribute('aria-label', tooltipText);
+    }
+
+    initializeHomeSection() {
+        // Handle home quick start form
+        const homeForm = document.getElementById('home-chat-form');
+        const homeQuestionInput = document.getElementById('home-question-input');
+
+        if (homeForm && homeQuestionInput) {
+            homeForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const question = homeQuestionInput.value.trim();
+                
+                if (question) {
+                    // Set the question in the chat input
+                    const chatInput = document.getElementById('question-input');
+                    if (chatInput) {
+                        chatInput.value = question;
+                    }
+                    
+                    // Clear the home page input
+                    homeQuestionInput.value = '';
+                    homeQuestionInput.style.height = 'auto';
+                    
+                    // Switch to chat tab
+                    this.switchTab('chat');
+                    
+                    // Submit the chat form
+                    setTimeout(() => {
+                        const chatForm = document.getElementById('chat-form');
+                        if (chatForm) {
+                            chatForm.dispatchEvent(new Event('submit'));
+                        }
+                    }, 100);
+                }
+            });
+
+            // Auto-resize textarea
+            homeQuestionInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+            });
+        }
+
+        // Handle feature card buttons
+        const featureButtons = document.querySelectorAll('.feature-btn');
+        featureButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const feature = button.getAttribute('data-feature');
+                if (feature === 'chat') {
+                    this.switchTab('chat');
+                } else if (feature === 'samples') {
+                    this.switchTab('samples');
+                } else if (feature === 'news') {
+                    this.switchTab('news');
+                }
+            });
+        });
+
+        // Make feature cards clickable
+        const featureCards = document.querySelectorAll('.feature-card');
+        featureCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking the button itself
+                if (!e.target.classList.contains('feature-btn')) {
+                    const button = card.querySelector('.feature-btn');
+                    if (button) {
+                        button.click();
+                    }
+                }
+            });
+        });
     }
 }
 

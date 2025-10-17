@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service - C# AI Buddy</title>
+    <link rel="icon" type="image/svg+xml" href="site-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-primary: #3182ce;
+            --border-color: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a202c;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e0;
+            --text-muted: #a0aec0;
+            --accent-primary: #63b3ed;
+            --border-color: #2d3748;
+        }
+
+        html, body {
+            height: auto;
+            overflow: auto;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .legal-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .legal-content h1 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .legal-content h2 {
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .legal-content h3 {
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .legal-content p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .legal-content ul {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+
+        .legal-content li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .last-updated {
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 2rem;
+        }
+
+        .close-fallback {
+            display: none;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .legal-content {
+                padding: 1rem;
+                margin: 1rem;
+            }
+
+            .legal-content h1 {
+                font-size: 1.5rem;
+            }
+
+            .legal-content h2 {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="legal-content">
+    <a href="#" class="back-link" onclick="return smartClose(event);">← Close window</a>
+    <p id="close-fallback-notice" class="close-fallback">If this tab doesn't close automatically, please close it manually or use your browser's Back button.</p>
+        
+    <h1>Terms of Service</h1>
+    <p class="last-updated">Last Updated: October 16, 2025</p>
+
+    <h2>TL;DR (Short & Sweet)</h2>
+    <p>Use C# AI Buddy responsibly. The code is open source, so there’s no need to poke at the guts — just check out the repo! AI answers can be wrong, so double‑check anything important. Don’t abuse the service, and be kind to the servers. See our <a href="privacy.html">Privacy Policy</a> for how we handle data.</p>
+
+        <h2>1. Acceptance of Terms</h2>
+        <p>By accessing and using C# AI Buddy (the "Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to these Terms of Service, please do not use the Service.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>C# AI Buddy is an AI-powered assistant designed to help developers build AI solutions with C# and .NET. The Service provides chat-based assistance, code samples, and news related to .NET AI development.</p>
+    <p>Good news for tinkerers: the source code for the Service is open source under the MIT License. If you want to explore, contribute, or run it yourself, head to the repository: <a href="https://github.com/jmatthiesen/csharp-ai-buddy-site" target="_blank" rel="noopener noreferrer">github.com/jmatthiesen/csharp-ai-buddy-site</a>. License details: <a href="https://github.com/jmatthiesen/csharp-ai-buddy-site/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>.</p>
+
+        <h2>3. Use of Service</h2>
+        <p>Please use the Service responsibly and in accordance with these Terms. In particular, don’t:</p>
+        <ul>
+            <li>Use the Service in any way that violates applicable laws or regulations</li>
+            <li>Attempt to gain unauthorized access to, probe, or disrupt the Service or its infrastructure</li>
+            <li>Use the Service to transmit any malicious code, viruses, or harmful content</li>
+            <li>Abuse rate limits or perform large‑scale scraping that degrades the Service</li>
+            <li>Misrepresent generated content as authoritative without verification</li>
+        </ul>
+        <p>Curious how it works? No need to reverse engineer — it’s open source. Please use the public repository rather than attempting to circumvent security or stability measures.</p>
+
+        <h2>4. AI-Generated Content</h2>
+        <p>The Service uses artificial intelligence to generate responses and recommendations. Friendly reminder:</p>
+        <ul>
+            <li>AI-generated content may contain errors, inaccuracies, or incomplete information</li>
+            <li>You are responsible for verifying and testing any code or solutions provided by the Service</li>
+            <li>The Service is not a substitute for professional advice or expertise</li>
+            <li>Always review and validate generated content before using it in production</li>
+        </ul>
+
+        <h2>5. Intellectual Property</h2>
+        <p>The Service and its original content, features, and functionality are owned by Jordan Matthiesen and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.</p>
+
+    <h2>6. User-Generated Content</h2>
+    <p>When you submit questions or content to the Service, you grant us the right to use, modify, and process that content to provide and improve the Service. See our <a href="privacy.html">Privacy Policy</a> for how we handle data and logging.</p>
+
+        <h2>7. Limitation of Liability</h2>
+        <p>To the maximum extent permitted by law, Jordan Matthiesen shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:</p>
+        <ul>
+            <li>Your use or inability to use the Service</li>
+            <li>Any unauthorized access to or use of our servers and/or any personal information stored therein</li>
+            <li>Any errors, mistakes, or inaccuracies in AI-generated content</li>
+            <li>Any bugs, viruses, or harmful code transmitted through the Service</li>
+        </ul>
+
+        <h2>8. Disclaimer of Warranties</h2>
+        <p>The Service is provided on an "AS IS" and "AS AVAILABLE" basis without any warranties of any kind, either express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.</p>
+
+        <h2>9. Changes to Terms</h2>
+        <p>We reserve the right to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.</p>
+
+        <h2>10. Termination</h2>
+        <p>We may terminate or suspend your access to the Service immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.</p>
+
+        <h2>11. Governing Law</h2>
+        <p>These Terms shall be governed and construed in accordance with the laws of the United States, without regard to its conflict of law provisions.</p>
+
+        <h2>12. Contact Information</h2>
+        <p>If you have any questions about these Terms of Service, please contact us through the feedback mechanism on our website.</p>
+    </div>
+    <script>
+        function smartClose(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            window.close();
+            setTimeout(function () {
+                try {
+                    if (history.length > 1) {
+                        history.back();
+                    } else {
+                        var notice = document.getElementById('close-fallback-notice');
+                        if (notice) notice.style.display = 'block';
+                    }
+                } catch (err) {
+                    var notice2 = document.getElementById('close-fallback-notice');
+                    if (notice2) notice2.style.display = 'block';
+                }
+            }, 100);
+            return false;
+        }
+    </script>
+</body>
+
+</html>

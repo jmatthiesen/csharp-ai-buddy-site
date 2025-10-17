@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - C# AI Buddy</title>
+    <link rel="icon" type="image/svg+xml" href="site-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-primary: #3182ce;
+            --border-color: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a202c;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e0;
+            --text-muted: #a0aec0;
+            --accent-primary: #63b3ed;
+            --border-color: #2d3748;
+        }
+
+        html, body {
+            height: auto;
+            overflow: auto;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .legal-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .legal-content h1 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .legal-content h2 {
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .legal-content h3 {
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .legal-content p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .legal-content ul {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+
+        .legal-content li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .last-updated {
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 2rem;
+        }
+
+        .close-fallback {
+            display: none;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .legal-content {
+                padding: 1rem;
+                margin: 1rem;
+            }
+
+            .legal-content h1 {
+                font-size: 1.5rem;
+            }
+
+            .legal-content h2 {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="legal-content">
+    <a href="#" class="back-link" onclick="return smartClose(event);">← Close window</a>
+    <p id="close-fallback-notice" class="close-fallback">If this tab doesn't close automatically, please close it manually or use your browser's Back button.</p>
+        
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last Updated: October 16, 2025</p>
+
+    <h2>TL;DR (Short & Sweet)</h2>
+    <p>We don’t collect your personal contact info. We do log some technical details (like IP addresses) to keep things running smoothly and to squash bugs. We use a few third‑party services to power the app and analytics—links to their policies are below. Share only what you’re comfy sharing in chat.</p>
+
+        <h2>1. Introduction</h2>
+        <p>Welcome to C# AI Buddy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered chat service. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the Service.</p>
+
+        <h2>2. Information We Collect</h2>
+        <p>We keep it minimal. Here’s what may be collected when you use the Service:</p>
+        
+        <h3>2.1 Personal Data</h3>
+        <p>No sign‑ups, no newsletters, no spam. We do not collect personal contact information like your name, email address, phone number, or mailing address.</p>
+        <p>We may collect minimal technical and session details to make the Service work, such as:</p>
+        <ul>
+            <li>Session identifiers to maintain conversation context</li>
+            <li>Technical information such as browser type, device info, and IP address (see Logging & IPs below)</li>
+            <li>Feedback you voluntarily provide through our feedback mechanism</li>
+        </ul>
+
+        <h3>2.2 Usage Data</h3>
+        <p>We automatically collect certain information when you visit, use, or navigate the Service. This information may include:</p>
+        <ul>
+            <li>Pages and content you view</li>
+            <li>Questions you ask the AI assistant</li>
+            <li>Features you interact with</li>
+            <li>Time and date of your visits</li>
+            <li>Error logs and performance data</li>
+        </ul>
+
+        <h3>2.3 AI Interaction Data</h3>
+        <p>When you interact with our AI assistant, we collect:</p>
+        <ul>
+            <li>Your questions and prompts</li>
+            <li>AI-generated responses</li>
+            <li>Conversation history during your session</li>
+            <li>Feedback on AI responses (thumbs up/down, comments)</li>
+        </ul>
+
+        <h2>3. How We Use Your Information</h2>
+        <p>We use the information we collect to:</p>
+        <ul>
+            <li>Provide, maintain, and improve the Service</li>
+            <li>Process and respond to your questions through the AI assistant</li>
+            <li>Monitor and analyze usage patterns and trends</li>
+            <li>Improve the accuracy and quality of AI responses</li>
+            <li>Detect, prevent, and address technical issues and security vulnerabilities</li>
+            <li>Respond to feedback and support requests</li>
+            <li>Comply with legal obligations</li>
+        </ul>
+
+        <h2>4. AI and Machine Learning</h2>
+        <p>Our Service uses artificial intelligence and machine learning technologies. You should be aware that:</p>
+        <ul>
+            <li>Your questions and interactions may be used to improve AI model performance</li>
+            <li>Conversations are processed by third-party AI services (such as OpenAI)</li>
+            <li>We take measures to anonymize and aggregate data used for training purposes</li>
+            <li>Sensitive information you share in conversations may be visible to our AI service providers</li>
+        </ul>
+
+        <h2>5. Cookies and Tracking Technologies</h2>
+        <p>We use cookies and similar tracking technologies to track activity on our Service. Cookies are files with a small amount of data that may include an anonymous unique identifier. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our Service.</p>
+
+        <h2>6. Third-Party Services (Who Helps Power This)</h2>
+        <p>We use a few trusted services to make C# AI Buddy useful and reliable. Their systems may process your data to provide their part of the service. Check out their privacy policies:</p>
+        <ul>
+            <li>
+                OpenAI (AI responses): 
+                <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                Arize AI (evals/observability for AI quality): 
+                <a href="https://arize.com/privacy-policy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                MongoDB Atlas (database & hosting): 
+                <a href="https://www.mongodb.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                GoatCounter (privacy‑friendly analytics): 
+                <a href="https://www.goatcounter.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+        </ul>
+        <p>These providers get only what’s needed to do their job and are not allowed to use your data for unrelated purposes. For details on what each collects, please see their policies.</p>
+
+        <h2>6.1 Logging & IP Addresses</h2>
+        <p>To keep the site stable and secure, we may log requests, which can include your IP address, user agent, timestamps, and error details. IPs help with troubleshooting, abuse prevention, and overall reliability. Logs are kept for a limited period and then deleted or aggregated.</p>
+
+        <h2>7. Data Security</h2>
+        <p>We implement reasonable security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.</p>
+
+        <h2>8. Data Retention</h2>
+        <p>We retain your information only for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. Conversation data is typically retained for a limited time to improve service quality and is then aggregated or deleted.</p>
+
+        <h2>9. Your Privacy Rights</h2>
+        <p>Depending on your location, you may have certain rights regarding your personal information, including:</p>
+        <ul>
+            <li>The right to access and receive a copy of your personal information</li>
+            <li>The right to correct inaccurate or incomplete information</li>
+            <li>The right to request deletion of your personal information</li>
+            <li>The right to object to processing of your personal information</li>
+            <li>The right to withdraw consent where processing is based on consent</li>
+        </ul>
+
+        <h2>10. Children's Privacy</h2>
+        <p>Our Service is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If you are a parent or guardian and believe your child has provided us with personal information, please contact us.</p>
+
+        <h2>11. International Data Transfers</h2>
+        <p>Your information may be transferred to and maintained on computers located outside of your state, province, country, or other governmental jurisdiction where data protection laws may differ. By using the Service, you consent to this transfer.</p>
+
+        <h2>12. Changes to This Privacy Policy</h2>
+        <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes.</p>
+
+        <h2>13. Contact Us</h2>
+        <p>If you have any questions about this Privacy Policy, please contact us through the feedback mechanism on our website.</p>
+
+        <h2>14. California Privacy Rights</h2>
+        <p>If you are a California resident, you have specific rights regarding access to your personal information. California Civil Code Section 1798.83 permits users who are California residents to request certain information regarding our disclosure of personal information to third parties.</p>
+    </div>
+    <script>
+        function smartClose(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            // Try to close the window (works if opened via window.open or similar)
+            window.close();
+            // Fallback: if close is blocked, go back in history if possible; otherwise show a notice
+            setTimeout(function () {
+                try {
+                    if (history.length > 1) {
+                        history.back();
+                    } else {
+                        var notice = document.getElementById('close-fallback-notice');
+                        if (notice) notice.style.display = 'block';
+                    }
+                } catch (err) {
+                    var notice2 = document.getElementById('close-fallback-notice');
+                    if (notice2) notice2.style.display = 'block';
+                }
+            }, 100);
+            return false;
+        }
+    </script>
+</body>
+
+</html>

@@ -46,15 +46,16 @@
             </div>
 
             <nav class="sidebar-nav">
-                <button id="new-chat-btn" class="sidebar-item" aria-label="Start new chat">
+                <button id="home-tab" class="sidebar-item nav-item active" data-tab="home" aria-label="Home">
                     <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"></path>
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                    <span class="sidebar-text">New Chat</span>
+                    <span class="sidebar-text">Home</span>
                 </button>
 
-                <button id="chat-tab" class="sidebar-item nav-item active" data-tab="chat" aria-label="AI Chat">
+                <button id="chat-tab" class="sidebar-item nav-item" data-tab="chat" aria-label="AI Chat">
                     <svg class="sidebar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -84,58 +85,129 @@
                     <span class="sidebar-text">Latest News</span>
                 </button>
             </nav>
+
+            <!-- Sidebar Footer with Theme Toggle -->
+            <div class="sidebar-footer">
+                <button id="theme-toggle" class="sidebar-item theme-toggle-sidebar" aria-label="Switch theme" title="Switch theme">
+                    <svg class="sidebar-icon theme-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg class="sidebar-icon theme-icon moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        <g class="stars">
+                            <circle cx="3" cy="5" r="0.5" fill="currentColor"></circle>
+                            <circle cx="6" cy="3" r="0.5" fill="currentColor"></circle>
+                            <circle cx="19" cy="6" r="0.5" fill="currentColor"></circle>
+                            <circle cx="22" cy="3" r="0.5" fill="currentColor"></circle>
+                        </g>
+                    </svg>
+                    <span class="sidebar-text">Theme</span>
+                </button>
+            </div>
         </aside>
+
+        <!-- Mobile Menu Toggle (only visible on mobile) -->
+        <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Open menu" title="Open menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <!-- Mobile Menu Tooltip -->
+        <div id="mobile-menu-tooltip" class="mobile-menu-tooltip">
+            <div class="tooltip-arrow"></div>
+            <div class="tooltip-content">
+                <span>Tap here to view other useful resources!</span>
+                <button class="tooltip-close" aria-label="Close tooltip">✕</button>
+            </div>
+        </div>
 
         <!-- Main Content Area -->
         <div class="main-container">
-            <header class="main-header">
-                <div class="header-actions">
-                    <!-- Mobile Menu Toggle (only visible on mobile) -->
-                    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Open menu" title="Open menu">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
-                    <!-- Mobile Menu Tooltip -->
-                    <div id="mobile-menu-tooltip" class="mobile-menu-tooltip">
-                        <div class="tooltip-arrow"></div>
-                        <div class="tooltip-content">
-                            <span>Tap here to view other useful resources!</span>
-                            <button class="tooltip-close" aria-label="Close tooltip">✕</button>
+
+            <!-- Home Section -->
+            <main id="home-section" class="home-container">
+                <div class="home-content">
+                    <div class="home-hero">
+                        <h1>Welcome to C# AI Buddy</h1>
+                        <p class="home-tagline">Your AI-powered companion for building intelligent solutions with C# and .NET</p>
+                    </div>
+
+                    <div class="home-quick-start">
+                        <h2>Ask me anything about AI development with C#</h2>
+                        <form id="home-chat-form" class="home-input-form">
+                            <div class="home-input-container">
+                                <textarea id="home-question-input" class="home-question-input" 
+                                    placeholder="How do I get started with AI in .NET?" 
+                                    rows="1" 
+                                    aria-label="Enter your question" 
+                                    required></textarea>
+                                <button type="submit" class="home-send-btn" aria-label="Start chatting">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="home-features">
+                        <div class="feature-card" id="feature-chat">
+                            <div class="feature-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </div>
+                            <h3>AI Chat Assistant</h3>
+                            <p>Get instant help with C# and .NET AI development. Ask questions, get code examples, and learn best practices.</p>
+                            <button class="feature-btn" data-feature="chat">Start Chatting →</button>
+                        </div>
+
+                        <div class="feature-card" id="feature-samples">
+                            <div class="feature-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                            </div>
+                            <h3>Sample Gallery</h3>
+                            <p>Explore curated code samples and projects to jumpstart your AI development with C# and .NET.</p>
+                            <button class="feature-btn" data-feature="samples">Browse Samples →</button>
+                        </div>
+
+                        <div class="feature-card" id="feature-news">
+                            <div class="feature-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2z"></path>
+                                    <path d="M6 12h8"></path>
+                                    <path d="M6 8h8"></path>
+                                    <path d="M8 16h6"></path>
+                                </svg>
+                            </div>
+                            <h3>Latest News</h3>
+                            <p>Stay up-to-date with the latest announcements, updates, and innovations in .NET AI development.</p>
+                            <button class="feature-btn" data-feature="news">Read News →</button>
                         </div>
                     </div>
-                    <!-- Theme Toggle -->
-                    <button id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme">
-                        <svg class="theme-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="5"></circle>
-                            <line x1="12" y1="1" x2="12" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="23"></line>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                            <line x1="1" y1="12" x2="3" y2="12"></line>
-                            <line x1="21" y1="12" x2="23" y2="12"></line>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                        </svg>
-                        <svg class="theme-icon moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" style="display: none;">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                            <g class="stars">
-                                <circle cx="3" cy="5" r="0.5" fill="currentColor"></circle>
-                                <circle cx="6" cy="3" r="0.5" fill="currentColor"></circle>
-                                <circle cx="19" cy="6" r="0.5" fill="currentColor"></circle>
-                                <circle cx="22" cy="3" r="0.5" fill="currentColor"></circle>
-                            </g>
-                        </svg>
-                    </button>
                 </div>
-            </header>
+            </main>
 
             <!-- Chat Section -->
-            <main id="chat-section" class="chat-container">
+            <main id="chat-section" class="chat-container" style="display: none;">
                 <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
                     <div class="welcome-message">
                         <h2>Welcome to C# AI Buddy!</h2>
@@ -317,6 +389,30 @@
                     <!-- Pagination controls will be populated here -->
                 </div>
             </main>
+
+            <!-- Footer -->
+            <footer class="main-footer">
+                <div class="footer-content">
+                    <div class="footer-links">
+                        <a href="terms.html" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+                        <span class="footer-divider">|</span>
+                        <a href="privacy.html" class="footer-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                        <span class="footer-divider">|</span>
+                        <a href="https://github.com/jmatthiesen/csharp-ai-buddy-site/issues/new?labels=feedback&template=feedback.md" 
+                           class="footer-link" 
+                           target="_blank" 
+                           rel="noopener noreferrer">Provide Feedback</a>
+                        <span class="footer-divider">|</span>
+                        <a href="https://github.com/jmatthiesen/csharp-ai-buddy-site" 
+                           class="footer-link" 
+                           target="_blank" 
+                           rel="noopener noreferrer">Source Code</a>
+                    </div>
+                    <div class="footer-attribution">
+                        <a href="https://jordanmatthiesen.me" class="footer-link" target="_blank" rel="noopener noreferrer">Created by Jordan Matthiesen</a>
+                    </div>
+                </div>
+            </footer>
         </div>
     </div>
 
@@ -498,7 +594,7 @@
             <div class="privacy-actions">
                 <button id="accept-privacy" class="privacy-btn primary">Accept</button>
                 <button id="decline-privacy" class="privacy-btn secondary">Decline</button>
-                <a href="#" id="privacy-policy-link" class="privacy-link">Privacy Policy</a>
+                <a href="privacy.html" id="privacy-policy-link" class="privacy-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             </div>
         </div>
     </div>
