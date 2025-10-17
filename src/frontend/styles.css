@@ -1849,6 +1849,51 @@ a:focus {
     overflow-wrap: break-word;
 }
 
+.modal-footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.modal-btn-secondary,
+.modal-btn-primary {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.modal-btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.modal-btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+.modal-btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: var(--accent-secondary);
+}
+
+.modal-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .sample-detail-header {
     display: flex;
     align-items: center;

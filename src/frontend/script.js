@@ -175,33 +175,52 @@ class ChatApp {
         const optionsBtn = document.getElementById('options-btn');
         const optionsModal = document.getElementById('options-modal');
         const optionsModalClose = document.getElementById('options-modal-close');
+        const optionsOkBtn = document.getElementById('options-ok-btn');
+        const optionsCancelBtn = document.getElementById('options-cancel-btn');
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiLibrarySelect = document.getElementById('ai-library');
         const customLibraryInput = document.getElementById('custom-library');
         const aiProviderSelect = document.getElementById('ai-provider');
         const experimentalNotice = document.querySelector('.experimental-notice');
 
+        // Store temporary options
+        this.tempOptions = null;
+
         // Open options modal
         optionsBtn.addEventListener('click', () => {
             this.openOptionsModal();
         });
 
-        // Close options modal
+        // Close options modal with cancel behavior
         optionsModalClose.addEventListener('click', () => {
-            this.closeOptionsModal();
+            this.cancelOptionsModal();
+        });
+
+        // OK button - apply changes and close
+        optionsOkBtn.addEventListener('click', () => {
+            this.applyOptionsModal();
+        });
+
+        // Cancel button - revert changes and close
+        optionsCancelBtn.addEventListener('click', () => {
+            this.cancelOptionsModal();
         });
 
         // Close modal when clicking outside
         optionsModal.addEventListener('click', (e) => {
             if (e.target === optionsModal) {
-                this.closeOptionsModal();
+                this.cancelOptionsModal();
             }
         });
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && optionsModal.style.display !== 'none') {
-                this.closeOptionsModal();
+        // Close modal with Escape key (cancel), apply with Enter key (OK)
+        optionsModal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.cancelOptionsModal();
+            } else if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                this.applyOptionsModal();
             }
         });
 
@@ -214,33 +233,95 @@ class ChatApp {
                 customLibraryInput.style.display = 'none';
                 customLibraryInput.value = '';
             }
-            this.updateAiOptions();
+            this.updateExperimentalNoticePreview();
         });
 
-        // Update options when selects change
-        [dotnetVersionSelect, aiLibrarySelect, aiProviderSelect].forEach(select => {
+        // Update experimental notice preview when selects change
+        [dotnetVersionSelect, aiProviderSelect].forEach(select => {
             select.addEventListener('change', () => {
-                this.updateAiOptions();
+                this.updateExperimentalNoticePreview();
             });
-        });
-
-        // Update options when custom library input changes
-        customLibraryInput.addEventListener('input', () => {
-            this.updateAiOptions();
         });
     }
 
     openOptionsModal() {
         const optionsModal = document.getElementById('options-modal');
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        // Store current options as temporary copy
+        this.tempOptions = {
+            dotnetVersion: this.aiOptions.dotnetVersion,
+            aiLibrary: this.aiOptions.aiLibrary,
+            aiProvider: this.aiOptions.aiProvider
+        };
+
+        // Set the form values to current options
+        dotnetVersionSelect.value = this.aiOptions.dotnetVersion;
+        aiProviderSelect.value = this.aiOptions.aiProvider;
+
+        // Handle aiLibrary which might be "Other"
+        const isCustomLibrary = !['OpenAI', 'OllamaSharp', 'AutoGen', 'Semantic Kernel', 'Semantic Kernel Agents', 'Semantic Kernel Process Framework', 'ML.NET'].includes(this.aiOptions.aiLibrary);
+        
+        if (isCustomLibrary) {
+            aiLibrarySelect.value = 'Other';
+            customLibraryInput.value = this.aiOptions.aiLibrary;
+            customLibraryInput.style.display = 'block';
+        } else {
+            aiLibrarySelect.value = this.aiOptions.aiLibrary;
+            customLibraryInput.style.display = 'none';
+            customLibraryInput.value = '';
+        }
+
         optionsModal.style.display = 'flex';
         optionsModal.setAttribute('aria-hidden', 'false');
 
-        // Focus first element
-        const firstSelect = document.getElementById('dotnet-version');
-        firstSelect.focus();
+        // Focus OK button (as it's the default action)
+        const okBtn = document.getElementById('options-ok-btn');
+        okBtn.focus();
 
-        // Update experimental notice
-        this.updateExperimentalNotice();
+        // Update experimental notice preview
+        this.updateExperimentalNoticePreview();
+    }
+
+    applyOptionsModal() {
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        // Apply the changes to the actual options
+        this.aiOptions = {
+            dotnetVersion: dotnetVersionSelect.value,
+            aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
+            aiProvider: aiProviderSelect.value
+        };
+
+        // Clear temporary options
+        this.tempOptions = null;
+
+        // Update the options summary
+        this.updateOptionsSummary();
+
+        // Close the modal
+        this.closeOptionsModal();
+    }
+
+    cancelOptionsModal() {
+        // Revert to the original options (before the modal was opened)
+        if (this.tempOptions) {
+            this.aiOptions = {
+                dotnetVersion: this.tempOptions.dotnetVersion,
+                aiLibrary: this.tempOptions.aiLibrary,
+                aiProvider: this.tempOptions.aiProvider
+            };
+            this.tempOptions = null;
+        }
+
+        // Close the modal
+        this.closeOptionsModal();
     }
 
     closeOptionsModal() {
@@ -252,23 +333,7 @@ class ChatApp {
         document.getElementById('options-btn').focus();
     }
 
-    updateAiOptions() {
-        const dotnetVersionSelect = document.getElementById('dotnet-version');
-        const aiLibrarySelect = document.getElementById('ai-library');
-        const customLibraryInput = document.getElementById('custom-library');
-        const aiProviderSelect = document.getElementById('ai-provider');
-
-        this.aiOptions = {
-            dotnetVersion: dotnetVersionSelect.value,
-            aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
-            aiProvider: aiProviderSelect.value
-        };
-
-        this.updateExperimentalNotice();
-        this.updateOptionsSummary();
-    }
-
-    updateExperimentalNotice() {
+    updateExperimentalNoticePreview() {
         const experimentalNotice = document.querySelector('.experimental-notice');
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiProviderSelect = document.getElementById('ai-provider');
