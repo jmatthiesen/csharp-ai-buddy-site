@@ -20,16 +20,32 @@ logger = logging.getLogger(__name__)
 class RAGDataPipelineCLI:
     """Command line interface for RAG data pipeline operations."""
     
-    def __init__(self):
-        self.config = Config.load()
-        self.pipeline = DocumentPipeline(self.config)
+    def __init__(self, what_if_mode: bool = False):
+        self.what_if_mode = what_if_mode
+        if what_if_mode:
+            print("🔍 Running in WHAT-IF mode - no actual changes will be made")
+            # Create a minimal config for what-if mode
+            self.config = Config(
+                mongodb_connection_string="dummy-connection",
+                mongodb_database="dummy-db", 
+                mongodb_collection="dummy-collection",
+                openai_api_key="dummy-key"
+            )
+            self.config.mongodb_chunks_collection = "dummy-chunks"
+            self.config.embedding_model = "text-embedding-ada-002"
+        else:
+            self.config = Config.load()
+        
+        self.pipeline = DocumentPipeline(self.config, what_if_mode=what_if_mode)
         self.web_retriever = WebPageRetriever()
     
     def add_document_from_url(self, 
                              source_url: str,
                              tags: Optional[List[str]] = None,
                              metadata: Optional[Dict[str, Any]] = None,
-                             use_ai_categorization: bool = True) -> str:
+                             use_ai_categorization: bool = True,
+                             crawl_links: bool = False,
+                             processed_urls: Optional[set] = None) -> str:
         """
         Add a new document from a URL.
         
@@ -38,11 +54,33 @@ class RAGDataPipelineCLI:
             tags: Optional tags for the document
             metadata: Optional metadata dictionary
             use_ai_categorization: Whether to use AI for categorization
+            crawl_links: Whether to crawl links found in the document
+            processed_urls: Set of URLs already processed (for crawling)
             
         Returns:
             str: Document ID of the added document
         """
         try:
+            # Initialize processed URLs set if not provided
+            if processed_urls is None:
+                processed_urls = set()
+            
+            # Skip if URL already processed
+            if source_url in processed_urls:
+                logger.info(f"Skipping already processed URL: {source_url}")
+                return None
+            
+            # Add current URL to processed set
+            processed_urls.add(source_url)
+            
+            print(f"Processing: {source_url}")
+            
+            # Test URL with host-specific fallback logic
+            tested_url = self._test_url_with_fallback(source_url)
+            if tested_url != source_url:
+                print(f"Using fallback URL: {tested_url}")
+                source_url = tested_url
+            
             # Fetch content from URL
             raw_document = self.web_retriever.fetch(source_url)
             
@@ -51,15 +89,46 @@ class RAGDataPipelineCLI:
                 raw_document.tags.extend(tags)
             
             # Process and store through pipeline with chunking
-            stored_ids = self.pipeline.process_document(
+            processing_context = self.pipeline.process_document(
                 raw_doc=raw_document,
                 use_ai_categorization=use_ai_categorization,
                 additional_metadata=metadata
             )
             
-            document_id = stored_ids[0] if stored_ids else None
-            
+            stored_chunk_ids = processing_context.processing_metadata.get("stored_chunk_ids", [])
+            document_id = stored_chunk_ids[0] if stored_chunk_ids else None
             logger.info(f"Successfully added document from URL: {source_url}")
+            print(f"✓ Document processed successfully: {source_url}")
+            
+            # Handle link crawling if enabled
+            if crawl_links and processing_context.extracted_links:
+                print(f"\nFound {len(processing_context.extracted_links)} crawlable links:")
+                
+                # Display links for user selection
+                selected_links = self._prompt_user_for_link_selection(processing_context.extracted_links)
+                
+                if selected_links:
+                    print(f"\nCrawling {len(selected_links)} selected links...")
+                    
+                    # Recursively process selected links
+                    for link in selected_links:
+                        try:
+                            self.add_document_from_url(
+                                source_url=link['url'],
+                                tags=tags,
+                                metadata=metadata,
+                                use_ai_categorization=use_ai_categorization,
+                                crawl_links=crawl_links,
+                                processed_urls=processed_urls
+                            )
+                        except Exception as link_error:
+                            print(f"⚠ Error processing link {link['url']}: {link_error}")
+                            logger.error(f"Error processing link {link['url']}: {link_error}")
+                else:
+                    print("No links selected for crawling.")
+            elif crawl_links:
+                print("No crawlable links found in this document.")
+            
             return document_id
             
         except Exception as e:
@@ -143,7 +212,6 @@ class RAGDataPipelineCLI:
             for chunk_data in cursor:
                 results.append({
                     "chunk_id": chunk_data["chunk_id"],
-                    "original_document_id": chunk_data["original_document_id"],
                     "title": chunk_data["title"],
                     "source_url": chunk_data["source_url"],
                     "tags": chunk_data["tags"],
@@ -165,8 +233,8 @@ class RAGDataPipelineCLI:
             total_chunks = self.pipeline.chunks_collection.count_documents({})
             
             # Get unique document count
-            unique_docs = len(self.pipeline.chunks_collection.distinct("original_document_id"))
-            
+            unique_docs = len(self.pipeline.chunks_collection.distinct("sourceUrl"))
+
             # Get tag statistics
             all_tags = []
             for doc in self.pipeline.chunks_collection.find({}, {"tags": 1}):
@@ -190,10 +258,115 @@ class RAGDataPipelineCLI:
     def cleanup_old_documents(self) -> Dict[str, Any]:
         """Clean up old documents from previous architecture."""
         return self.pipeline.cleanup_old_documents()
+    
+    def _prompt_user_for_link_selection(self, links: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """
+        Prompt user to select which links to crawl.
+        
+        Args:
+            links: List of link dictionaries with 'url', 'text', 'title' keys
+            
+        Returns:
+            List of selected link dictionaries
+        """
+        try:
+            if not links:
+                return []
+            
+            print("\nAvailable links to crawl:")
+            print("=" * 60)
+            
+            # Display links with numbers
+            for i, link in enumerate(links, 1):
+                text_display = link['text'][:50] + "..." if len(link['text']) > 50 else link['text']
+                print(f"{i:2d}. {text_display}")
+                print(f"    URL: {link['url']}")
+                if link.get('title'):
+                    print(f"    Title: {link['title']}")
+                print()
+            
+            print("Selection options:")
+            print("  - Enter link numbers separated by commas (e.g., 1,3,5)")
+            print("  - Enter 'all' to select all links")
+            print("  - Enter 'none' or just press Enter to skip crawling")
+            print("  - Enter 'stop' to stop crawling entirely")
+            
+            while True:
+                try:
+                    user_input = input("\nSelect links to crawl: ").strip().lower()
+                    
+                    if not user_input or user_input == 'none':
+                        return []
+                    
+                    if user_input == 'stop':
+                        print("Stopping crawling process.")
+                        return []
+                    
+                    if user_input == 'all':
+                        print(f"Selected all {len(links)} links for crawling.")
+                        return links
+                    
+                    # Parse comma-separated numbers
+                    try:
+                        selected_indices = [int(x.strip()) for x in user_input.split(',')]
+                        selected_links = []
+                        
+                        for index in selected_indices:
+                            if 1 <= index <= len(links):
+                                selected_links.append(links[index - 1])
+                            else:
+                                print(f"Invalid link number: {index}. Please use numbers 1-{len(links)}.")
+                                break
+                        else:
+                            # All indices were valid
+                            print(f"Selected {len(selected_links)} links for crawling.")
+                            return selected_links
+                            
+                    except ValueError:
+                        print("Invalid input. Please enter numbers separated by commas, 'all', 'none', or 'stop'.")
+                        
+                except KeyboardInterrupt:
+                    print("\nCrawling cancelled by user.")
+                    return []
+                except EOFError:
+                    print("\nNo input received. Skipping crawling.")
+                    return []
+                    
+        except Exception as e:
+            logger.error(f"Error in user link selection: {e}")
+            return []
+    
+    def _test_url_with_fallback(self, url: str) -> str:
+        """
+        Test URL with host-specific fallback logic.
+        
+        Args:
+            url: The URL to test
+            
+        Returns:
+            The working URL (original or fallback)
+        """
+        try:
+            # Find the appropriate host handler for the URL
+            for handler in self.pipeline.host_handlers:
+                if handler.can_handle(url):
+                    tested_url = handler.get_url_with_fallback(url)
+                    if tested_url:
+                        return tested_url
+                    # Only apply the first matching handler (except fallback)
+                    if handler.name != "Fallback":
+                        break
+            
+            # If no handler found a working URL, return original
+            return url
+        except Exception as e:
+            logger.warning(f"Error testing URL with fallback: {e}")
+            return url
 
 def main():
     """Main function for command-line interface."""
     parser = argparse.ArgumentParser(description="RAG Data Ingestion Pipeline CLI")
+    parser.add_argument("--what-if", action="store_true", help="Run in what-if mode - show what would happen without making actual changes")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Add document command
@@ -202,6 +375,7 @@ def main():
     add_parser.add_argument("--tags", nargs="+", help="Framework tags for the document")
     add_parser.add_argument("--metadata", help="JSON metadata string")
     add_parser.add_argument("--no-ai-categorization", action="store_true", help="Disable AI categorization")
+    add_parser.add_argument("--crawl-links", action="store_true", help="Crawl links found in the document")
     
     # Update document command
     update_parser = subparsers.add_parser("update", help="Update an existing document")
@@ -238,7 +412,7 @@ def main():
         return
     
     # Initialize CLI
-    cli = RAGDataPipelineCLI()
+    cli = RAGDataPipelineCLI(what_if_mode=args.what_if)
     
     try:
         if args.command == "add":
@@ -247,7 +421,8 @@ def main():
                 source_url=args.source_url,
                 tags=args.tags,
                 metadata=metadata,
-                use_ai_categorization=not args.no_ai_categorization
+                use_ai_categorization=not args.no_ai_categorization,
+                crawl_links=args.crawl_links
             )
             print(f"Document added with ID: {doc_id}")
             

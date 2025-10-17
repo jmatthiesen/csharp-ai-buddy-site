@@ -128,31 +128,6 @@ class RSSFeedMonitor:
         self.document_pipeline = DocumentPipeline(config)
         self.rss_retriever = RSSFeedRetriever()
         
-        # Create indexes for efficient querying
-        self._create_indexes()
-    
-    def _create_indexes(self):
-        """Create MongoDB indexes for efficient querying."""
-        try:
-            # Index on feed_url for fast lookups
-            self.subscriptions_collection.create_index("feed_url", unique=True)
-            
-            # Index on enabled status for filtering
-            self.subscriptions_collection.create_index("enabled")
-            
-            # Index on last_checked for scheduling
-            self.subscriptions_collection.create_index("last_checked")
-            
-            # Index on processed items to avoid duplicates
-            self.processed_items_collection.create_index([("feed_url", 1), ("item_id", 1)], unique=True)
-            
-            # Index on processed date for cleanup
-            self.processed_items_collection.create_index("processed_date")
-            
-            logger.info("RSS feed monitor indexes created successfully")
-        except Exception as e:
-            logger.warning(f"Error creating RSS indexes: {e}")
-    
     def add_subscription(self, 
                         feed_url: str,
                         name: str,
@@ -348,7 +323,7 @@ class RSSFeedMonitor:
             )
             
             # Process and store through document pipeline with chunking
-            stored_ids = self.document_pipeline.process_document(
+            processing_context = self.document_pipeline.process_document(
                 raw_doc=raw_document,
                 use_ai_categorization=True,
                 additional_metadata={
@@ -356,6 +331,8 @@ class RSSFeedMonitor:
                     "rss_feed_description": subscription.description
                 }
             )
+            
+            stored_ids = processing_context.processing_metadata.get("stored_chunk_ids", [])
             
             # Mark as processed
             self._mark_item_processed(subscription.feed_url, item_id)
