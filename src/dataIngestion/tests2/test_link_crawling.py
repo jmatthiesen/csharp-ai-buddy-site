@@ -283,7 +283,7 @@ class TestLinkExtractionPipelineStage(unittest.TestCase):
         
         def mock_getitem(key):
             if key == "test_collection":
-                return mock_documents_collections
+                return mock_documents_collection
             elif key == "test_chunks_collection":
                 return mock_chunks_collection
             return Mock()
