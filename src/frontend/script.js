@@ -23,6 +23,17 @@ class ChatApp {
             aiProvider: 'OpenAI'
         };
 
+        // Standard AI library options (used for validation)
+        this.standardAiLibraries = [
+            'OpenAI',
+            'OllamaSharp',
+            'AutoGen',
+            'Semantic Kernel',
+            'Semantic Kernel Agents',
+            'Semantic Kernel Process Framework',
+            'ML.NET'
+        ];
+
         // Initialize session tracking
         this.initializeSessionTracking();
 
@@ -218,7 +229,7 @@ class ChatApp {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 this.cancelOptionsModal();
-            } else if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+            } else if (e.key === 'Enter' && !['TEXTAREA', 'INPUT', 'SELECT'].includes(e.target.tagName)) {
                 e.preventDefault();
                 this.applyOptionsModal();
             }
@@ -263,7 +274,7 @@ class ChatApp {
         aiProviderSelect.value = this.aiOptions.aiProvider;
 
         // Handle aiLibrary which might be "Other"
-        const isCustomLibrary = !['OpenAI', 'OllamaSharp', 'AutoGen', 'Semantic Kernel', 'Semantic Kernel Agents', 'Semantic Kernel Process Framework', 'ML.NET'].includes(this.aiOptions.aiLibrary);
+        const isCustomLibrary = !this.standardAiLibraries.includes(this.aiOptions.aiLibrary);
         
         if (isCustomLibrary) {
             aiLibrarySelect.value = 'Other';
