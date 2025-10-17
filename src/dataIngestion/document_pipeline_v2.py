@@ -76,31 +76,6 @@ class DocumentPipeline:
             GitHubHostHandler(),
             FallbackHostHandler()  # Always last as fallback
         ]
-        
-        # Create indexes for efficient querying (skip in what-if mode)
-        if not what_if_mode:
-            self._create_indexes()
-    
-    def _create_indexes(self):
-        """Create MongoDB indexes for efficient querying."""
-        try:
-            # Create indexes for documents collection
-            self.documents_collection.create_index("documentId")
-            self.documents_collection.create_index("sourceUrl") 
-            self.documents_collection.create_index("tags")
-            self.documents_collection.create_index("publishedDate")
-            self.documents_collection.create_index([("tags", 1), ("indexedDate", -1)])
-            
-            # Create indexes for chunks collection  
-            self.chunks_collection.create_index("chunk_id")  # Non-unique index for ObjectIDs
-            self.chunks_collection.create_index("source_url") 
-            self.chunks_collection.create_index("tags")
-            self.chunks_collection.create_index("indexed_date")
-            self.chunks_collection.create_index([("tags", 1), ("indexed_date", -1)])
-            
-            logger.info("Document pipeline indexes created successfully")
-        except Exception as e:
-            logger.warning(f"Error creating document pipeline indexes: {e}")
     
     # Main entry points
     def process_document(self, raw_doc: RawDocument, **options):
