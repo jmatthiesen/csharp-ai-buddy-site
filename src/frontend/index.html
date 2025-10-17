@@ -484,6 +484,70 @@
         </div>
     </div>
 
+    <!-- Options Modal -->
+    <div id="options-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="options-modal-title"
+        aria-hidden="true">
+        <div class="modal-content options-modal-content">
+            <div class="modal-header">
+                <h2 id="options-modal-title">AI Configuration Options</h2>
+                <button id="options-modal-close" class="modal-close" aria-label="Close options">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="options-form">
+                    <div class="option-group">
+                        <label for="dotnet-version" class="option-label">.NET Version</label>
+                        <select id="dotnet-version" class="option-select" aria-label="Select .NET version">
+                            <option value=".NET 10">.NET 10</option>
+                            <option value=".NET 9" selected>.NET 9</option>
+                            <option value=".NET 8">.NET 8</option>
+                            <option value=".NET Framework" data-experimental="true">.NET Framework (Experimental)
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="option-group">
+                        <label for="ai-library" class="option-label">AI Library</label>
+                        <select id="ai-library" class="option-select" aria-label="Select AI library">
+                            <option value="OpenAI" selected>OpenAI</option>
+                            <option value="OllamaSharp">OllamaSharp</option>
+                            <option value="AutoGen">AutoGen</option>
+                            <option value="Semantic Kernel">Semantic Kernel</option>
+                            <option value="Semantic Kernel Agents">Semantic Kernel Agents</option>
+                            <option value="Semantic Kernel Process Framework">Semantic Kernel Process Framework</option>
+                            <option value="ML.NET">ML.NET</option>
+                            <option value="Other">Other (Specify)</option>
+                        </select>
+                        <input type="text" id="custom-library" class="option-input"
+                            placeholder="Specify custom library..." style="display: none;"
+                            aria-label="Specify custom AI library">
+                    </div>
+
+                    <div class="option-group">
+                        <label for="ai-provider" class="option-label">AI Model Provider</label>
+                        <select id="ai-provider" class="option-select" aria-label="Select AI model provider">
+                            <option value="OpenAI" selected>OpenAI</option>
+                            <option value="Azure AI Foundry">Azure AI Foundry</option>
+                            <option value="Amazon Bedrock" data-experimental="true">Amazon Bedrock (Experimental)
+                            </option>
+                            <option value="Google Cloud" data-experimental="true">Google Cloud (Experimental)</option>
+                        </select>
+                    </div>
+
+                    <div class="experimental-notice" style="display: none;">
+                        <div class="experimental-warning">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="m21 16-4 4-4-4M17 20V4m-6 4-4 4 4 4M7 4v16"></path>
+                            </svg>
+                            <span>You've selected experimental options. Results may be less accurate and some features
+                                might not work as expected.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Sample Detail Modal -->
     <div id="sample-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="modal-title"
         aria-hidden="true">
