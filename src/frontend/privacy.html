@@ -107,6 +107,12 @@
             margin-bottom: 2rem;
         }
 
+        .close-fallback {
+            display: none;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
         @media (max-width: 768px) {
             .legal-content {
                 padding: 1rem;
@@ -126,22 +132,27 @@
 
 <body>
     <div class="legal-content">
-        <a href="index.html" class="back-link">← Back to C# AI Buddy</a>
+    <a href="#" class="back-link" onclick="return smartClose(event);">← Close window</a>
+    <p id="close-fallback-notice" class="close-fallback">If this tab doesn't close automatically, please close it manually or use your browser's Back button.</p>
         
-        <h1>Privacy Policy</h1>
-        <p class="last-updated">Last Updated: October 15, 2025</p>
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last Updated: October 16, 2025</p>
+
+    <h2>TL;DR (Short & Sweet)</h2>
+    <p>We don’t collect your personal contact info. We do log some technical details (like IP addresses) to keep things running smoothly and to squash bugs. We use a few third‑party services to power the app and analytics—links to their policies are below. Share only what you’re comfy sharing in chat.</p>
 
         <h2>1. Introduction</h2>
         <p>Welcome to C# AI Buddy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered chat service. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the Service.</p>
 
         <h2>2. Information We Collect</h2>
-        <p>We may collect information about you in a variety of ways. The information we may collect includes:</p>
+        <p>We keep it minimal. Here’s what may be collected when you use the Service:</p>
         
         <h3>2.1 Personal Data</h3>
-        <p>We do not require you to create an account or provide personal information to use the basic features of the Service. However, we may collect:</p>
+        <p>No sign‑ups, no newsletters, no spam. We do not collect personal contact information like your name, email address, phone number, or mailing address.</p>
+        <p>We may collect minimal technical and session details to make the Service work, such as:</p>
         <ul>
             <li>Session identifiers to maintain conversation context</li>
-            <li>Technical information such as browser type, IP address, and device information</li>
+            <li>Technical information such as browser type, device info, and IP address (see Logging & IPs below)</li>
             <li>Feedback you voluntarily provide through our feedback mechanism</li>
         </ul>
 
@@ -188,14 +199,30 @@
         <h2>5. Cookies and Tracking Technologies</h2>
         <p>We use cookies and similar tracking technologies to track activity on our Service. Cookies are files with a small amount of data that may include an anonymous unique identifier. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our Service.</p>
 
-        <h2>6. Third-Party Services</h2>
-        <p>We may employ third-party companies and services to facilitate our Service, including:</p>
+        <h2>6. Third-Party Services (Who Helps Power This)</h2>
+        <p>We use a few trusted services to make C# AI Buddy useful and reliable. Their systems may process your data to provide their part of the service. Check out their privacy policies:</p>
         <ul>
-            <li>AI service providers (e.g., OpenAI) for generating responses</li>
-            <li>Analytics services (e.g., Goat Counter) for usage tracking</li>
-            <li>Hosting and infrastructure providers</li>
+            <li>
+                OpenAI (AI responses): 
+                <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                Arize AI (evals/observability for AI quality): 
+                <a href="https://arize.com/privacy-policy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                MongoDB Atlas (database & hosting): 
+                <a href="https://www.mongodb.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
+            <li>
+                GoatCounter (privacy‑friendly analytics): 
+                <a href="https://www.goatcounter.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </li>
         </ul>
-        <p>These third parties have access to your information only to perform specific tasks on our behalf and are obligated not to disclose or use it for any other purpose.</p>
+        <p>These providers get only what’s needed to do their job and are not allowed to use your data for unrelated purposes. For details on what each collects, please see their policies.</p>
+
+        <h2>6.1 Logging & IP Addresses</h2>
+        <p>To keep the site stable and secure, we may log requests, which can include your IP address, user agent, timestamps, and error details. IPs help with troubleshooting, abuse prevention, and overall reliability. Logs are kept for a limited period and then deleted or aggregated.</p>
 
         <h2>7. Data Security</h2>
         <p>We implement reasonable security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.</p>
@@ -228,6 +255,28 @@
         <h2>14. California Privacy Rights</h2>
         <p>If you are a California resident, you have specific rights regarding access to your personal information. California Civil Code Section 1798.83 permits users who are California residents to request certain information regarding our disclosure of personal information to third parties.</p>
     </div>
+    <script>
+        function smartClose(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            // Try to close the window (works if opened via window.open or similar)
+            window.close();
+            // Fallback: if close is blocked, go back in history if possible; otherwise show a notice
+            setTimeout(function () {
+                try {
+                    if (history.length > 1) {
+                        history.back();
+                    } else {
+                        var notice = document.getElementById('close-fallback-notice');
+                        if (notice) notice.style.display = 'block';
+                    }
+                } catch (err) {
+                    var notice2 = document.getElementById('close-fallback-notice');
+                    if (notice2) notice2.style.display = 'block';
+                }
+            }, 100);
+            return false;
+        }
+    </script>
 </body>
 
 </html>
