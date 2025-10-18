@@ -11,6 +11,7 @@ A Python-based data ingestion pipeline for Retrieval-Augmented Generation (RAG) 
 - **AI-Powered Tagging**: Intelligent framework categorization using OpenAI
 - **Search Capabilities**: Vector similarity search with tag filtering
 - **Command Line Interface**: Easy-to-use CLI for pipeline operations
+- **RSS Feed Monitoring**: Automated RSS feed monitoring with human-in-the-loop approval workflow (see [RSS_FEED_MONITOR.md](RSS_FEED_MONITOR.md))
 
 ## Prerequisites
 
