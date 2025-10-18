@@ -2069,9 +2069,10 @@ class SamplesGallery {
 class AppManager {
     constructor() {
         this.apiBaseUrl = AppUtils.detectApiUrl();
-        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry.bind(this));
-        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry.bind(this));
-        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry.bind(this));
+        this.telemetry = this.trackTelemetry.bind(this);
+        this.chatApp = new ChatApp(this.apiBaseUrl, this.telemetry);
+        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.telemetry);
+        this.newsApp = new NewsApp(this.apiBaseUrl, this.telemetry);
         this.currentTab = 'chat';
 
         this.initializeSidebarState();
