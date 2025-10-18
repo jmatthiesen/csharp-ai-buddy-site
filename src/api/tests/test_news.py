@@ -41,6 +41,7 @@ class TestNewsSorting:
                 "content": "This is the newest article",
                 "summary": "Newest article summary",
                 "publishedDate": "2024-01-15T10:00:00Z",
+                "indexedDate": "2024-01-15T10:00:00Z",
                 "createdDate": "2024-01-15T10:00:00Z",
                 "sourceUrl": "http://example.com/1",
                 "rss_feed_url": "http://example.com/feed",
@@ -53,6 +54,7 @@ class TestNewsSorting:
                 "content": "This is a middle article",
                 "summary": "Middle article summary",
                 "publishedDate": "2024-01-10T10:00:00Z",
+                "indexedDate": "2024-01-10T10:00:00Z",
                 "createdDate": "2024-01-10T10:00:00Z",
                 "sourceUrl": "http://example.com/2",
                 "rss_feed_url": "http://example.com/feed",
@@ -65,6 +67,7 @@ class TestNewsSorting:
                 "content": "This is the oldest article",
                 "summary": "Oldest article summary",
                 "publishedDate": "2024-01-05T10:00:00Z",
+                "indexedDate": "2024-01-05T10:00:00Z",
                 "createdDate": "2024-01-05T10:00:00Z",
                 "sourceUrl": "http://example.com/3",
                 "rss_feed_url": "http://example.com/feed",
@@ -94,9 +97,9 @@ class TestNewsSorting:
         mock_sort.assert_called_once()
         sort_args = mock_sort.call_args[0][0]
         
-        # Verify sort order: publishedDate descending (-1), then createdDate descending (-1)
-        assert sort_args == [("publishedDate", -1), ("createdDate", -1)], \
-            f"Expected sort by [('publishedDate', -1), ('createdDate', -1)], got {sort_args}"
+        # Verify sort order: publishedDate descending (-1), then indexedDate descending (-1)
+        assert sort_args == [("publishedDate", -1), ("indexedDate", -1)], \
+            f"Expected sort by [('publishedDate', -1), ('indexedDate', -1)], got {sort_args}"
         
         # Verify the response contains news items
         assert "news" in data
@@ -130,6 +133,7 @@ class TestNewsSorting:
                 "title": "Newest RSS Item",
                 "content": "Newest content",
                 "publishedDate": "2024-01-15T10:00:00Z",
+                "indexedDate": "2024-01-15T10:00:00Z",
                 "createdDate": "2024-01-15T10:00:00Z",
                 "sourceUrl": "http://example.com/1",
                 "rss_feed_url": "http://example.com/feed",
@@ -154,7 +158,7 @@ class TestNewsSorting:
         sort_args = mock_sort.call_args[0][0]
         
         # Verify sort order matches the main news endpoint
-        assert sort_args == [("publishedDate", -1), ("createdDate", -1)], \
+        assert sort_args == [("publishedDate", -1), ("indexedDate", -1)], \
             f"RSS feed should use same sort order as news endpoint, got {sort_args}"
 
 

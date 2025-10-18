@@ -61,7 +61,7 @@ async def get_news(
             # Get news items sorted by published date (newest first)
             cursor = documents_collection.find(query).sort([
                 ("publishedDate", -1),  # Sort by published date (newest first)
-                ("createdDate", -1)     # Fall back to created date
+                ("indexedDate", -1)     # Fall back to indexed date
             ]).skip(skip).limit(page_size)
             
             news_data = list(cursor)
@@ -154,7 +154,7 @@ async def get_news_rss():
         
         cursor = documents_collection.find(query).sort([
             ("publishedDate", -1),
-            ("createdDate", -1)
+            ("indexedDate", -1)
         ]).limit(50)
         
         news_data = list(cursor)
