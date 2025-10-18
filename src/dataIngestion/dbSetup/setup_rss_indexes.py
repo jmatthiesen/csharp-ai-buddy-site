@@ -58,6 +58,7 @@ def create_rss_indexes(mongo_client: MongoClient, database_name: str) -> bool:
         # Get collections
         subscriptions_collection = db["rss_subscriptions"]
         processed_items_collection = db["rss_processed_items"]
+        pending_items_collection = db["rss_pending_items"]
         
         logger.info("Creating RSS feed monitoring indexes...")
         
@@ -86,6 +87,21 @@ def create_rss_indexes(mongo_client: MongoClient, database_name: str) -> bool:
         # Index on processed date for cleanup
         processed_items_collection.create_index("processed_date")
         logger.info("✓ Created index on processed_date")
+        
+        # RSS Pending Items Collection Indexes
+        logger.info("Creating indexes for rss_pending_items collection...")
+        
+        # Compound index on pending items to avoid duplicates (unique)
+        pending_items_collection.create_index([("feed_url", 1), ("item_id", 1)], unique=True)
+        logger.info("✓ Created unique compound index on feed_url + item_id")
+        
+        # Index on queued date for sorting and cleanup
+        pending_items_collection.create_index("queued_date")
+        logger.info("✓ Created index on queued_date")
+        
+        # Index on feed_url for filtering pending items by feed
+        pending_items_collection.create_index("feed_url")
+        logger.info("✓ Created index on feed_url")
         
         logger.info("✅ RSS feed monitor indexes created successfully")
         return True

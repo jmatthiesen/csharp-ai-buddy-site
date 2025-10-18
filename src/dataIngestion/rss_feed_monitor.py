@@ -123,6 +123,7 @@ class RSSFeedMonitor:
         # Collections
         self.subscriptions_collection = self.db["rss_subscriptions"]
         self.processed_items_collection = self.db["rss_processed_items"]
+        self.pending_items_collection = self.db["rss_pending_items"]
         
         # Initialize document pipeline and RSS retriever for content processing
         self.document_pipeline = DocumentPipeline(config)
@@ -344,15 +345,16 @@ class RSSFeedMonitor:
             logger.error(f"Error processing RSS item {feed_item.get('title', 'Unknown')}: {e}")
             return False
     
-    def check_feed(self, subscription: RSSFeedSubscription) -> int:
+    def check_feed(self, subscription: RSSFeedSubscription, auto_ingest: bool = False) -> int:
         """
         Check a single RSS feed for new items.
         
         Args:
             subscription: The RSS feed subscription to check
+            auto_ingest: If True, automatically ingest items. If False, queue for approval.
             
         Returns:
-            int: Number of new items processed
+            int: Number of new items queued or processed
         """
         try:
             logger.info(f"Checking RSS feed: {subscription.name} ({subscription.feed_url})")
@@ -371,22 +373,29 @@ class RSSFeedMonitor:
                 # Generate item ID for checking
                 item_id = self._get_item_id(feed_item, subscription.feed_url)
                 
-                # TODO: Add support to update already processed items that were updated since last indexed
-                # Skip if already processed
+                # Skip if already processed or pending approval
                 if self._is_item_processed(subscription.feed_url, item_id):
                     continue
+                if self._is_item_pending(subscription.feed_url, item_id):
+                    continue
                 
-                # Process the item
-                if self._process_feed_item(feed_item, subscription):
-                    processed_count += 1
+                # Queue or process the item based on auto_ingest flag
+                if auto_ingest:
+                    # Legacy behavior: process immediately
+                    if self._process_feed_item(feed_item, subscription):
+                        processed_count += 1
+                else:
+                    # New behavior: queue for approval
+                    if self._queue_feed_item(feed_item, subscription):
+                        processed_count += 1
                     
-                    # Track the latest item date
-                    published_date = None
-                    if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
-                        published_date = datetime(*feed_item.published_parsed[:6])
-                    
-                    if published_date and (latest_item_date is None or published_date > latest_item_date):
-                        latest_item_date = published_date
+                # Track the latest item date
+                published_date = None
+                if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
+                    published_date = datetime(*feed_item.published_parsed[:6])
+                
+                if published_date and (latest_item_date is None or published_date > latest_item_date):
+                    latest_item_date = published_date
             
             # Update subscription with last check time and latest item date
             self.subscriptions_collection.update_one(
@@ -400,22 +409,297 @@ class RSSFeedMonitor:
                 }
             )
             
-            logger.info(f"Processed {processed_count} new items from {subscription.name}")
+            action = "processed" if auto_ingest else "queued"
+            logger.info(f"{action.capitalize()} {processed_count} new items from {subscription.name}")
             return processed_count
             
         except Exception as e:
             logger.error(f"Error checking RSS feed {subscription.feed_url}: {e}")
             return 0
     
-    def run_daily_check(self) -> Dict[str, Any]:
+    def _is_item_pending(self, feed_url: str, item_id: str) -> bool:
+        """Check if an RSS item is pending approval."""
+        try:
+            doc = self.pending_items_collection.find_one({
+                "feed_url": feed_url,
+                "item_id": item_id
+            })
+            return doc is not None
+        except Exception as e:
+            logger.error(f"Error checking if item is pending: {e}")
+            return False
+    
+    def _queue_feed_item(self, feed_item: FeedParserDict, subscription: RSSFeedSubscription) -> bool:
+        """
+        Queue an RSS feed item for approval.
+        
+        Args:
+            feed_item: The parsed RSS feed item
+            subscription: The subscription this item belongs to
+            
+        Returns:
+            bool: True if item was queued successfully
+        """
+        try:
+            # Generate item ID
+            item_id = self._get_item_id(feed_item, subscription.feed_url)
+            
+            # Extract categories from feed item
+            categories = []
+            if hasattr(feed_item, 'tags'):
+                categories = [tag.term for tag in feed_item.tags if hasattr(tag, 'term')]
+            
+            # Parse published date
+            published_date = None
+            if hasattr(feed_item, 'published_parsed') and feed_item.published_parsed:
+                published_date = datetime(*feed_item.published_parsed[:6])
+            
+            # Extract author
+            author = None
+            if hasattr(feed_item, 'creator'):
+                author = feed_item.creator
+            elif hasattr(feed_item, 'author'):
+                author = feed_item.author
+            
+            # Extract content
+            content = None
+            if hasattr(feed_item, 'content') and feed_item.content:
+                if isinstance(feed_item.content, list) and len(feed_item.content) > 0:
+                    content = feed_item.content[0].get('value', '')
+                else:
+                    content = feed_item.content
+            elif hasattr(feed_item, 'summary'):
+                content = feed_item.summary
+            elif hasattr(feed_item, 'description'):
+                content = feed_item.description
+            
+            # Store pending item with all necessary data
+            pending_item = {
+                "feed_url": subscription.feed_url,
+                "item_id": item_id,
+                "title": feed_item.get('title', ''),
+                "link": feed_item.get('link', ''),
+                "description": feed_item.get('summary', feed_item.get('description', '')),
+                "content": content or '',
+                "author": author,
+                "published_date": published_date.isoformat() if published_date else None,
+                "categories": categories,
+                "feed_name": subscription.name,
+                "feed_description": subscription.description,
+                "feed_tags": subscription.tags or [],
+                "queued_date": datetime.now(timezone.utc)
+            }
+            
+            # Insert into pending items collection
+            self.pending_items_collection.insert_one(pending_item)
+            
+            logger.info(f"Queued RSS item for approval: {feed_item.get('title', '')}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error queuing RSS item {feed_item.get('title', 'Unknown')}: {e}")
+            return False
+    
+    def get_pending_items(self, feed_url: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get all pending items awaiting approval.
+        
+        Args:
+            feed_url: Optional filter by specific feed URL
+            
+        Returns:
+            List of pending items
+        """
+        try:
+            query = {}
+            if feed_url:
+                query["feed_url"] = feed_url
+            
+            cursor = self.pending_items_collection.find(query).sort("queued_date", -1)
+            
+            pending_items = []
+            for doc in cursor:
+                pending_items.append(doc)
+            
+            return pending_items
+            
+        except Exception as e:
+            logger.error(f"Error getting pending items: {e}")
+            return []
+    
+    def approve_items(self, item_ids: List[str]) -> Dict[str, Any]:
+        """
+        Approve and ingest selected pending items.
+        
+        Args:
+            item_ids: List of item IDs to approve and ingest
+            
+        Returns:
+            Dict with statistics about approved items
+        """
+        try:
+            approved_count = 0
+            failed_count = 0
+            errors = []
+            
+            for item_id in item_ids:
+                # Find the pending item
+                pending_item = self.pending_items_collection.find_one({"item_id": item_id})
+                
+                if not pending_item:
+                    logger.warning(f"Pending item not found: {item_id}")
+                    failed_count += 1
+                    errors.append(f"Item not found: {item_id}")
+                    continue
+                
+                # Get the subscription
+                subscription_data = self.subscriptions_collection.find_one({"feed_url": pending_item["feed_url"]})
+                if not subscription_data:
+                    logger.error(f"Subscription not found for feed: {pending_item['feed_url']}")
+                    failed_count += 1
+                    errors.append(f"Subscription not found for item: {item_id}")
+                    continue
+                
+                subscription = RSSFeedSubscription.from_dict(subscription_data)
+                
+                # Create a raw document for processing
+                published_date = None
+                if pending_item.get('published_date'):
+                    try:
+                        published_date = datetime.fromisoformat(pending_item['published_date'])
+                    except ValueError:
+                        pass
+                
+                # Create RSS metadata
+                rss_metadata = {
+                    "rss_feed_url": pending_item["feed_url"],
+                    "rss_item_id": item_id,
+                    "rss_author": pending_item.get("author"),
+                    "rss_published_date": pending_item.get("published_date"),
+                    "rss_categories": pending_item.get("categories", []),
+                    "rss_feed_name": pending_item["feed_name"],
+                    "rss_feed_description": pending_item.get("feed_description")
+                }
+                
+                # Remove None values
+                rss_metadata = {k: v for k, v in rss_metadata.items() if v is not None}
+                
+                # Combine subscription tags with item categories
+                combined_tags = pending_item.get("feed_tags", []) + pending_item.get("categories", [])
+                
+                # Create raw document
+                raw_document = RawDocument(
+                    content=pending_item.get("content", ""),
+                    source_url=pending_item.get("link", ""),
+                    title=pending_item.get("title", ""),
+                    content_type="rss",
+                    source_metadata=rss_metadata,
+                    tags=combined_tags,
+                    created_date=published_date
+                )
+                
+                try:
+                    # Process and store through document pipeline
+                    processing_context = self.document_pipeline.process_document(
+                        raw_doc=raw_document,
+                        use_ai_categorization=True,
+                        additional_metadata={
+                            "rss_feed_name": pending_item["feed_name"],
+                            "rss_feed_description": pending_item.get("feed_description")
+                        }
+                    )
+                    
+                    stored_ids = processing_context.processing_metadata.get("stored_chunk_ids", [])
+                    
+                    # Mark as processed
+                    self._mark_item_processed(pending_item["feed_url"], item_id)
+                    
+                    # Remove from pending
+                    self.pending_items_collection.delete_one({"item_id": item_id})
+                    
+                    logger.info(f"Approved and processed RSS item into {len(stored_ids)} chunks: {raw_document.title}")
+                    approved_count += 1
+                    
+                except Exception as process_error:
+                    logger.error(f"Error processing approved item {item_id}: {process_error}")
+                    failed_count += 1
+                    errors.append(f"Processing error for {item_id}: {str(process_error)}")
+            
+            return {
+                "approved_count": approved_count,
+                "failed_count": failed_count,
+                "errors": errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Error approving items: {e}")
+            return {
+                "approved_count": 0,
+                "failed_count": len(item_ids),
+                "errors": [str(e)]
+            }
+    
+    def reject_items(self, item_ids: List[str]) -> Dict[str, Any]:
+        """
+        Reject selected pending items (mark as processed without ingesting).
+        
+        Args:
+            item_ids: List of item IDs to reject
+            
+        Returns:
+            Dict with statistics about rejected items
+        """
+        try:
+            rejected_count = 0
+            failed_count = 0
+            errors = []
+            
+            for item_id in item_ids:
+                # Find the pending item
+                pending_item = self.pending_items_collection.find_one({"item_id": item_id})
+                
+                if not pending_item:
+                    logger.warning(f"Pending item not found: {item_id}")
+                    failed_count += 1
+                    errors.append(f"Item not found: {item_id}")
+                    continue
+                
+                # Mark as processed (rejected)
+                self._mark_item_processed(pending_item["feed_url"], item_id)
+                
+                # Remove from pending
+                self.pending_items_collection.delete_one({"item_id": item_id})
+                
+                logger.info(f"Rejected RSS item: {pending_item.get('title', '')}")
+                rejected_count += 1
+            
+            return {
+                "rejected_count": rejected_count,
+                "failed_count": failed_count,
+                "errors": errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Error rejecting items: {e}")
+            return {
+                "rejected_count": 0,
+                "failed_count": len(item_ids),
+                "errors": [str(e)]
+            }
+    
+    def run_daily_check(self, auto_ingest: bool = False) -> Dict[str, Any]:
         """
         Run the daily RSS feed check for all enabled subscriptions.
+        
+        Args:
+            auto_ingest: If True, automatically ingest items. If False, queue for approval.
         
         Returns:
             Dict containing statistics about the check
         """
         try:
-            logger.info("Starting daily RSS feed check")
+            action = "ingesting" if auto_ingest else "queuing"
+            logger.info(f"Starting daily RSS feed check ({action} new items)")
             
             # Get all enabled subscriptions
             enabled_subscriptions = []
@@ -430,7 +714,7 @@ class RSSFeedMonitor:
                 return {
                     "total_subscriptions": 0,
                     "processed_subscriptions": 0,
-                    "total_items_processed": 0,
+                    "total_items_queued": 0,
                     "errors": []
                 }
             
@@ -441,7 +725,7 @@ class RSSFeedMonitor:
             # Check each subscription
             for subscription in enabled_subscriptions:
                 try:
-                    items_processed = self.check_feed(subscription)
+                    items_processed = self.check_feed(subscription, auto_ingest=auto_ingest)
                     total_items_processed += items_processed
                     processed_subscriptions += 1
                 except Exception as e:
@@ -452,7 +736,7 @@ class RSSFeedMonitor:
             stats = {
                 "total_subscriptions": len(enabled_subscriptions),
                 "processed_subscriptions": processed_subscriptions,
-                "total_items_processed": total_items_processed,
+                "total_items_queued": total_items_processed,
                 "errors": errors
             }
             
@@ -464,7 +748,7 @@ class RSSFeedMonitor:
             return {
                 "total_subscriptions": 0,
                 "processed_subscriptions": 0,
-                "total_items_processed": 0,
+                "total_items_queued": 0,
                 "errors": [str(e)]
             }
     
@@ -519,6 +803,22 @@ def main():
     
     # Daily check command
     daily_parser = subparsers.add_parser("daily-check", help="Run daily RSS feed check")
+    daily_parser.add_argument("--auto-ingest", action="store_true", help="Automatically ingest items without approval")
+    
+    # List pending items command
+    list_pending_parser = subparsers.add_parser("list-pending", help="List items pending approval")
+    list_pending_parser.add_argument("--feed-url", help="Filter by specific feed URL")
+    
+    # Approve items command
+    approve_parser = subparsers.add_parser("approve", help="Approve and ingest pending items")
+    approve_parser.add_argument("--item-ids", nargs="+", help="Item IDs to approve (space-separated)")
+    approve_parser.add_argument("--all", action="store_true", help="Approve all pending items")
+    approve_parser.add_argument("--interactive", action="store_true", help="Interactive mode - select items to approve")
+    
+    # Reject items command
+    reject_parser = subparsers.add_parser("reject", help="Reject pending items")
+    reject_parser.add_argument("--item-ids", nargs="+", help="Item IDs to reject (space-separated)")
+    reject_parser.add_argument("--all", action="store_true", help="Reject all pending items")
     
     # Cleanup command
     cleanup_parser = subparsers.add_parser("cleanup", help="Clean up old processed items")
@@ -561,8 +861,100 @@ def main():
             print(json.dumps(stats, indent=2, default=str))
 
         elif args.command == "daily-check":
-            stats = monitor.run_daily_check()
+            stats = monitor.run_daily_check(auto_ingest=args.auto_ingest)
             print(json.dumps(stats, indent=2, default=str))
+
+        elif args.command == "list-pending":
+            pending_items = monitor.get_pending_items(feed_url=args.feed_url)
+            if not pending_items:
+                print("No pending items found.")
+            else:
+                print(f"\n{len(pending_items)} pending items:\n")
+                for item in pending_items:
+                    print(f"ID: {item['item_id']}")
+                    print(f"Title: {item['title']}")
+                    print(f"Link: {item['link']}")
+                    print(f"Feed: {item['feed_name']}")
+                    print(f"Published: {item.get('published_date', 'Unknown')}")
+                    print(f"Description: {item.get('description', '')[:200]}...")
+                    print("-" * 80)
+
+        elif args.command == "approve":
+            if args.interactive:
+                # Interactive mode - show items and let user select
+                pending_items = monitor.get_pending_items()
+                if not pending_items:
+                    print("No pending items found.")
+                else:
+                    print(f"\n{len(pending_items)} pending items:\n")
+                    for i, item in enumerate(pending_items, 1):
+                        print(f"{i}. {item['title']}")
+                        print(f"   Feed: {item['feed_name']}")
+                        print(f"   Link: {item['link']}")
+                        print(f"   Description: {item.get('description', '')[:150]}...")
+                        print()
+                    
+                    print("\nSelection options:")
+                    print("  - Enter item numbers separated by commas (e.g., 1,3,5)")
+                    print("  - Enter 'all' to approve all items")
+                    print("  - Enter 'none' or just press Enter to cancel")
+                    
+                    user_input = input("\nSelect items to approve: ").strip().lower()
+                    
+                    if not user_input or user_input == 'none':
+                        print("Approval cancelled.")
+                        return 0
+                    
+                    if user_input == 'all':
+                        item_ids = [item['item_id'] for item in pending_items]
+                    else:
+                        try:
+                            selected_indices = [int(x.strip()) for x in user_input.split(',')]
+                            item_ids = []
+                            for index in selected_indices:
+                                if 1 <= index <= len(pending_items):
+                                    item_ids.append(pending_items[index - 1]['item_id'])
+                                else:
+                                    print(f"Invalid item number: {index}")
+                                    return 1
+                        except ValueError:
+                            print("Invalid input. Please enter numbers separated by commas.")
+                            return 1
+                    
+                    result = monitor.approve_items(item_ids)
+                    print(json.dumps(result, indent=2, default=str))
+            elif args.all:
+                # Approve all pending items
+                pending_items = monitor.get_pending_items()
+                item_ids = [item['item_id'] for item in pending_items]
+                if not item_ids:
+                    print("No pending items found.")
+                else:
+                    result = monitor.approve_items(item_ids)
+                    print(json.dumps(result, indent=2, default=str))
+            elif args.item_ids:
+                # Approve specific items
+                result = monitor.approve_items(args.item_ids)
+                print(json.dumps(result, indent=2, default=str))
+            else:
+                print("Please specify --item-ids, --all, or --interactive")
+
+        elif args.command == "reject":
+            if args.all:
+                # Reject all pending items
+                pending_items = monitor.get_pending_items()
+                item_ids = [item['item_id'] for item in pending_items]
+                if not item_ids:
+                    print("No pending items found.")
+                else:
+                    result = monitor.reject_items(item_ids)
+                    print(json.dumps(result, indent=2, default=str))
+            elif args.item_ids:
+                # Reject specific items
+                result = monitor.reject_items(args.item_ids)
+                print(json.dumps(result, indent=2, default=str))
+            else:
+                print("Please specify --item-ids or --all")
 
         elif args.command == "cleanup":
             deleted_count = monitor.cleanup_old_processed_items(args.days)
