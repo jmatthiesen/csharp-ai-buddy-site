@@ -1,3 +1,38 @@
+// Utility functions that can be shared across classes
+const AppUtils = {
+    detectApiUrl() {
+        // Check if we're running in development (localhost)
+        if (window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.protocol === 'file:' ||
+            window.location.hostname === '[::1]' ||
+            (window.location.hostname.startsWith('[') && window.location.hostname.includes('::'))) {
+            return 'http://localhost:8000/api';
+        }
+
+        // Check for environment variable or meta tag with API URL
+        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
+        if (apiUrlMeta && apiUrlMeta.content.trim() !== '') {
+            return apiUrlMeta.content + '/api';
+        }
+
+        // Default to production API URL
+        return 'https://csharp-ai-buddy-api.onrender.com/api';
+    },
+
+    isDevelopmentEnvironment() {
+        // Check if we're running in development (localhost, or GitHub Codespaces)
+        // Check for simulateProd query param to force production mode
+        const urlParams = new URLSearchParams(window.location.search);
+        return !urlParams.has('simulateProd') && (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.protocol === 'file:' ||
+            window.location.hostname.endsWith("github.dev")
+        );
+    }
+};
+
 class ChatApp {
     constructor(apiBaseUrl, trackTelemetry) {
         this.apiBaseUrl = apiBaseUrl;
@@ -67,34 +102,6 @@ class ChatApp {
     incrementSessionChatCount() {
         const currentCount = this.getSessionChatCount();
         sessionStorage.setItem('session_chat_count', (currentCount + 1).toString());
-    }
-
-    detectApiUrl() {
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            return 'http://localhost:8000/api';
-        }
-
-        // Check for environment variable or meta tag with API URL
-        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
-        if (apiUrlMeta) {
-            return apiUrlMeta.content;
-        }
-
-        // Default to production API URL (you'll need to update this with your Render URL)
-        return 'https://csharp-ai-buddy-api.onrender.com/api';
-    }
-
-    isDevelopmentEnvironment() {
-        // Check if we're running in development (localhost, or GitHub Codespaces)
-        // Check for simulateProd query param to force production mode
-        const urlParams = new URLSearchParams(window.location.search);
-        return !urlParams.has('simulateProd') && (
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.protocol === 'file:' ||
-            window.location.hostname.endsWith("github.dev")
-        );
     }
 
     initializeEventListeners() {
@@ -275,7 +282,7 @@ class ChatApp {
 
         // Handle aiLibrary which might be "Other"
         const isCustomLibrary = !this.standardAiLibraries.includes(this.aiOptions.aiLibrary);
-        
+
         if (isCustomLibrary) {
             aiLibrarySelect.value = 'Other';
             customLibraryInput.value = this.aiOptions.aiLibrary;
@@ -371,14 +378,14 @@ class ChatApp {
         if (!chatForm) {
             return; // Chat form not available (probably on home page)
         }
-        
+
         const submitBtn = chatForm.querySelector('button[type="submit"]') || chatForm.querySelector('.send-btn') || chatForm.querySelector('.stop-btn');
-        
+
         if (!submitBtn) {
             console.error('Could not find submit button in chat form');
             return;
         }
-        
+
         if (isStreaming) {
             // Change to stop button
             submitBtn.className = 'stop-btn';
@@ -389,7 +396,7 @@ class ChatApp {
             `;
             submitBtn.setAttribute('aria-label', 'Stop response');
             submitBtn.title = 'Stop response (Esc)';
-            
+
             // Remove form submit handler and add stop handler
             submitBtn.onclick = (e) => {
                 e.preventDefault();
@@ -406,7 +413,7 @@ class ChatApp {
             `;
             submitBtn.setAttribute('aria-label', 'Send message');
             submitBtn.title = 'Send message';
-            
+
             // Restore form submit functionality
             submitBtn.onclick = null;
         }
@@ -417,14 +424,14 @@ class ChatApp {
             this.currentAbortController.abort();
             this.currentAbortController = null;
         }
-        
+
         this.isStreaming = false;
         this.updateSendButton(false);
         this.questionInput.focus();
-        
+
         // Show suggestions again
         if (this.suggestionsContainer) this.suggestionsContainer.style.display = 'block';
-        
+
         // Add a message to indicate the response was stopped
         const lastMessage = this.chatMessages.lastElementChild;
         if (lastMessage && lastMessage.classList.contains('assistant')) {
@@ -640,7 +647,7 @@ class ChatApp {
         }
 
         // In development environment, skip magic key requirement
-        if (this.isDevelopmentEnvironment()) {
+        if (AppUtils.isDevelopmentEnvironment()) {
             this.magicKey = null; // No key needed in development
             console.log('Development environment detected - magic key not required');
             return;
@@ -768,7 +775,7 @@ class ChatApp {
 
     async ensureMagicKey() {
         // Skip magic key requirement in development environment
-        if (this.isDevelopmentEnvironment()) {
+        if (AppUtils.isDevelopmentEnvironment()) {
             return 'dev-bypass';
         }
 
@@ -1622,7 +1629,7 @@ class SamplesGallery {
             this.clearAllFilters();
             this.closeFilters();
         });
-        
+
         // Filters close button
         const filtersCloseBtn = document.getElementById('filters-close');
         if (filtersCloseBtn) {
@@ -1630,7 +1637,7 @@ class SamplesGallery {
                 this.closeFilters();
             });
         }
-        
+
         // Filters backdrop
         const filtersBackdrop = document.getElementById('filters-backdrop');
         if (filtersBackdrop) {
@@ -1699,10 +1706,10 @@ class SamplesGallery {
             this.openFilters();
         }
     }
-    
+
     openFilters() {
         this.filtersPanel.style.display = 'flex';
-        
+
         // Show backdrop on mobile
         if (window.innerWidth <= 768) {
             const filtersBackdrop = document.getElementById('filters-backdrop');
@@ -1711,10 +1718,10 @@ class SamplesGallery {
             }
         }
     }
-    
+
     closeFilters() {
         this.filtersPanel.style.display = 'none';
-        
+
         // Hide backdrop
         const filtersBackdrop = document.getElementById('filters-backdrop');
         if (filtersBackdrop) {
@@ -2058,10 +2065,10 @@ class SamplesGallery {
 
 class AppManager {
     constructor() {
-        this.apiBaseUrl = this.detectApiUrl();
-        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry);
-        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry);
-        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry);
+        this.apiBaseUrl = AppUtils.detectApiUrl();
+        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry.bind(this));
+        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry.bind(this));
+        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry.bind(this));
         this.currentTab = 'chat';
 
         this.initializeSidebarState();
@@ -2070,28 +2077,6 @@ class AppManager {
         this.initializeUrlHandling();
         this.initializeThemeToggle();
         this.initializeHomeSection();
-    }
-
-    detectApiUrl() {
-        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com';
-
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost'
-            || window.location.hostname === '127.0.0.1'
-            || window.location.protocol === 'file:'
-            || window.location.hostname === '[::1]'
-            || window.location.hostname.startsWith('[') && window.location.hostname.includes('::')) {
-            apiUrl = 'http://localhost:8000';
-        }
-
-        // Check for environment variable or meta tag with API URL
-        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
-        if (apiUrlMeta && apiUrlMeta.content.trim() != '') {
-            apiUrl = apiUrlMeta.content;
-        }
-
-        // Default to production API URL
-        return apiUrl + "/api";
     }
 
     trackTelemetry(eventType, data) {
@@ -2242,14 +2227,14 @@ class AppManager {
         const tooltip = document.getElementById('mobile-menu-tooltip');
         const tooltipClose = tooltip?.querySelector('.tooltip-close');
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-        
+
         if (!tooltip || !tooltipClose || !mobileMenuToggle) {
             return;
         }
 
         // Check if tooltip has been dismissed before
         const tooltipDismissed = localStorage.getItem('mobileMenuTooltipDismissed');
-        
+
         if (!tooltipDismissed) {
             // Show tooltip after a short delay
             setTimeout(() => {
@@ -2512,88 +2497,6 @@ class AppManager {
         this.themeToggle.setAttribute('aria-label', tooltipText);
     }
 
-    initializeThemeToggle() {
-        this.themeToggle = document.getElementById('theme-toggle');
-        this.sunIcon = this.themeToggle.querySelector('.sun-icon');
-        this.moonIcon = this.themeToggle.querySelector('.moon-icon');
-
-        // Set initial theme based on system preference or saved preference
-        this.setInitialTheme();
-
-        // Add click event listener for manual toggle
-        this.themeToggle.addEventListener('click', () => {
-            this.toggleTheme();
-        });
-
-        // Listen for system theme changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', (e) => {
-            // Only update if user hasn't manually set a theme
-            if (!localStorage.getItem('theme_preference')) {
-                this.applyTheme(e.matches ? 'dark' : 'light');
-            }
-        });
-    }
-
-    setInitialTheme() {
-        const savedTheme = localStorage.getItem('theme_preference');
-
-        if (savedTheme) {
-            // User has manually set a theme preference
-            this.applyTheme(savedTheme);
-        } else {
-            // Use system preference
-            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.applyTheme(systemPrefersDark ? 'dark' : 'light');
-        }
-    }
-
-    toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-        // Save user preference
-        localStorage.setItem('theme_preference', newTheme);
-
-        // Apply the new theme
-        this.applyTheme(newTheme);
-
-        // Update tooltip
-        this.updateThemeTooltip(newTheme);
-    }
-
-    applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        const hljsTheme = document.getElementById('hljs-theme');
-
-        // Update icon visibility
-        if (theme === 'dark') {
-            this.sunIcon.style.display = 'none';
-            this.moonIcon.style.display = 'block';
-            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
-        } else {
-            this.sunIcon.style.display = 'block';
-            this.moonIcon.style.display = 'none';
-            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
-        }
-
-        // Update tooltip
-        this.updateThemeTooltip(theme);
-
-        // Add transition class for smooth transitions
-        document.body.classList.add('theme-transitioning');
-        setTimeout(() => {
-            document.body.classList.remove('theme-transitioning');
-        }, 300);
-    }
-
-    updateThemeTooltip(currentTheme) {
-        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        const tooltipText = `Switch to ${nextTheme} theme`;
-        this.themeToggle.setAttribute('title', tooltipText);
-        this.themeToggle.setAttribute('aria-label', tooltipText);
-    }
-
     initializeHomeSection() {
         // Handle home quick start form
         const homeForm = document.getElementById('home-chat-form');
@@ -2603,21 +2506,21 @@ class AppManager {
             homeForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const question = homeQuestionInput.value.trim();
-                
+
                 if (question) {
                     // Set the question in the chat input
                     const chatInput = document.getElementById('question-input');
                     if (chatInput) {
                         chatInput.value = question;
                     }
-                    
+
                     // Clear the home page input
                     homeQuestionInput.value = '';
                     homeQuestionInput.style.height = 'auto';
-                    
+
                     // Switch to chat tab
                     this.switchTab('chat');
-                    
+
                     // Submit the chat form
                     setTimeout(() => {
                         const chatForm = document.getElementById('chat-form');
@@ -2629,7 +2532,7 @@ class AppManager {
             });
 
             // Auto-resize textarea
-            homeQuestionInput.addEventListener('input', function() {
+            homeQuestionInput.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 150) + 'px';
             });
