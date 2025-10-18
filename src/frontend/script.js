@@ -1,19 +1,24 @@
 // Utility functions that can be shared across classes
 const AppUtils = {
-    detectApiUrl() {
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' ||
+    isRunningOnLocalhost() {
+        return window.location.hostname === 'localhost' ||
             window.location.hostname === '127.0.0.1' ||
             window.location.protocol === 'file:' ||
             window.location.hostname === '[::1]' ||
-            (window.location.hostname.startsWith('[') && window.location.hostname.includes('::'))) {
+            (window.location.hostname.startsWith('[') && window.location.hostname.includes('::'));
+    },
+
+    detectApiUrl() {
+        // Check if we're running in development (localhost)
+        if (this.isRunningOnLocalhost()) {
             return 'http://localhost:8000/api';
         }
 
         // Check for environment variable or meta tag with API URL
         const apiUrlMeta = document.querySelector('meta[name="api-url"]');
         if (apiUrlMeta && apiUrlMeta.content.trim() !== '') {
-            return apiUrlMeta.content + '/api';
+            const base = apiUrlMeta.content.trim().replace(/\/$/, '');
+            return base.endsWith('/api') ? base : base + '/api';
         }
 
         // Default to production API URL
@@ -25,9 +30,7 @@ const AppUtils = {
         // Check for simulateProd query param to force production mode
         const urlParams = new URLSearchParams(window.location.search);
         return !urlParams.has('simulateProd') && (
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.protocol === 'file:' ||
+            AppUtils.isRunningOnLocalhost() ||
             window.location.hostname.endsWith("github.dev")
         );
     }
