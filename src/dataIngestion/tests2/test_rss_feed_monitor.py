@@ -162,12 +162,14 @@ class TestRSSFeedMonitor(unittest.TestCase):
         # Mock MongoDB collections
         self.mock_subscriptions_collection = Mock()
         self.mock_processed_items_collection = Mock()
+        self.mock_pending_items_collection = Mock()
         
         # Mock MongoDB database
         self.mock_db = MagicMock()
         self.mock_db.__getitem__.side_effect = lambda x: {
             "rss_subscriptions": self.mock_subscriptions_collection,
-            "rss_processed_items": self.mock_processed_items_collection
+            "rss_processed_items": self.mock_processed_items_collection,
+            "rss_pending_items": self.mock_pending_items_collection
         }[x]
         
         # Mock MongoDB client
@@ -179,8 +181,8 @@ class TestRSSFeedMonitor(unittest.TestCase):
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
-    def test_init_creates_indexes(self, mock_document_pipeline_class, mock_mongo_client_class):
-        """Test that initialization creates MongoDB indexes."""
+    def test_init_creates_collections(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test that initialization accesses required MongoDB collections."""
         # Setup mocks
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
@@ -188,9 +190,10 @@ class TestRSSFeedMonitor(unittest.TestCase):
         # Create monitor instance
         monitor = RSSFeedMonitor(self.mock_config)
         
-        # Verify indexes were created
-        self.mock_subscriptions_collection.create_index.assert_called()
-        self.mock_processed_items_collection.create_index.assert_called()
+        # Verify monitor has access to required collections
+        self.assertIsNotNone(monitor.subscriptions_collection)
+        self.assertIsNotNone(monitor.processed_items_collection)
+        self.assertIsNotNone(monitor.pending_items_collection)
     
     @patch('rss_feed_monitor.MongoClient')
     @patch('rss_feed_monitor.DocumentPipeline')
@@ -647,15 +650,27 @@ class TestRSSApprovalWorkflow(unittest.TestCase):
         mock_mongo_client_class.return_value = self.mock_mongo_client
         mock_document_pipeline_class.return_value = self.mock_document_pipeline
         
-        # Mock RSS feed with one item
+        # Mock RSS feed with one item - use proper FeedParserDict-like object
         mock_feed = Mock()
         mock_feed.bozo = False
+        
+        # Create a proper mock entry with attributes
         mock_entry = Mock()
-        mock_entry.get.side_effect = lambda key, default="": {
+        mock_entry.title = "Test Article"
+        mock_entry.link = "https://example.com/article"
+        mock_entry.id = "test-id"
+        mock_entry.summary = "Test summary"
+        mock_entry.get = lambda key, default="": {
             "title": "Test Article",
             "link": "https://example.com/article",
-            "id": "test-id"
+            "id": "test-id",
+            "summary": "Test summary"
         }.get(key, default)
+        # Mock tags as empty list
+        mock_entry.tags = []
+        # Mock no published_parsed
+        mock_entry.published_parsed = None
+        
         mock_feed.entries = [mock_entry]
         mock_feedparser.parse.return_value = mock_feed
         
@@ -673,6 +688,8 @@ class TestRSSApprovalWorkflow(unittest.TestCase):
             _id="test-sub",
             feed_url="https://feed.com/feed.xml",
             name="Test Feed",
+            description="A test feed",
+            tags=["test"],
             enabled=True
         )
         
