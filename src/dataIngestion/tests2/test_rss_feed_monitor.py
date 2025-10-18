@@ -475,5 +475,215 @@ class TestRSSFeedMonitor(unittest.TestCase):
         self.mock_processed_items_collection.delete_many.assert_called_once()
 
 
+class TestRSSApprovalWorkflow(unittest.TestCase):
+    """Test RSS feed approval workflow functionality."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create a mock config
+        self.mock_config = Mock(spec=Config)
+        self.mock_config.mongodb_connection_string = "mongodb://localhost:27017"
+        self.mock_config.mongodb_database = "test_db"
+        self.mock_config.mongodb_collection = "test_collection"
+        self.mock_config.openai_api_key = "test-key"
+        self.mock_config.embedding_model = "text-embedding-3-small"
+        
+        # Mock MongoDB collections
+        self.mock_subscriptions_collection = Mock()
+        self.mock_processed_items_collection = Mock()
+        self.mock_pending_items_collection = Mock()
+        
+        # Mock MongoDB database
+        self.mock_db = MagicMock()
+        self.mock_db.__getitem__.side_effect = lambda x: {
+            "rss_subscriptions": self.mock_subscriptions_collection,
+            "rss_processed_items": self.mock_processed_items_collection,
+            "rss_pending_items": self.mock_pending_items_collection
+        }[x]
+        
+        # Mock MongoDB client
+        self.mock_mongo_client = MagicMock()
+        self.mock_mongo_client.__getitem__.return_value = self.mock_db
+        
+        # Mock document pipeline
+        self.mock_document_pipeline = Mock()
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    def test_is_item_pending(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test checking if an item is pending approval."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock pending item found
+        self.mock_pending_items_collection.find_one.return_value = {"item_id": "test-123"}
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Test checking pending item
+        result = monitor._is_item_pending("https://feed.com/feed.xml", "test-123")
+        
+        self.assertTrue(result)
+        self.mock_pending_items_collection.find_one.assert_called_with({
+            "feed_url": "https://feed.com/feed.xml",
+            "item_id": "test-123"
+        })
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    def test_get_pending_items(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test getting pending items."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock pending items
+        mock_items = [
+            {
+                "item_id": "test-1",
+                "title": "Test Article 1",
+                "link": "https://example.com/article1",
+                "feed_name": "Test Feed"
+            },
+            {
+                "item_id": "test-2",
+                "title": "Test Article 2",
+                "link": "https://example.com/article2",
+                "feed_name": "Test Feed"
+            }
+        ]
+        
+        mock_cursor = Mock()
+        mock_cursor.sort.return_value = mock_items
+        self.mock_pending_items_collection.find.return_value = mock_cursor
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Test getting pending items
+        pending_items = monitor.get_pending_items()
+        
+        self.assertEqual(len(pending_items), 2)
+        self.mock_pending_items_collection.find.assert_called_with({})
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    def test_approve_items(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test approving pending items."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock pending item
+        pending_item = {
+            "item_id": "test-123",
+            "feed_url": "https://feed.com/feed.xml",
+            "title": "Test Article",
+            "link": "https://example.com/article",
+            "content": "Test content",
+            "feed_name": "Test Feed",
+            "feed_tags": ["test"],
+            "categories": []
+        }
+        self.mock_pending_items_collection.find_one.return_value = pending_item
+        
+        # Mock subscription
+        subscription_data = {
+            "_id": 1,
+            "feed_url": "https://feed.com/feed.xml",
+            "name": "Test Feed",
+            "enabled": True,
+            "tags": ["test"]
+        }
+        self.mock_subscriptions_collection.find_one.return_value = subscription_data
+        
+        # Mock document pipeline
+        mock_context = Mock()
+        mock_context.processing_metadata = {"stored_chunk_ids": ["chunk-1"]}
+        self.mock_document_pipeline.process_document.return_value = mock_context
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Test approving item
+        result = monitor.approve_items(["test-123"])
+        
+        self.assertEqual(result["approved_count"], 1)
+        self.assertEqual(result["failed_count"], 0)
+        self.mock_processed_items_collection.insert_one.assert_called_once()
+        self.mock_pending_items_collection.delete_one.assert_called_once()
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    def test_reject_items(self, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test rejecting pending items."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock pending item
+        pending_item = {
+            "item_id": "test-123",
+            "feed_url": "https://feed.com/feed.xml",
+            "title": "Test Article"
+        }
+        self.mock_pending_items_collection.find_one.return_value = pending_item
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Test rejecting item
+        result = monitor.reject_items(["test-123"])
+        
+        self.assertEqual(result["rejected_count"], 1)
+        self.assertEqual(result["failed_count"], 0)
+        self.mock_processed_items_collection.insert_one.assert_called_once()
+        self.mock_pending_items_collection.delete_one.assert_called_once()
+    
+    @patch('rss_feed_monitor.MongoClient')
+    @patch('rss_feed_monitor.DocumentPipeline')
+    @patch('rss_feed_monitor.feedparser')
+    def test_check_feed_with_queuing(self, mock_feedparser, mock_document_pipeline_class, mock_mongo_client_class):
+        """Test that check_feed queues items when auto_ingest is False."""
+        # Setup mocks
+        mock_mongo_client_class.return_value = self.mock_mongo_client
+        mock_document_pipeline_class.return_value = self.mock_document_pipeline
+        
+        # Mock RSS feed with one item
+        mock_feed = Mock()
+        mock_feed.bozo = False
+        mock_entry = Mock()
+        mock_entry.get.side_effect = lambda key, default="": {
+            "title": "Test Article",
+            "link": "https://example.com/article",
+            "id": "test-id"
+        }.get(key, default)
+        mock_feed.entries = [mock_entry]
+        mock_feedparser.parse.return_value = mock_feed
+        
+        # Mock that item is not processed or pending
+        self.mock_processed_items_collection.find_one.return_value = None
+        self.mock_pending_items_collection.find_one.return_value = None
+        
+        # Mock successful insert
+        self.mock_pending_items_collection.insert_one.return_value = Mock()
+        
+        monitor = RSSFeedMonitor(self.mock_config)
+        
+        # Create subscription
+        subscription = RSSFeedSubscription(
+            _id="test-sub",
+            feed_url="https://feed.com/feed.xml",
+            name="Test Feed",
+            enabled=True
+        )
+        
+        # Test checking feed with auto_ingest=False (default)
+        count = monitor.check_feed(subscription, auto_ingest=False)
+        
+        # Verify item was queued, not processed
+        self.assertEqual(count, 1)
+        self.mock_pending_items_collection.insert_one.assert_called_once()
+        self.mock_document_pipeline.process_document.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
