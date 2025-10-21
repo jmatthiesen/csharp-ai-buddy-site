@@ -41,11 +41,15 @@ app = FastAPI(
 # FastAPIInstrumentor.instrument_app(app)
 allow_origins = []
 environment = os.getenv("ENVIRONMENT", "production").lower()
+if environment not in ("development", "production"):
+    logger.warning(f"ENVIRONMENT variable is set to an unexpected value: '{environment}'. Defaulting to production CORS settings.")
+    environment = "production"
 if environment == "development":
     allow_origins = ["*"]
 else:
     allow_origins = ["https://csharpaibuddy.com", "https://www.csharpaibuddy.com"]
-
+logger.info(f"ENVIRONMENT: {environment}")
+logger.info(f"CORS allow_origins: {allow_origins}")
 # CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
