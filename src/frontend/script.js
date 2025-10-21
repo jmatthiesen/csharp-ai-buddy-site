@@ -2371,8 +2371,7 @@ class AppManager {
 
     initializePrivacyNotice() {
         const privacyNotice = document.getElementById('privacy-notice');
-        const acceptBtn = document.getElementById('accept-privacy');
-        const declineBtn = document.getElementById('decline-privacy');
+        const closeBtn = document.getElementById('close-privacy');
 
         // Check if user has already made a choice
         const privacyChoice = localStorage.getItem('privacy_choice');
@@ -2382,15 +2381,9 @@ class AppManager {
             privacyNotice.style.display = 'block';
         }
 
-        acceptBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', () => {
             localStorage.setItem('privacy_choice', 'accepted');
             localStorage.setItem('telemetry_enabled', 'true');
-            privacyNotice.style.display = 'none';
-        });
-
-        declineBtn.addEventListener('click', () => {
-            localStorage.setItem('privacy_choice', 'declined');
-            localStorage.setItem('telemetry_enabled', 'false');
             privacyNotice.style.display = 'none';
         });
     }

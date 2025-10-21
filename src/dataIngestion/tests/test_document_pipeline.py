@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
 from bson import ObjectId
 
-from document_pipeline_v2 import DocumentPipeline
+from dataIngestion.document_pipeline import DocumentPipeline
 from pipeline_types import RawDocument, ProcessingContext, Chunk
 from config import Config
 
@@ -28,15 +28,18 @@ class TestDocumentPipelineV2(unittest.TestCase):
         self.mock_config.mongodb_chunks_collection = "test_chunks_collection"
         self.mock_config.embedding_model = "text-embedding-3-small"
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_pipeline_initialization(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_pipeline_initialization(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that pipeline initializes with all required components."""
         # Setup mocks
         mock_documents_collection = Mock()
         mock_chunks_collection = Mock()
         mock_db = MagicMock()
+
         # Return appropriate collection based on the collection name accessed
         def mock_getitem(key):
             if key == "test_collection":
@@ -44,6 +47,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
             elif key == "test_chunks_collection":
                 return mock_chunks_collection
             return Mock()
+
         mock_db.__getitem__.side_effect = mock_getitem
         mock_mongo_client = MagicMock()
         mock_mongo_client.__getitem__.return_value = mock_db
@@ -60,17 +64,19 @@ class TestDocumentPipelineV2(unittest.TestCase):
         self.assertEqual(pipeline.default_chunk_size, 4000)
         self.assertEqual(len(pipeline.source_enrichers), 5)  # All enrichers loaded
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_end_to_end_document_processing(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_end_to_end_document_processing(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test complete document processing from RawDocument to stored Chunks."""
         # Setup MongoDB mock
         mock_documents_collection = Mock()
         mock_documents_collection.delete_many.return_value = Mock(deleted_count=0)
         mock_documents_collection.insert_one.return_value = Mock()
         mock_documents_collection.list_indexes.return_value = []
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -80,13 +86,17 @@ class TestDocumentPipelineV2(unittest.TestCase):
         # Setup OpenAI mock
         mock_openai_client = Mock()
         mock_embedding_response = Mock()
-        mock_embedding_response.data = [Mock(embedding=[0.1, 0.2, 0.3] * 100)]  # 300 dims
+        mock_embedding_response.data = [
+            Mock(embedding=[0.1, 0.2, 0.3] * 100)
+        ]  # 300 dims
         mock_openai_client.embeddings.create.return_value = mock_embedding_response
         mock_openai_class.return_value = mock_openai_client
 
         # Setup MarkItDown mock
         mock_markitdown = Mock()
-        mock_markitdown.convert.return_value = Mock(markdown="# Test\n\nConverted content.")
+        mock_markitdown.convert.return_value = Mock(
+            markdown="# Test\n\nConverted content."
+        )
         mock_markitdown_class.return_value = mock_markitdown
 
         # Create pipeline and test document
@@ -95,7 +105,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
             content="<h1>Test</h1><p>Test content</p>",
             source_url="https://example.com/test",
             title="Test Document",
-            content_type="html"
+            content_type="html",
         )
 
         # Process document
@@ -106,7 +116,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
         chunk_ids = context.processing_metadata.get("stored_chunk_ids", [])
         self.assertIsInstance(chunk_ids, list)
         self.assertGreater(len(chunk_ids), 0)
-        
+
         # Verify all chunk IDs are valid ObjectIDs
         for chunk_id in chunk_ids:
             self.assertTrue(ObjectId.is_valid(chunk_id))
@@ -121,16 +131,18 @@ class TestDocumentPipelineV2(unittest.TestCase):
         # Verify MarkItDown was used for HTML conversion
         mock_markitdown.convert.assert_called()
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_error_handling_stops_processing(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_error_handling_stops_processing(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that pipeline stops on first error and reports properly."""
         # Setup mocks
         mock_documents_collection = Mock()
         mock_documents_collection.delete_many.return_value = Mock(deleted_count=0)
         mock_documents_collection.list_indexes.return_value = []
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -152,7 +164,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
             content="# Test Document\n\nThis is test content.",
             source_url="https://example.com/test",
             title="Test Document",
-            content_type="markdown"
+            content_type="markdown",
         )
 
         # Process document should raise error
@@ -165,17 +177,19 @@ class TestDocumentPipelineV2(unittest.TestCase):
         # Verify storage was NOT attempted after embedding failure
         mock_documents_collection.insert_one.assert_not_called()
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_source_enricher_selection_and_application(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_source_enricher_selection_and_application(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that appropriate source enricher is selected and applied."""
         # Setup mocks
         mock_documents_collection = Mock()
         mock_documents_collection.delete_many.return_value = Mock(deleted_count=0)
         mock_documents_collection.insert_one.return_value = Mock()
         mock_documents_collection.list_indexes.return_value = []
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -201,7 +215,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
             source_url="https://example.com/feed-item",
             title="RSS Item",
             content_type="rss",
-            source_metadata={"rss_feed_url": "https://example.com/feed.xml"}
+            source_metadata={"rss_feed_url": "https://example.com/feed.xml"},
         )
 
         # Process RSS document
@@ -214,22 +228,24 @@ class TestDocumentPipelineV2(unittest.TestCase):
         # Verify storage was called with RSS-enriched data
         mock_documents_collection.insert_one.assert_called()
         stored_chunk = mock_documents_collection.insert_one.call_args[0][0]
-        
+
         # Check that RSS enrichment was applied
         self.assertIn("tags", stored_chunk)
         self.assertIn("rss-content", stored_chunk["tags"])
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_chunk_id_uniqueness_with_objectid(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_chunk_id_uniqueness_with_objectid(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that ObjectID generation ensures unique chunk IDs."""
         # Setup mocks
         mock_documents_collection = Mock()
         mock_documents_collection.delete_many.return_value = Mock(deleted_count=0)
         mock_documents_collection.insert_one.return_value = Mock()
         mock_documents_collection.list_indexes.return_value = []
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -243,7 +259,9 @@ class TestDocumentPipelineV2(unittest.TestCase):
         mock_openai_class.return_value = mock_openai_client
 
         mock_markitdown = Mock()
-        mock_markitdown.convert.return_value = Mock(markdown="# Test\n\nLong content that will be chunked into multiple pieces for testing purposes.")
+        mock_markitdown.convert.return_value = Mock(
+            markdown="# Test\n\nLong content that will be chunked into multiple pieces for testing purposes."
+        )
         mock_markitdown_class.return_value = mock_markitdown
 
         # Create pipeline and test document that will create multiple chunks
@@ -252,11 +270,13 @@ class TestDocumentPipelineV2(unittest.TestCase):
             content="Long document content",
             source_url="https://example.com/long-doc",
             title="Long Document",
-            content_type="html"
+            content_type="html",
         )
 
         # Process document with small chunk size to force multiple chunks
-        context = pipeline.process_document(raw_doc, use_ai_categorization=False, chunk_size=50)
+        context = pipeline.process_document(
+            raw_doc, use_ai_categorization=False, chunk_size=50
+        )
 
         # Verify multiple chunks were created
         chunk_ids = context.processing_metadata.get("stored_chunk_ids", [])
@@ -264,22 +284,28 @@ class TestDocumentPipelineV2(unittest.TestCase):
 
         # Verify all chunk IDs are unique and valid ObjectIDs
         unique_ids = set(chunk_ids)
-        self.assertEqual(len(chunk_ids), len(unique_ids), "All chunk IDs should be unique")
-        
-        for chunk_id in chunk_ids:
-            self.assertTrue(ObjectId.is_valid(chunk_id), f"'{chunk_id}' is not a valid ObjectID")
+        self.assertEqual(
+            len(chunk_ids), len(unique_ids), "All chunk IDs should be unique"
+        )
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_chunk_retrieval_functionality(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+        for chunk_id in chunk_ids:
+            self.assertTrue(
+                ObjectId.is_valid(chunk_id), f"'{chunk_id}' is not a valid ObjectID"
+            )
+
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_chunk_retrieval_functionality(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that chunks can be retrieved correctly after storage."""
         # Setup MongoDB mock for retrieval
         mock_documents_collection = Mock()
         mock_documents_collection.delete_many.return_value = Mock(deleted_count=0)
         mock_documents_collection.insert_one.return_value = Mock()
         mock_documents_collection.list_indexes.return_value = []
-        
+
         # Mock find_one for get_chunk
         test_chunk_data = {
             "chunk_id": "507f1f77bcf86cd799439011",
@@ -293,16 +319,16 @@ class TestDocumentPipelineV2(unittest.TestCase):
             "metadata": {},
             "tags": [],
             "created_date": "2024-01-01T12:00:00",
-            "indexed_date": "2024-01-01T12:00:00"
+            "indexed_date": "2024-01-01T12:00:00",
         }
         mock_documents_collection.find_one.return_value = test_chunk_data
-        
-        # Mock find for get_document_chunks  
+
+        # Mock find for get_document_chunks
         mock_cursor = Mock()
         mock_cursor.__iter__ = lambda x: iter([test_chunk_data])
         mock_cursor.sort.return_value = mock_cursor
         mock_documents_collection.find.return_value = mock_cursor
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -328,17 +354,21 @@ class TestDocumentPipelineV2(unittest.TestCase):
         self.assertIsInstance(chunks[0], Chunk)
         self.assertEqual(chunks[0].source_url, "https://example.com/test")
 
-    @patch('document_pipeline_v2.MongoClient')
-    @patch('document_pipeline_v2.OpenAI')
-    @patch('document_pipeline_v2.MarkItDown')
-    def test_cleanup_existing_chunks_before_processing(self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class):
+    @patch("document_pipeline_v2.MongoClient")
+    @patch("document_pipeline_v2.OpenAI")
+    @patch("document_pipeline_v2.MarkItDown")
+    def test_cleanup_existing_chunks_before_processing(
+        self, mock_markitdown_class, mock_openai_class, mock_mongo_client_class
+    ):
         """Test that existing chunks are cleaned up before processing new ones."""
         # Setup mocks
         mock_documents_collection = Mock()
-        mock_documents_collection.delete_many.return_value = Mock(deleted_count=5)  # Simulate cleanup
+        mock_documents_collection.delete_many.return_value = Mock(
+            deleted_count=5
+        )  # Simulate cleanup
         mock_documents_collection.insert_one.return_value = Mock()
         mock_documents_collection.list_indexes.return_value = []
-        
+
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_documents_collection
         mock_mongo_client = MagicMock()
@@ -361,7 +391,7 @@ class TestDocumentPipelineV2(unittest.TestCase):
             content="Test content",
             source_url="https://example.com/test",
             title="Test Document",
-            content_type="markdown"
+            content_type="markdown",
         )
 
         # Process document
@@ -376,5 +406,5 @@ class TestDocumentPipelineV2(unittest.TestCase):
         mock_documents_collection.insert_one.assert_called()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
