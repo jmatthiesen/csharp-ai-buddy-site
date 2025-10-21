@@ -170,7 +170,7 @@ if [ "$START_API" = true ] || [ "$START_FRONTEND" = true ]; then
     echo "   • Use F5 in VS Code for debugging"
     echo "   • Check logs in terminal for any issues"
     echo ""
-    echo "� Environment Management:"
+    echo "🔧 Environment Management:"
     echo "   • API env:          cd api && source .venv/bin/activate"
     echo "   • Data Ingestion:   cd dataIngestion && source .venv/bin/activate"
     echo ""
