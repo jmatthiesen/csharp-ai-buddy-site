@@ -1083,6 +1083,11 @@ class ChatApp {
     }
 
     startNewChat() {
+        // Stop any existing streaming first
+        if (this.isStreaming) {
+            this.stopStreaming();
+        }
+
         // Clear conversation history
         this.conversationHistory = [];
 
@@ -2505,6 +2510,9 @@ class AppManager {
                 const question = homeQuestionInput.value.trim();
 
                 if (question) {
+                    // Start a new conversation
+                    this.chatApp.startNewChat();
+
                     // Set the question in the chat input
                     const chatInput = document.getElementById('question-input');
                     if (chatInput) {
@@ -2532,6 +2540,13 @@ class AppManager {
             homeQuestionInput.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+            });
+
+            homeQuestionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    homeForm.dispatchEvent(new Event('submit'));
+                }
             });
         }
 

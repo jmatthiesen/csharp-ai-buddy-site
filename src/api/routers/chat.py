@@ -334,14 +334,24 @@ async def generate_streaming_response(
                     "url": "https://learn.microsoft.com/api/mcp",
                 },
             ) as docsserver:
+                input = ""
+                
                 # Get the agent instance with filters
                 agent = await get_agent([docsserver], filters)
 
                 # Include history in the input for now, to keep things simple
                 if history:
-                    input = "".join([f"{msg.role}: {msg.content}\n" for msg in history]) + f"user: {message}\n"
-                else:
-                    input = f"user: {message}\n"
+                    input += "<chat-history>:\n"
+                    for msg in history:
+                        # Validate that the role is only "user" or "assistant", to mitigate injection risks
+                        if msg.role not in ["user", "assistant"]:
+                            logger.warning(f"Invalid message role detected in history: {msg.role}")
+                            raise ValueError("Invalid message role in history")
+
+                        input += f"<message>{msg.role}: {msg.content}</message>\n"
+                    input += "</chat-history>\n"
+                
+                input += f"user: {message}\n"
 
                 # Run the agent with streaming
                 result = Runner.run_streamed(agent, input)
