@@ -37,6 +37,10 @@ html {
     --link-text: #1a365d;
     --link-hover-bg: #bee3f8;
     --link-hover-text: #1a365d;
+    --inverted-link-bg: #2a4a6b;
+    --inverted-link-text: #ffffff;
+    --inverted-link-hover-bg: #3182ce;
+    --inverted-link-hover-text: #ffffff;
     --user-message-bg: #4299e1;
     --user-message-text: #ffffff;
     --assistant-message-bg: #ffffff;
@@ -2131,9 +2135,10 @@ a:focus {
     max-width: 1200px;
     margin: 0 auto;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     gap: 1rem;
+    text-align: center;
 }
 
 .privacy-content p {
@@ -2148,6 +2153,7 @@ a:focus {
     gap: 1rem;
     align-items: center;
     flex-shrink: 0;
+    margin-top: 0.5rem;
 }
 
 .privacy-btn {
@@ -2168,24 +2174,13 @@ a:focus {
     background: #3182ce;
 }
 
-.privacy-btn.secondary {
-    background: transparent;
-    color: white;
-    border: 1px solid #718096;
-}
-
-.privacy-btn.secondary:hover {
-    background: #718096;
-}
-
-.privacy-link {
-    color: #90cdf4;
-    text-decoration: none;
+.privacy-content a {
+    color: var(--inverted-link-text);
     font-size: 0.9rem;
 }
 
-.privacy-link:hover {
-    color: #bee3f8;
+.privacy-content a:hover {
+    color: var(--inverted-link-hover-text);
     text-decoration: underline;
 }
 
@@ -2197,13 +2192,15 @@ a:focus {
     }
     
     .privacy-actions {
-        flex-direction: column;
+        flex-direction: row;
         gap: 0.5rem;
-        width: 100%;
+        width: auto;
+        justify-content: center;
     }
     
     .privacy-btn {
-        width: 100%;
+        width: auto;
+        min-width: 80px;
     }
 }
 
