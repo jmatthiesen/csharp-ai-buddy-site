@@ -341,18 +341,17 @@ async def generate_streaming_response(
 
                 # Include history in the input for now, to keep things simple
                 if history:
+                    input += "<chat-history>:\n"
                     for msg in history:
                         # Validate that the role is only "user" or "assistant", to mitigate injection risks
                         if msg.role not in ["user", "assistant"]:
                             logger.warning(f"Invalid message role detected in history: {msg.role}")
                             raise ValueError("Invalid message role in history")
-                        else:
-                            input += f"{msg.role}: {msg.content}\n"
-                        
-                    # Append the new message
-                    input += f"user: {message}\n"
-                else:
-                    input = f"user: {message}\n"
+
+                        input += f"<message>{msg.role}: {msg.content}</message>\n"
+                    input += "</chat-history>\n"
+                
+                input += f"user: {message}\n"
 
                 # Run the agent with streaming
                 result = Runner.run_streamed(agent, input)
