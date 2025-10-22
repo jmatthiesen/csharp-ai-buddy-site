@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
 from bson import ObjectId
 
-from document_pipeline_v2 import DocumentPipeline
+from dataIngestion.document_pipeline import DocumentPipeline
 from pipeline_types import RawDocument, ProcessingContext, Chunk
 from config import Config
 

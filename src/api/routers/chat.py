@@ -260,12 +260,6 @@ async def get_agent(
 
 **Available Tools:**
 - search_knowledge_base: Search Microsoft documentation and knowledge base
-- search_nuget_packages: Search for NuGet packages
-- get_nuget_package_details: Get detailed information about NuGet packages
-- execute_dotnet_command: Execute .NET CLI commands and bash commands in a sandbox
-- create_csharp_file: Create C# source files in the sandbox
-- read_sandbox_file: Read files from the sandbox environment
-- list_sandbox_directory: List directory contents in the sandbox
 
 **When answering questions:**
 1. Always start by searching Microsoft documentation, starting with the learn.microsoft.com/*/dotnet/ai content
@@ -278,6 +272,7 @@ async def get_agent(
 8. Answer succinctly and clearly, avoiding unnecessary complexity unless asked for advanced details
 9. Provide links to relevant content using a markdown format like [link text](url)
 10. Format code using the latest C# syntax and .NET best practices, show console code using top-level statements
+11. Do not prioritize Azure related content unless the user asks for it.
 
 Do not make up answers or provide information outside the context of C# and .NET AI development. If you don't know the answer, say "I don't know" or suggest searching the knowledge base or web for more information.
 """
@@ -353,17 +348,24 @@ async def generate_streaming_response(
                     "url": "https://learn.microsoft.com/api/mcp",
                 },
             ) as docsserver:
+                input = ""
+                
                 # Get the agent instance with filters
                 agent = await get_agent([docsserver], filters)
 
                 # Include history in the input for now, to keep things simple
                 if history:
-                    input = (
-                        "".join([f"{msg.role}: {msg.content}\n" for msg in history])
-                        + f"user: {message}\n"
-                    )
-                else:
-                    input = f"user: {message}\n"
+                    input += "<chat-history>:\n"
+                    for msg in history:
+                        # Validate that the role is only "user" or "assistant", to mitigate injection risks
+                        if msg.role not in ["user", "assistant"]:
+                            logger.warning(f"Invalid message role detected in history: {msg.role}")
+                            raise ValueError("Invalid message role in history")
+
+                        input += f"<message>{msg.role}: {msg.content}</message>\n"
+                    input += "</chat-history>\n"
+                
+                input += f"user: {message}\n"
 
                 # Run the agent with streaming
                 result = Runner.run_streamed(agent, input)

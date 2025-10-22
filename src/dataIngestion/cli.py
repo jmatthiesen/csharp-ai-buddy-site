@@ -10,7 +10,7 @@ import logging
 from typing import Optional, List, Dict, Any
 
 from config import Config
-from document_pipeline_v2 import DocumentPipeline
+from dataIngestion.document_pipeline import DocumentPipeline
 from web_page_retriever import WebPageRetriever
 from pipeline_types import RawDocument
 

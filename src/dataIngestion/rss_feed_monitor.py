@@ -27,7 +27,7 @@ from bson.objectid import ObjectId
 from config import Config
 
 # Use new pipeline structure
-from document_pipeline_v2 import DocumentPipeline
+from dataIngestion.document_pipeline import DocumentPipeline
 from rss_feed_retriever import RSSFeedRetriever
 
 # Document type
