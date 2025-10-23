@@ -1705,8 +1705,7 @@ a:focus {
 .sample-tags {
     display: flex;
     gap: 0.5rem;
-    overflow: hidden;
-    white-space: nowrap;
+    flex-wrap: wrap;
     position: relative;
 }
 
