@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+
 # Load environment variables
 load_dotenv()
 
@@ -20,12 +21,11 @@ from routers import chat, samples, news, telemetry, feedback
 from models import HealthResponse
 from datetime import datetime
 
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    #handlers=[logging.FileHandler("ai_buddy_api.log"), logging.StreamHandler()],
+    # handlers=[logging.FileHandler("ai_buddy_api.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -34,16 +34,26 @@ app = FastAPI(
     description="Backend API for C# AI Buddy chat interface and samples gallery",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Instrument FastAPI with OpenTelemetry
 # FastAPIInstrumentor.instrument_app(app)
-
+allow_origins = []
+environment = os.getenv("ENVIRONMENT", "production").lower()
+if environment not in ("development", "production"):
+    logger.warning(f"ENVIRONMENT variable is set to an unexpected value: '{environment}'. Defaulting to production CORS settings.")
+    environment = "production"
+if environment == "development":
+    allow_origins = ["*"]
+else:
+    allow_origins = ["https://csharpaibuddy.com", "https://www.csharpaibuddy.com"]
+logger.info(f"ENVIRONMENT: {environment}")
+logger.info(f"CORS allow_origins: {allow_origins}")
 # CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -55,14 +65,14 @@ app.include_router(news.router)
 app.include_router(telemetry.router)
 app.include_router(feedback.router)
 
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint for monitoring."""
     return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow().isoformat(),
-        version="1.0.0"
+        status="healthy", timestamp=datetime.utcnow().isoformat(), version="1.0.0"
     )
+
 
 @app.get("/")
 async def root():
@@ -77,8 +87,9 @@ async def root():
         "news": "/api/news",
         "news_rss": "/api/news/rss",
         "telemetry": "/api/telemetry",
-        "feedback": "/api/feedback"
+        "feedback": "/api/feedback",
     }
+
 
 if __name__ == "__main__":
     import uvicorn
@@ -91,5 +102,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=True,  # Disable in production
-        log_level="info"
+        log_level="info",
     )

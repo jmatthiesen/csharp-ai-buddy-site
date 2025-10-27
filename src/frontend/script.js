@@ -1,3 +1,41 @@
+// Utility functions that can be shared across classes
+const AppUtils = {
+    isRunningOnLocalhost() {
+        return window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.protocol === 'file:' ||
+            window.location.hostname === '[::1]' ||
+            (window.location.hostname.startsWith('[') && window.location.hostname.includes('::'));
+    },
+
+    detectApiUrl() {
+        // Check if we're running in development (localhost)
+        if (this.isRunningOnLocalhost()) {
+            return 'http://localhost:8000/api';
+        }
+
+        // Check for environment variable or meta tag with API URL
+        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
+        if (apiUrlMeta && apiUrlMeta.content.trim() !== '') {
+            const base = apiUrlMeta.content.trim().replace(/\/$/, '');
+            return base.endsWith('/api') ? base : base + '/api';
+        }
+
+        // Default to production API URL
+        return 'https://csharp-ai-buddy-api.onrender.com/api';
+    },
+
+    isDevelopmentEnvironment() {
+        // Check if we're running in development (localhost, or GitHub Codespaces)
+        // Check for simulateProd query param to force production mode
+        const urlParams = new URLSearchParams(window.location.search);
+        return !urlParams.has('simulateProd') && (
+            AppUtils.isRunningOnLocalhost() ||
+            window.location.hostname.endsWith("github.dev")
+        );
+    }
+};
+
 class ChatApp {
     constructor(apiBaseUrl, trackTelemetry) {
         this.apiBaseUrl = apiBaseUrl;
@@ -22,6 +60,17 @@ class ChatApp {
             aiLibrary: 'OpenAI',
             aiProvider: 'OpenAI'
         };
+
+        // Standard AI library options (used for validation)
+        this.standardAiLibraries = [
+            'OpenAI',
+            'OllamaSharp',
+            'AutoGen',
+            'Semantic Kernel',
+            'Semantic Kernel Agents',
+            'Semantic Kernel Process Framework',
+            'ML.NET'
+        ];
 
         // Initialize session tracking
         this.initializeSessionTracking();
@@ -58,63 +107,41 @@ class ChatApp {
         sessionStorage.setItem('session_chat_count', (currentCount + 1).toString());
     }
 
-    detectApiUrl() {
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
-            return 'http://localhost:8000/api';
-        }
-
-        // Check for environment variable or meta tag with API URL
-        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
-        if (apiUrlMeta) {
-            return apiUrlMeta.content;
-        }
-
-        // Default to production API URL (you'll need to update this with your Render URL)
-        return 'https://csharp-ai-buddy-api.onrender.com/api';
-    }
-
-    isDevelopmentEnvironment() {
-        // Check if we're running in development (localhost, or GitHub Codespaces)
-        // Check for simulateProd query param to force production mode
-        const urlParams = new URLSearchParams(window.location.search);
-        return !urlParams.has('simulateProd') && (
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.protocol === 'file:' ||
-            window.location.hostname.endsWith("github.dev")
-        );
-    }
-
     initializeEventListeners() {
         // Form submission
-        this.chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleSubmit();
-        });
-
-        // Auto-resize textarea
-        this.questionInput.addEventListener('input', () => {
-            this.autoResizeTextarea();
-        });
-
-        // Enter key handling (Shift+Enter for new line, Enter to submit)
-        this.questionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        if (this.chatForm) {
+            this.chatForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleSubmit();
-            } else if (e.key === 'Escape' && this.isStreaming) {
-                e.preventDefault();
-                this.stopStreaming();
-            }
-        });
+            });
+        }
+
+        // Auto-resize textarea
+        if (this.questionInput) {
+            this.questionInput.addEventListener('input', () => {
+                this.autoResizeTextarea();
+            });
+
+            // Enter key handling (Shift+Enter for new line, Enter to submit)
+            this.questionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSubmit();
+                } else if (e.key === 'Escape' && this.isStreaming) {
+                    e.preventDefault();
+                    this.stopStreaming();
+                }
+            });
+        }
 
         // New chat button
-        this.newChatBtn.addEventListener('click', () => {
-            this.startNewChat();
-            // Switch to chat tab when starting a new chat
-            document.dispatchEvent(new CustomEvent('switchToChat'));
-        });
+        if (this.newChatBtn) {
+            this.newChatBtn.addEventListener('click', () => {
+                this.startNewChat();
+                // Switch to chat tab when starting a new chat
+                document.dispatchEvent(new CustomEvent('switchToChat'));
+            });
+        }
 
         // Suggestion clicks
         if (this.suggestionsContainer !== null) {
@@ -142,7 +169,9 @@ class ChatApp {
 
     initializeAccessibility() {
         // Ensure proper focus management
-        this.questionInput.focus();
+        if (this.questionInput) {
+            this.questionInput.focus();
+        }
 
         // Add keyboard navigation for suggestions
         if (this.suggestionsContainer !== null) {
@@ -158,6 +187,7 @@ class ChatApp {
     }
 
     autoResizeTextarea() {
+        if (!this.questionInput) return;
         this.questionInput.style.height = 'auto';
         this.questionInput.style.height = Math.min(this.questionInput.scrollHeight, 120) + 'px';
     }
@@ -166,33 +196,52 @@ class ChatApp {
         const optionsBtn = document.getElementById('options-btn');
         const optionsModal = document.getElementById('options-modal');
         const optionsModalClose = document.getElementById('options-modal-close');
+        const optionsOkBtn = document.getElementById('options-ok-btn');
+        const optionsCancelBtn = document.getElementById('options-cancel-btn');
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiLibrarySelect = document.getElementById('ai-library');
         const customLibraryInput = document.getElementById('custom-library');
         const aiProviderSelect = document.getElementById('ai-provider');
         const experimentalNotice = document.querySelector('.experimental-notice');
 
+        // Store temporary options
+        this.tempOptions = null;
+
         // Open options modal
         optionsBtn.addEventListener('click', () => {
             this.openOptionsModal();
         });
 
-        // Close options modal
+        // Close options modal with cancel behavior
         optionsModalClose.addEventListener('click', () => {
-            this.closeOptionsModal();
+            this.cancelOptionsModal();
+        });
+
+        // OK button - apply changes and close
+        optionsOkBtn.addEventListener('click', () => {
+            this.applyOptionsModal();
+        });
+
+        // Cancel button - revert changes and close
+        optionsCancelBtn.addEventListener('click', () => {
+            this.cancelOptionsModal();
         });
 
         // Close modal when clicking outside
         optionsModal.addEventListener('click', (e) => {
             if (e.target === optionsModal) {
-                this.closeOptionsModal();
+                this.cancelOptionsModal();
             }
         });
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && optionsModal.style.display !== 'none') {
-                this.closeOptionsModal();
+        // Close modal with Escape key (cancel), apply with Enter key (OK)
+        optionsModal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.cancelOptionsModal();
+            } else if (e.key === 'Enter' && !['TEXTAREA', 'INPUT', 'SELECT'].includes(e.target.tagName)) {
+                e.preventDefault();
+                this.applyOptionsModal();
             }
         });
 
@@ -205,33 +254,95 @@ class ChatApp {
                 customLibraryInput.style.display = 'none';
                 customLibraryInput.value = '';
             }
-            this.updateAiOptions();
+            this.updateExperimentalNoticePreview();
         });
 
-        // Update options when selects change
-        [dotnetVersionSelect, aiLibrarySelect, aiProviderSelect].forEach(select => {
+        // Update experimental notice preview when selects change
+        [dotnetVersionSelect, aiProviderSelect].forEach(select => {
             select.addEventListener('change', () => {
-                this.updateAiOptions();
+                this.updateExperimentalNoticePreview();
             });
-        });
-
-        // Update options when custom library input changes
-        customLibraryInput.addEventListener('input', () => {
-            this.updateAiOptions();
         });
     }
 
     openOptionsModal() {
         const optionsModal = document.getElementById('options-modal');
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        // Store current options as temporary copy
+        this.tempOptions = {
+            dotnetVersion: this.aiOptions.dotnetVersion,
+            aiLibrary: this.aiOptions.aiLibrary,
+            aiProvider: this.aiOptions.aiProvider
+        };
+
+        // Set the form values to current options
+        dotnetVersionSelect.value = this.aiOptions.dotnetVersion;
+        aiProviderSelect.value = this.aiOptions.aiProvider;
+
+        // Handle aiLibrary which might be "Other"
+        const isCustomLibrary = !this.standardAiLibraries.includes(this.aiOptions.aiLibrary);
+
+        if (isCustomLibrary) {
+            aiLibrarySelect.value = 'Other';
+            customLibraryInput.value = this.aiOptions.aiLibrary;
+            customLibraryInput.style.display = 'block';
+        } else {
+            aiLibrarySelect.value = this.aiOptions.aiLibrary;
+            customLibraryInput.style.display = 'none';
+            customLibraryInput.value = '';
+        }
+
         optionsModal.style.display = 'flex';
         optionsModal.setAttribute('aria-hidden', 'false');
 
-        // Focus first element
-        const firstSelect = document.getElementById('dotnet-version');
-        firstSelect.focus();
+        // Focus OK button (as it's the default action)
+        const okBtn = document.getElementById('options-ok-btn');
+        okBtn.focus();
 
-        // Update experimental notice
-        this.updateExperimentalNotice();
+        // Update experimental notice preview
+        this.updateExperimentalNoticePreview();
+    }
+
+    applyOptionsModal() {
+        const dotnetVersionSelect = document.getElementById('dotnet-version');
+        const aiLibrarySelect = document.getElementById('ai-library');
+        const customLibraryInput = document.getElementById('custom-library');
+        const aiProviderSelect = document.getElementById('ai-provider');
+
+        // Apply the changes to the actual options
+        this.aiOptions = {
+            dotnetVersion: dotnetVersionSelect.value,
+            aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
+            aiProvider: aiProviderSelect.value
+        };
+
+        // Clear temporary options
+        this.tempOptions = null;
+
+        // Update the options summary
+        this.updateOptionsSummary();
+
+        // Close the modal
+        this.closeOptionsModal();
+    }
+
+    cancelOptionsModal() {
+        // Revert to the original options (before the modal was opened)
+        if (this.tempOptions) {
+            this.aiOptions = {
+                dotnetVersion: this.tempOptions.dotnetVersion,
+                aiLibrary: this.tempOptions.aiLibrary,
+                aiProvider: this.tempOptions.aiProvider
+            };
+            this.tempOptions = null;
+        }
+
+        // Close the modal
+        this.closeOptionsModal();
     }
 
     closeOptionsModal() {
@@ -243,23 +354,7 @@ class ChatApp {
         document.getElementById('options-btn').focus();
     }
 
-    updateAiOptions() {
-        const dotnetVersionSelect = document.getElementById('dotnet-version');
-        const aiLibrarySelect = document.getElementById('ai-library');
-        const customLibraryInput = document.getElementById('custom-library');
-        const aiProviderSelect = document.getElementById('ai-provider');
-
-        this.aiOptions = {
-            dotnetVersion: dotnetVersionSelect.value,
-            aiLibrary: aiLibrarySelect.value === 'Other' ? customLibraryInput.value || 'Other' : aiLibrarySelect.value,
-            aiProvider: aiProviderSelect.value
-        };
-
-        this.updateExperimentalNotice();
-        this.updateOptionsSummary();
-    }
-
-    updateExperimentalNotice() {
+    updateExperimentalNoticePreview() {
         const experimentalNotice = document.querySelector('.experimental-notice');
         const dotnetVersionSelect = document.getElementById('dotnet-version');
         const aiProviderSelect = document.getElementById('ai-provider');
@@ -281,14 +376,19 @@ class ChatApp {
     }
 
     updateSendButton(isStreaming) {
-        // Get the button by its type since it's always the submit button
-        const submitBtn = document.querySelector('button[type="submit"]') || document.querySelector('.send-btn') || document.querySelector('.stop-btn');
-        
+        // Get the button specifically from the chat form to avoid affecting the home page button
+        const chatForm = document.getElementById('chat-form');
+        if (!chatForm) {
+            return; // Chat form not available (probably on home page)
+        }
+
+        const submitBtn = chatForm.querySelector('button[type="submit"]') || chatForm.querySelector('.send-btn') || chatForm.querySelector('.stop-btn');
+
         if (!submitBtn) {
-            console.error('Could not find submit button');
+            console.error('Could not find submit button in chat form');
             return;
         }
-        
+
         if (isStreaming) {
             // Change to stop button
             submitBtn.className = 'stop-btn';
@@ -299,7 +399,7 @@ class ChatApp {
             `;
             submitBtn.setAttribute('aria-label', 'Stop response');
             submitBtn.title = 'Stop response (Esc)';
-            
+
             // Remove form submit handler and add stop handler
             submitBtn.onclick = (e) => {
                 e.preventDefault();
@@ -316,7 +416,7 @@ class ChatApp {
             `;
             submitBtn.setAttribute('aria-label', 'Send message');
             submitBtn.title = 'Send message';
-            
+
             // Restore form submit functionality
             submitBtn.onclick = null;
         }
@@ -327,14 +427,14 @@ class ChatApp {
             this.currentAbortController.abort();
             this.currentAbortController = null;
         }
-        
+
         this.isStreaming = false;
         this.updateSendButton(false);
         this.questionInput.focus();
-        
+
         // Show suggestions again
         if (this.suggestionsContainer) this.suggestionsContainer.style.display = 'block';
-        
+
         // Add a message to indicate the response was stopped
         const lastMessage = this.chatMessages.lastElementChild;
         if (lastMessage && lastMessage.classList.contains('assistant')) {
@@ -550,7 +650,7 @@ class ChatApp {
         }
 
         // In development environment, skip magic key requirement
-        if (this.isDevelopmentEnvironment()) {
+        if (AppUtils.isDevelopmentEnvironment()) {
             this.magicKey = null; // No key needed in development
             console.log('Development environment detected - magic key not required');
             return;
@@ -678,7 +778,7 @@ class ChatApp {
 
     async ensureMagicKey() {
         // Skip magic key requirement in development environment
-        if (this.isDevelopmentEnvironment()) {
+        if (AppUtils.isDevelopmentEnvironment()) {
             return 'dev-bypass';
         }
 
@@ -983,6 +1083,11 @@ class ChatApp {
     }
 
     startNewChat() {
+        // Stop any existing streaming first
+        if (this.isStreaming) {
+            this.stopStreaming();
+        }
+
         // Clear conversation history
         this.conversationHistory = [];
 
@@ -1532,7 +1637,7 @@ class SamplesGallery {
             this.clearAllFilters();
             this.closeFilters();
         });
-        
+
         // Filters close button
         const filtersCloseBtn = document.getElementById('filters-close');
         if (filtersCloseBtn) {
@@ -1540,7 +1645,7 @@ class SamplesGallery {
                 this.closeFilters();
             });
         }
-        
+
         // Filters backdrop
         const filtersBackdrop = document.getElementById('filters-backdrop');
         if (filtersBackdrop) {
@@ -1609,10 +1714,10 @@ class SamplesGallery {
             this.openFilters();
         }
     }
-    
+
     openFilters() {
         this.filtersPanel.style.display = 'flex';
-        
+
         // Show backdrop on mobile
         if (window.innerWidth <= 768) {
             const filtersBackdrop = document.getElementById('filters-backdrop');
@@ -1621,10 +1726,10 @@ class SamplesGallery {
             }
         }
     }
-    
+
     closeFilters() {
         this.filtersPanel.style.display = 'none';
-        
+
         // Hide backdrop
         const filtersBackdrop = document.getElementById('filters-backdrop');
         if (filtersBackdrop) {
@@ -1968,10 +2073,11 @@ class SamplesGallery {
 
 class AppManager {
     constructor() {
-        this.apiBaseUrl = this.detectApiUrl();
-        this.chatApp = new ChatApp(this.apiBaseUrl, this.trackTelemetry);
-        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.trackTelemetry);
-        this.newsApp = new NewsApp(this.apiBaseUrl, this.trackTelemetry);
+        this.apiBaseUrl = AppUtils.detectApiUrl();
+        this.telemetry = this.trackTelemetry.bind(this);
+        this.chatApp = new ChatApp(this.apiBaseUrl, this.telemetry);
+        this.samplesGallery = new SamplesGallery(this.apiBaseUrl, this.telemetry);
+        this.newsApp = new NewsApp(this.apiBaseUrl, this.telemetry);
         this.currentTab = 'chat';
 
         this.initializeSidebarState();
@@ -1979,28 +2085,7 @@ class AppManager {
         this.initializePrivacyNotice();
         this.initializeUrlHandling();
         this.initializeThemeToggle();
-    }
-
-    detectApiUrl() {
-        var apiUrl = 'https://csharp-ai-buddy-api.onrender.com';
-
-        // Check if we're running in development (localhost)
-        if (window.location.hostname === 'localhost'
-            || window.location.hostname === '127.0.0.1'
-            || window.location.protocol === 'file:'
-            || window.location.hostname === '[::1]'
-            || window.location.hostname.startsWith('[') && window.location.hostname.includes('::')) {
-            apiUrl = 'http://localhost:8000';
-        }
-
-        // Check for environment variable or meta tag with API URL
-        const apiUrlMeta = document.querySelector('meta[name="api-url"]');
-        if (apiUrlMeta && apiUrlMeta.content.trim() != '') {
-            apiUrl = apiUrlMeta.content;
-        }
-
-        // Default to production API URL
-        return apiUrl + "/api";
+        this.initializeHomeSection();
     }
 
     trackTelemetry(eventType, data) {
@@ -2062,6 +2147,7 @@ class AppManager {
     }
 
     initializeNavigation() {
+        const homeTab = document.getElementById('home-tab');
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
@@ -2070,6 +2156,10 @@ class AppManager {
         const sidebar = document.getElementById('sidebar');
 
         // Tab navigation
+        homeTab.addEventListener('click', () => {
+            this.switchTab('home');
+        });
+
         chatTab.addEventListener('click', () => {
             this.switchTab('chat');
         });
@@ -2146,14 +2236,14 @@ class AppManager {
         const tooltip = document.getElementById('mobile-menu-tooltip');
         const tooltipClose = tooltip?.querySelector('.tooltip-close');
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-        
+
         if (!tooltip || !tooltipClose || !mobileMenuToggle) {
             return;
         }
 
         // Check if tooltip has been dismissed before
         const tooltipDismissed = localStorage.getItem('mobileMenuTooltipDismissed');
-        
+
         if (!tooltipDismissed) {
             // Show tooltip after a short delay
             setTimeout(() => {
@@ -2184,19 +2274,23 @@ class AppManager {
     }
 
     switchTab(tab) {
+        const homeTab = document.getElementById('home-tab');
         const chatTab = document.getElementById('chat-tab');
         const samplesTab = document.getElementById('samples-tab');
         const newsTab = document.getElementById('news-tab');
+        const homeSection = document.getElementById('home-section');
         const chatSection = document.getElementById('chat-section');
         const samplesSection = document.getElementById('samples-section');
         const newsSection = document.getElementById('news-section');
 
         // Update tab states
+        homeTab.classList.toggle('active', tab === 'home');
         chatTab.classList.toggle('active', tab === 'chat');
         samplesTab.classList.toggle('active', tab === 'samples');
         newsTab.classList.toggle('active', tab === 'news');
 
         // Update section visibility
+        homeSection.style.display = tab === 'home' ? 'flex' : 'none';
         chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
         samplesSection.style.display = tab === 'samples' ? 'flex' : 'none';
         newsSection.style.display = tab === 'news' ? 'flex' : 'none';
@@ -2210,21 +2304,26 @@ class AppManager {
 
         // Update URL for deep linking
         const url = new URL(window.location);
-        if (tab === 'samples') {
+        if (tab === 'home') {
+            this.trackTelemetry('home_section_viewed', {
+                previous_tab: this.currentTab || 'home'
+            });
+            url.searchParams.delete('tab');
+        } else if (tab === 'samples') {
             this.trackTelemetry('samples_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
             url.searchParams.set('tab', 'samples');
         } else if (tab === 'news') {
             this.trackTelemetry('news_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
             url.searchParams.set('tab', 'news');
-        } else {
+        } else if (tab === 'chat') {
             this.trackTelemetry('chat_section_viewed', {
-                previous_tab: this.currentTab || 'chat'
+                previous_tab: this.currentTab || 'home'
             });
-            url.searchParams.delete('tab');
+            url.searchParams.set('tab', 'chat');
         }
         window.history.replaceState({}, '', url);
     }
@@ -2277,8 +2376,7 @@ class AppManager {
 
     initializePrivacyNotice() {
         const privacyNotice = document.getElementById('privacy-notice');
-        const acceptBtn = document.getElementById('accept-privacy');
-        const declineBtn = document.getElementById('decline-privacy');
+        const closeBtn = document.getElementById('close-privacy');
 
         // Check if user has already made a choice
         const privacyChoice = localStorage.getItem('privacy_choice');
@@ -2288,15 +2386,9 @@ class AppManager {
             privacyNotice.style.display = 'block';
         }
 
-        acceptBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', () => {
             localStorage.setItem('privacy_choice', 'accepted');
             localStorage.setItem('telemetry_enabled', 'true');
-            privacyNotice.style.display = 'none';
-        });
-
-        declineBtn.addEventListener('click', () => {
-            localStorage.setItem('privacy_choice', 'declined');
-            localStorage.setItem('telemetry_enabled', 'false');
             privacyNotice.style.display = 'none';
         });
     }
@@ -2306,16 +2398,21 @@ class AppManager {
         const urlParams = new URLSearchParams(window.location.search);
         const initialTab = urlParams.get('tab');
 
-        if (initialTab === 'samples') {
+        if (initialTab === 'chat') {
+            this.switchTab('chat');
+        } else if (initialTab === 'samples') {
             this.switchTab('samples');
         } else if (initialTab === 'news') {
             this.switchTab('news');
+        } else {
+            // Default to home tab
+            this.switchTab('home');
         }
 
         // Handle back/forward navigation
         window.addEventListener('popstate', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab') || 'chat';
+            const tab = urlParams.get('tab') || 'home';
             this.switchTab(tab);
         });
     }
@@ -2402,86 +2499,85 @@ class AppManager {
         this.themeToggle.setAttribute('aria-label', tooltipText);
     }
 
-    initializeThemeToggle() {
-        this.themeToggle = document.getElementById('theme-toggle');
-        this.sunIcon = this.themeToggle.querySelector('.sun-icon');
-        this.moonIcon = this.themeToggle.querySelector('.moon-icon');
+    initializeHomeSection() {
+        // Handle home quick start form
+        const homeForm = document.getElementById('home-chat-form');
+        const homeQuestionInput = document.getElementById('home-question-input');
 
-        // Set initial theme based on system preference or saved preference
-        this.setInitialTheme();
+        if (homeForm && homeQuestionInput) {
+            homeForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const question = homeQuestionInput.value.trim();
 
-        // Add click event listener for manual toggle
-        this.themeToggle.addEventListener('click', () => {
-            this.toggleTheme();
-        });
+                if (question) {
+                    // Start a new conversation
+                    this.chatApp.startNewChat();
 
-        // Listen for system theme changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', (e) => {
-            // Only update if user hasn't manually set a theme
-            if (!localStorage.getItem('theme_preference')) {
-                this.applyTheme(e.matches ? 'dark' : 'light');
-            }
-        });
-    }
+                    // Set the question in the chat input
+                    const chatInput = document.getElementById('question-input');
+                    if (chatInput) {
+                        chatInput.value = question;
+                    }
 
-    setInitialTheme() {
-        const savedTheme = localStorage.getItem('theme_preference');
+                    // Clear the home page input
+                    homeQuestionInput.value = '';
+                    homeQuestionInput.style.height = 'auto';
 
-        if (savedTheme) {
-            // User has manually set a theme preference
-            this.applyTheme(savedTheme);
-        } else {
-            // Use system preference
-            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.applyTheme(systemPrefersDark ? 'dark' : 'light');
-        }
-    }
+                    // Switch to chat tab
+                    this.switchTab('chat');
 
-    toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    // Submit the chat form
+                    setTimeout(() => {
+                        const chatForm = document.getElementById('chat-form');
+                        if (chatForm) {
+                            chatForm.dispatchEvent(new Event('submit'));
+                        }
+                    }, 100);
+                }
+            });
 
-        // Save user preference
-        localStorage.setItem('theme_preference', newTheme);
+            // Auto-resize textarea
+            homeQuestionInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+            });
 
-        // Apply the new theme
-        this.applyTheme(newTheme);
-
-        // Update tooltip
-        this.updateThemeTooltip(newTheme);
-    }
-
-    applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        const hljsTheme = document.getElementById('hljs-theme');
-
-        // Update icon visibility
-        if (theme === 'dark') {
-            this.sunIcon.style.display = 'none';
-            this.moonIcon.style.display = 'block';
-            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
-        } else {
-            this.sunIcon.style.display = 'block';
-            this.moonIcon.style.display = 'none';
-            hljsTheme.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+            homeQuestionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    homeForm.dispatchEvent(new Event('submit'));
+                }
+            });
         }
 
-        // Update tooltip
-        this.updateThemeTooltip(theme);
+        // Handle feature card buttons
+        const featureButtons = document.querySelectorAll('.feature-btn');
+        featureButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const feature = button.getAttribute('data-feature');
+                if (feature === 'chat') {
+                    this.switchTab('chat');
+                } else if (feature === 'samples') {
+                    this.switchTab('samples');
+                } else if (feature === 'news') {
+                    this.switchTab('news');
+                }
+            });
+        });
 
-        // Add transition class for smooth transitions
-        document.body.classList.add('theme-transitioning');
-        setTimeout(() => {
-            document.body.classList.remove('theme-transitioning');
-        }, 300);
-    }
-
-    updateThemeTooltip(currentTheme) {
-        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        const tooltipText = `Switch to ${nextTheme} theme`;
-        this.themeToggle.setAttribute('title', tooltipText);
-        this.themeToggle.setAttribute('aria-label', tooltipText);
+        // Make feature cards clickable
+        const featureCards = document.querySelectorAll('.feature-card');
+        featureCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking the button itself
+                if (!e.target.classList.contains('feature-btn')) {
+                    const button = card.querySelector('.feature-btn');
+                    if (button) {
+                        button.click();
+                    }
+                }
+            });
+        });
     }
 }
 

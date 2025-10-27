@@ -4,9 +4,11 @@ Refactored document processing pipeline with clear stages and source enrichment.
 """
 
 import logging
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from io import BytesIO
+from urllib.parse import urljoin, urlparse
 
 # External dependencies
 from openai import OpenAI
@@ -23,6 +25,9 @@ from source_enrichers import (
     SourceEnricher, RSSSourceEnricher, WordPressSourceEnricher, 
     HTMLSourceEnricher, PlainTextSourceEnricher, FallbackSourceEnricher
 )
+from host_handlers import (
+    HostHandler, GitHubHostHandler, FallbackHostHandler
+)
 from utils.chunking import chunk_markdown
 
 logger = logging.getLogger(__name__)
@@ -30,14 +35,23 @@ logger = logging.getLogger(__name__)
 class DocumentPipeline:
     """Refactored document processing pipeline with clear stages and source enrichment"""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, what_if_mode: bool = False):
         """Initialize the pipeline with configuration and dependencies"""
         self.config = config
-        self.client = OpenAI(api_key=config.openai_api_key)
-        self.mongo_client = MongoClient(config.mongodb_connection_string)
-        self.db = self.mongo_client[config.mongodb_database]
-        self.documents_collection = self.db[config.mongodb_collection]  # For document summaries
-        self.chunks_collection = self.db[config.mongodb_chunks_collection]  # For document chunks
+        self.what_if_mode = what_if_mode
+        
+        if what_if_mode:
+            self.client = None
+            self.mongo_client = None
+            self.db = None
+            self.documents_collection = None
+            self.chunks_collection = None
+        else:
+            self.client = OpenAI(api_key=config.openai_api_key)
+            self.mongo_client = MongoClient(config.mongodb_connection_string)
+            self.db = self.mongo_client[config.mongodb_database]
+            self.documents_collection = self.db[config.mongodb_collection]  # For document summaries
+            self.chunks_collection = self.db[config.mongodb_chunks_collection]  # For document chunks
         
         # Initialize MarkItDown for content conversion
         self.markitdown = MarkItDown()
@@ -57,34 +71,15 @@ class DocumentPipeline:
             FallbackSourceEnricher()  # Always last as fallback
         ]
         
-        # Create indexes for efficient querying
-        self._create_indexes()
-    
-    def _create_indexes(self):
-        """Create MongoDB indexes for efficient querying."""
-        try:
-            # Create indexes for documents collection
-            self.documents_collection.create_index("documentId")
-            self.documents_collection.create_index("sourceUrl") 
-            self.documents_collection.create_index("tags")
-            self.documents_collection.create_index("publishedDate")
-            self.documents_collection.create_index([("tags", 1), ("indexedDate", -1)])
-            
-            # Create indexes for chunks collection  
-            self.chunks_collection.create_index("chunk_id")  # Non-unique index for ObjectIDs
-            self.chunks_collection.create_index("original_document_id")
-            self.chunks_collection.create_index("source_url") 
-            self.chunks_collection.create_index("tags")
-            self.chunks_collection.create_index("indexed_date")
-            self.chunks_collection.create_index([("tags", 1), ("indexed_date", -1)])
-            
-            logger.info("Document pipeline indexes created successfully")
-        except Exception as e:
-            logger.warning(f"Error creating document pipeline indexes: {e}")
+        # Initialize host handlers (order matters - more specific first)
+        self.host_handlers: List[HostHandler] = [
+            GitHubHostHandler(),
+            FallbackHostHandler()  # Always last as fallback
+        ]
     
     # Main entry points
-    def process_document(self, raw_doc: RawDocument, **options) -> List[str]:
-        """Process a raw document and immediately store chunks, return chunk IDs"""
+    def process_document(self, raw_doc: RawDocument, **options):
+        """Process a raw document and immediately store chunks, return context with chunk IDs and extracted links"""
         try:
             # Create processing context
             context = ProcessingContext(
@@ -104,6 +99,9 @@ class DocumentPipeline:
             self._stage_markdown_conversion(context)
             self._check_for_errors(context, "markdown conversion")
 
+            self._stage_link_extraction(context)
+            self._check_for_errors(context, "link extraction")
+
             self._stage_summary_creation(context)
             self._check_for_errors(context, "summary creation")
      
@@ -120,8 +118,11 @@ class DocumentPipeline:
             # Create and immediately store chunks
             chunk_ids = self._stage_finalization_and_storage(context)
             
+            # Store chunk IDs in the context for return
+            context.processing_metadata["stored_chunk_ids"] = chunk_ids
+            
             logger.info(f"Successfully processed and stored {len(chunk_ids)} chunks: {raw_doc.source_url}")
-            return chunk_ids
+            return context
             
         except Exception as e:
             logger.error(f"Error processing document {raw_doc.source_url}: {e}")
@@ -173,6 +174,11 @@ class DocumentPipeline:
             # If content is short enough, return as-is
             if len(content) <= max_length:
                 return content
+            
+            # In what-if mode, just truncate without calling OpenAI
+            if self.what_if_mode:
+                print(f"📋 WHAT-IF: Would call OpenAI to generate summary (max {max_length} chars)")
+                return content[:max_length-3] + "..." if len(content) > max_length else content
             
             # Use OpenAI to generate a summary
             response = self.client.chat.completions.create(
@@ -240,6 +246,42 @@ class DocumentPipeline:
             # Fallback to raw content
             context.markdown_content = context.raw_document.content
     
+    def _stage_link_extraction(self, context: ProcessingContext) -> None:
+        """Extract links from markdown content for potential crawling"""
+        try:
+            if not context.markdown_content:
+                context.add_warning("No markdown content available for link extraction")
+                context.mark_stage_complete("link_extraction")
+                return
+            
+            # Extract links using the existing method
+            extracted_links = self.extract_links_from_markdown(
+                context.markdown_content, 
+                context.raw_document.source_url
+            )
+            
+            # Apply host-specific processing to extracted links
+            processed_links = self._apply_host_handlers(extracted_links, context.raw_document.source_url)
+            
+            # Extract host-specific metadata
+            host_metadata = self._extract_host_metadata(context.raw_document.source_url, context.markdown_content)
+            if host_metadata:
+                context.processing_metadata.update(host_metadata)
+            
+            context.extracted_links = processed_links
+            context.processing_metadata["links_extracted"] = len(processed_links)
+            context.mark_stage_complete("link_extraction")
+            
+            if processed_links:
+                logger.info(f"Extracted {len(processed_links)} crawlable links from {context.raw_document.source_url}")
+            else:
+                logger.debug(f"No crawlable links found in {context.raw_document.source_url}")
+            
+        except Exception as e:
+            error_msg = f"Error in link extraction: {e}"
+            context.add_error(error_msg)
+            logger.error(error_msg)
+    
     def _stage_chunking(self, context: ProcessingContext) -> None:
         """Split markdown into chunks"""
         try:
@@ -273,6 +315,15 @@ class DocumentPipeline:
         try:
             context.chunk_embeddings = []
             
+            if self.what_if_mode:
+                print(f"📋 WHAT-IF: Would generate embeddings for {len(context.chunks)} chunks using {self.config.embedding_model}")
+                # Create empty embeddings for what-if mode
+                for chunk_content in context.chunks:
+                    context.chunk_embeddings.append([])
+                context.processing_metadata["embeddings_generated"] = len(context.chunks)
+                context.mark_stage_complete("embedding_generation")
+                return
+            
             for i, chunk_content in enumerate(context.chunks):
                 if chunk_content.strip():  # Only generate embeddings for non-empty chunks
                     try:
@@ -300,6 +351,11 @@ class DocumentPipeline:
     def _stage_ai_categorization(self, context: ProcessingContext) -> None:
         """AI-based tagging and categorization"""
         try:
+            if self.what_if_mode:
+                print(f"📋 WHAT-IF: Would call OpenAI for AI categorization of document content")
+                context.mark_stage_complete("ai_categorization")
+                return
+            
             # Only categorize the first chunk to avoid redundancy and API costs
             if context.chunks and context.chunks[0].strip():
                 try:
@@ -334,6 +390,22 @@ class DocumentPipeline:
         try:
             stored_chunk_ids = []
             doc = context.raw_document
+            source_url = context.raw_document.source_url
+            total_chunks = len(context.chunks)
+
+            if self.what_if_mode:
+                print(f"📋 WHAT-IF: Would create document summary for: {doc.title}")
+                print(f"📋 WHAT-IF: Would clean up existing chunks for document: {source_url}")
+                print(f"📋 WHAT-IF: Would store {total_chunks} chunks in database")
+                
+                # Create mock chunk IDs for what-if mode
+                for i in range(total_chunks):
+                    mock_chunk_id = f"mock-chunk-{i}-{ObjectId()}"
+                    stored_chunk_ids.append(mock_chunk_id)
+                    print(f"📋 WHAT-IF: Would store chunk {i+1}/{total_chunks}: {mock_chunk_id}")
+                
+                context.mark_stage_complete("finalization_and_storage")
+                return stored_chunk_ids
 
             summary_doc = {
                 "title": doc.title,
@@ -345,18 +417,12 @@ class DocumentPipeline:
             }
 
             self.documents_collection.insert_one(summary_doc)
-            logger.info(f"Stored summary document: {summary_doc["documentId"]}")
+            logger.info(f"Stored summary document: {summary_doc.get('_id', 'unknown')}")
 
             # Clean up any existing chunks for this document to avoid duplicates
-            original_doc_id = context.raw_document.source_url
-            
-            # Simple cleanup by original document ID
-            result = self.chunks_collection.delete_many({"original_document_id": original_doc_id})
+            result = self.chunks_collection.delete_many({"source_url": source_url})
             if result.deleted_count > 0:
                 logger.info(f"Cleaned up {result.deleted_count} existing chunks for document before processing")
-            
-            # Determine total chunks
-            total_chunks = len(context.chunks)
             
             # Check for length mismatch
             if len(context.chunks) != len(context.chunk_embeddings):
@@ -378,13 +444,12 @@ class DocumentPipeline:
                     "chunk_index": i,
                     "total_chunks": total_chunks,
                     "chunk_size": len(chunk_content),
-                    "original_document_id": original_doc_id
+                    "source_url": source_url
                 })
                 
                 # Create chunk
                 chunk = Chunk(
                     chunk_id=chunk_id,
-                    original_document_id=original_doc_id,
                     title=context.raw_document.title or "Untitled",
                     source_url=context.raw_document.source_url,
                     content=chunk_content,  # Markdown content only
@@ -410,7 +475,7 @@ class DocumentPipeline:
                     raise ValueError(error_msg)
             
             context.mark_stage_complete("finalization_and_storage")
-            logger.info(f"Successfully stored document summary and {len(stored_chunk_ids)} chunks for: {original_doc_id}")
+            logger.info(f"Successfully stored document summary and {len(stored_chunk_ids)} chunks for: {source_url}")
             return stored_chunk_ids
             
         except Exception as e:
@@ -437,13 +502,12 @@ class DocumentPipeline:
             logger.error(f"Error retrieving chunk {chunk_id}: {e}")
             return None
     
-    def get_document_chunks(self, original_document_id: str) -> List[Chunk]:
+    def get_document_chunks(self, source_url: str) -> List[Chunk]:
         """Retrieve all chunks for a document"""
         try:
             chunks = []
             cursor = self.chunks_collection.find(
-
-                {"original_document_id": original_document_id}, 
+                {"source_url": source_url},
                 {"_id": 0}  # Exclude MongoDB _id
             ).sort("chunk_index", 1)
             
@@ -458,7 +522,7 @@ class DocumentPipeline:
             
             return chunks
         except Exception as e:
-            logger.error(f"Error retrieving chunks for document {original_document_id}: {e}")
+            logger.error(f"Error retrieving chunks for document {source_url}: {e}")
             return []
     
     def get_document(self, document_id: str) -> Optional[Document]:
@@ -545,6 +609,47 @@ class DocumentPipeline:
             logger.error(f"Error searching chunks: {e}")
             return []
     
+    # Host handler methods
+    def _apply_host_handlers(self, links: List[Dict[str, str]], source_url: str) -> List[Dict[str, str]]:
+        """Apply host-specific processing to extracted links."""
+        try:
+            processed_links = links
+            
+            # Find the appropriate handler for the source URL
+            for handler in self.host_handlers:
+                if handler.can_handle(source_url):
+                    processed_links = handler.process_extracted_links(processed_links, source_url)
+                    logger.debug(f"Applied {handler.name} host handler to {len(links)} links")
+                    # Only apply the first matching handler (except fallback)
+                    if handler.name != "Fallback":
+                        break
+            
+            return processed_links
+        except Exception as e:
+            logger.error(f"Error applying host handlers: {e}")
+            return links
+    
+    def _extract_host_metadata(self, url: str, markdown_content: str) -> Dict[str, Any]:
+        """Extract host-specific metadata using appropriate handler."""
+        try:
+            metadata = {}
+            
+            # Find the appropriate handler for the URL
+            for handler in self.host_handlers:
+                if handler.can_handle(url):
+                    handler_metadata = handler.extract_host_metadata(url, markdown_content)
+                    if handler_metadata:
+                        metadata.update(handler_metadata)
+                        logger.debug(f"Extracted metadata using {handler.name} handler")
+                    # Only apply the first matching handler (except fallback)
+                    if handler.name != "Fallback":
+                        break
+            
+            return metadata
+        except Exception as e:
+            logger.error(f"Error extracting host metadata: {e}")
+            return {}
+    
     # Utility methods
     def cleanup_old_documents(self) -> Dict[str, int]:
         """Clean up old documents and indexes from previous architecture"""
@@ -608,3 +713,93 @@ class DocumentPipeline:
         except Exception as e:
             logger.error(f"Error cleaning up old documents: {e}")
             return {"deleted": 0, "error": str(e)}
+    
+    def extract_links_from_markdown(self, markdown_content: str, base_url: str) -> List[Dict[str, str]]:
+        """
+        Extract links from markdown content that are on the same domain and same path or deeper.
+        
+        Args:
+            markdown_content: The markdown content to extract links from
+            base_url: The source URL to compare against for filtering
+            
+        Returns:
+            List of dictionaries with 'url', 'text', and 'title' keys
+        """
+        try:
+            # Parse the base URL to get domain and path components
+            base_parsed = urlparse(base_url)
+            base_domain = base_parsed.netloc.lower()
+            # Extract directory path, not including the filename
+            base_path_parts = base_parsed.path.rstrip('/').split('/')
+            if base_path_parts[-1] and '.' in base_path_parts[-1]:
+                # Remove filename to get directory path
+                base_path = '/'.join(base_path_parts[:-1])
+            else:
+                base_path = '/'.join(base_path_parts)
+            
+            # Regular expression to match markdown links: [text](url "optional title")
+            link_pattern = r'\[([^\]]*)\]\(([^)]+?)(?:\s+"([^"]*)")?\)'
+            links = []
+            
+            for match in re.finditer(link_pattern, markdown_content):
+                link_text = match.group(1).strip()
+                link_url = match.group(2).strip()
+                link_title = match.group(3) if match.group(3) else ""
+                
+                # Skip empty URLs or non-HTTP URLs initially
+                if not link_url:
+                    continue
+
+                # Skip URLs that reference anchors on the current page
+                if link_url.startswith('#'):
+                    continue
+
+                # Convert relative URLs to absolute URLs
+                if link_url.startswith('/'):
+                    # Absolute path relative to domain
+                    absolute_url = f"{base_parsed.scheme}://{base_parsed.netloc}{link_url}"
+                elif link_url.startswith('./') or not link_url.startswith('http'):
+                    # Relative path
+                    absolute_url = urljoin(base_url, link_url)
+                else:
+                    # Already absolute URL
+                    absolute_url = link_url
+                
+                # Parse the absolute URL for filtering
+                try:
+                    parsed_url = urlparse(absolute_url)
+                    url_domain = parsed_url.netloc.lower()
+                    url_path = parsed_url.path.rstrip('/')
+                    
+                    # Filter: same domain and same path or deeper
+                    if (url_domain == base_domain and 
+                        url_path.startswith(base_path) and
+                        (absolute_url.endswith('.html') or 
+                         absolute_url.endswith('.md') or 
+                         absolute_url.endswith('.markdown') or
+                         not parsed_url.path.split('/')[-1].count('.'))):  # No file extension (likely a page)
+                        
+                        links.append({
+                            'url': absolute_url,
+                            'text': link_text or absolute_url,
+                            'title': link_title
+                        })
+                        
+                except Exception as url_parse_error:
+                    logger.warning(f"Could not parse URL {absolute_url}: {url_parse_error}")
+                    continue
+            
+            # Remove duplicates while preserving order
+            seen_urls = set()
+            unique_links = []
+            for link in links:
+                if link['url'] not in seen_urls:
+                    seen_urls.add(link['url'])
+                    unique_links.append(link)
+            
+            logger.info(f"Extracted {len(unique_links)} crawlable links from {base_url}")
+            return unique_links
+            
+        except Exception as e:
+            logger.error(f"Error extracting links from markdown: {e}")
+            return []

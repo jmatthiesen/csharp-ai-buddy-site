@@ -35,6 +35,7 @@ class ProcessingContext:
     markdown_content: Optional[str] = None
     chunks: List[str] = field(default_factory=list)
     chunk_embeddings: List[List[float]] = field(default_factory=list)
+    extracted_links: List[Dict[str, str]] = field(default_factory=list)
     
     # Accumulated metadata and tags
     user_metadata: Dict[str, Any] = field(default_factory=dict)
@@ -70,7 +71,6 @@ class Chunk:
     """Final processed unit for MongoDB storage - streamlined for storage efficiency"""
     # Identifiers
     chunk_id: str
-    original_document_id: str
     
     # Content (only markdown content stored)
     title: str

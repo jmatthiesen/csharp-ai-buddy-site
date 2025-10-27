@@ -123,7 +123,7 @@ jobs:
         python -m py_compile document.py
         echo "✅ Data Ingestion document.py syntax is valid"
         
-        python -m py_compile document_pipeline_v2.py
+        python -m py_compile document_pipeline.py
         echo "✅ Data Ingestion document_pipeline.py syntax is valid"
         
         # Validate test files syntax
@@ -146,9 +146,9 @@ jobs:
       run: |
         cd src/dataIngestion
         source .venv/bin/activate
-        if [ -d "tests2" ] && [ -f "tests2/run_tests.py" ]; then
+        if [ -d "tests" ] && [ -f "tests/run_tests.py" ]; then
           echo "Running Data Ingestion test suite..."
-          python tests2/run_tests.py --verbose || echo "⚠️ Data Ingestion tests failed but build passed"
+          python tests/run_tests.py --verbose || echo "⚠️ Data Ingestion tests failed but build passed"
         else
           echo "No test runner found, skipping Data Ingestion tests"
         fi

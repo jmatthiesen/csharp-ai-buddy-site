@@ -60,8 +60,8 @@ async def get_news(
             
             # Get news items sorted by published date (newest first)
             cursor = documents_collection.find(query).sort([
-                ("rss_published_date", -1),  # Try RSS published date first
-                ("createdDate", -1)           # Fall back to created date
+                ("publishedDate", -1),  # Sort by published date (newest first)
+                ("indexedDate", -1)     # Fall back to indexed date
             ]).skip(skip).limit(page_size)
             
             news_data = list(cursor)
@@ -153,8 +153,8 @@ async def get_news_rss():
         }
         
         cursor = documents_collection.find(query).sort([
-            ("rss_published_date", -1),
-            ("createdDate", -1)
+            ("publishedDate", -1),
+            ("indexedDate", -1)
         ]).limit(50)
         
         news_data = list(cursor)
@@ -185,7 +185,7 @@ async def get_news_rss():
             ET.SubElement(item, "description").text = summary
             
             # Published date
-            pub_date = doc.get("rss_published_date") or doc.get("createdDate", "")
+            pub_date = doc.get("publishedDate") or doc.get("createdDate", "")
             if pub_date:
                 try:
                     if isinstance(pub_date, str):

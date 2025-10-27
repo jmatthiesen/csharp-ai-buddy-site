@@ -1,34 +1,39 @@
-# RAG Data Ingestion Pipeline
+# Data Ingestion Pipeline
 
-A Python-based data ingestion pipeline for Retrieval-Augmented Generation (RAG) solutions, specifically designed for .NET AI development content. This pipeline supports adding, updating, and deleting documents with MongoDB storage, MarkItDown conversion, and OpenAI embeddings.
+A modular Python pipeline for ingesting, processing, and indexing .NET AI development content from web pages and RSS feeds into MongoDB with vector embeddings. The system automatically converts content to Markdown, chunks it intelligently, generates OpenAI embeddings, and categorizes content using AI to identify relevant .NET frameworks. It features a pluggable architecture with source-specific enrichers and host handlers, supporting both manual document addition via CLI and automated RSS feed monitoring.
 
 ## Features
 
-- **Document Management**: Add, update, and delete documents
-- **Content Conversion**: Convert various input sources to Markdown using MarkItDown
-- **Vector Embeddings**: Generate embeddings using OpenAI models
-- **MongoDB Storage**: Store documents with metadata and vector embeddings
-- **AI-Powered Tagging**: Intelligent framework categorization using OpenAI
-- **Search Capabilities**: Vector similarity search with tag filtering
-- **Command Line Interface**: Easy-to-use CLI for pipeline operations
+- **Multi-Source Ingestion**: Process content from web pages, WordPress sites, RSS/Atom feeds, and direct URLs
+- **Intelligent Content Processing**: Automatic HTML-to-Markdown conversion with MarkItDown, smart chunking that preserves document structure
+- **AI-Powered Categorization**: Automatic framework tagging (Semantic Kernel, ML.NET, AutoGen, etc.) using OpenAI
+- **Vector Search Ready**: Generate and store OpenAI embeddings for semantic search capabilities  
+- **Link Crawling**: Interactive link extraction and crawling with host-specific filtering (GitHub, WordPress, etc.)
+- **RSS Feed Monitoring**: Automated daily checks of subscribed feeds with duplicate detection
+- **Pluggable Architecture**: Extensible source enrichers and host handlers for different content types
+- **MongoDB Storage**: Chunk-based storage optimized for retrieval with metadata and tags
+- **What-If Mode**: Preview operations without making database changes
+- **Comprehensive CLI**: Full command-line interface for all document and RSS operations
 
-## Prerequisites
+## Environment Setup
 
-- Python 3.8+
-- MongoDB instance (local or cloud)
-- OpenAI API key
-- Virtual environment (recommended)
+### Prerequisites
 
-## Installation
+- **[Python 3.8+](https://www.python.org/downloads/)** with pip
+- **[MongoDB](https://www.mongodb.com/docs/manual/installation/)** instance (local or cloud - [MongoDB Atlas](https://www.mongodb.com/atlas) recommended)
+- **[OpenAI API Key](https://platform.openai.com/api-keys)** with access to embeddings and chat models
 
-1. **Clone or navigate to the project directory:**
+### Installation
+
+1. **Navigate to the project directory:**
    ```bash
    cd src/dataIngestion
    ```
 
-2. **Activate virtual environment:**
+2. **Create and activate virtual environment:**
    ```bash
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install dependencies:**
@@ -36,337 +41,173 @@ A Python-based data ingestion pipeline for Retrieval-Augmented Generation (RAG) 
    pip install -r requirements.txt
    ```
 
-4. **Configure the pipeline:**
-   - Copy `env.example` to `.env` and update with your settings:
-     ```bash
-     cp env.example .env
-     ```
-   - Set your OpenAI API key
-   - Configure MongoDB connection string
+4. **Configure environment variables:**
+   
+   Copy the example environment file:
+   ```bash
+   cp env.example .env
+   ```
+   
+   Edit `.env` with your configuration:
+   ```env
+   # MongoDB Configuration
+   MONGODB_CONNECTION_STRING=mongodb+srv://username:password@cluster.mongodb.net
+   MONGODB_DATABASE=csharpAIBuddy
+   MONGODB_COLLECTION=documents
+   MONGODB_CHUNKS_COLLECTION=document_chunks
+   
+   # OpenAI Configuration
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+   
+   # Pipeline Settings
+   MAX_CONTENT_LENGTH=8192
+   BATCH_SIZE=10
+   ```
 
-### Environment Variables
+5. **Set up MongoDB indexes** (recommended):
+   ```bash
+   cd dbSetup
+   python setup_document_pipeline_indexes.py
+   python setup_rss_indexes.py
+   ```
 
-You can configure the pipeline using environment variables:
+### Running the Pipeline
 
+#### Document Management CLI
+
+Add a document from a URL:
 ```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export MONGODB_CONNECTION_STRING="mongodb://localhost:27017"
-export MONGODB_DATABASE="rag_pipeline"
-export MONGODB_COLLECTION="documents"
+python cli.py add --source-url "https://example.com/article"
 ```
 
-### Environment File
-
-Copy `env.example` to `.env` and update with your settings:
-
+Add with link crawling (interactive selection):
 ```bash
-cp env.example .env
+python cli.py add --source-url "https://example.com/article" --crawl-links
 ```
 
-Then edit `.env` with your configuration:
-
-```env
-# MongoDB Configuration
-MONGODB_CONNECTION_STRING=mongodb+srv://username:password@cluster.mongodb.net
-MONGODB_DATABASE=csharpAIBuddy
-MONGODB_COLLECTION=documents
-
-# OpenAI Configuration
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-
-# Pipeline Settings
-MAX_CONTENT_LENGTH=8192
-BATCH_SIZE=10
-```
-
-## Usage
-
-### Command Line Interface
-
-The pipeline provides a comprehensive CLI for all operations:
-
-#### Adding Documents
-
+Add with manual tags (disables AI categorization):
 ```bash
-# Add a document with AI categorization (automatic)
-python rag_data_pipeline.py add \
-  --content "This is a tutorial about Semantic Kernel for .NET developers" \
-  --source-url "https://example.com/tutorial"
-
-# Add content with manual tags (disables AI categorization)
-python rag_data_pipeline.py add \
-  --content "$(cat document.txt)" \
-  --source-path "/path/to/document.txt" \
-  --source-type "text" \
-  --tags "Semantic Kernel" "ML.NET"
-
-# Add content with AI categorization disabled
-python rag_data_pipeline.py add \
-  --content "<html><body><h1>AI Tutorial</h1><p>Content here...</p></body></html>" \
-  --source-type "html" \
-  --no-ai-categorization
+python cli.py add --source-url "https://example.com/article" --tags "Semantic Kernel" "ML.NET"
 ```
 
-#### Updating Documents
-
+Preview without making changes:
 ```bash
-# Update document content
-python rag_data_pipeline.py update \
-  --document-id "doc_20241201_143022_1234" \
-  --content "Updated content here..."
-
-# Update tags
-python rag_data_pipeline.py update \
-  --document-id "doc_20241201_143022_1234" \
-  --tags "Semantic Kernel" "Semantic Kernel Agents"
-
-# Update metadata
-python rag_data_pipeline.py update \
-  --document-id "doc_20241201_143022_1234" \
-  --metadata '{"author": "John Doe", "version": "2.0"}'
+python cli.py --what-if add --source-url "https://example.com/article"
 ```
 
-#### Deleting Documents
-
+Delete a document:
 ```bash
-python rag_data_pipeline.py delete --document-id "doc_20241201_143022_1234"
+python cli.py delete --document-id "doc_20241020_123456"
 ```
 
-#### Retrieving Documents
-
+Search documents:
 ```bash
-# Get a specific document
-python rag_data_pipeline.py get --document-id "doc_20241201_143022_1234"
+python cli.py search --query "How to use Semantic Kernel" --limit 5
 ```
 
-#### Searching Documents
-
+Search with tag filtering:
 ```bash
-# Search by query
-python rag_data_pipeline.py search \
-  --query "How to use SemanticKernel with OpenAI" \
-  --limit 5
-
-# Search with tag filtering
-python rag_data_pipeline.py search \
-  --query "vector embeddings" \
-  --tags "Semantic Kernel" "ML.NET" \
-  --limit 10
+python cli.py search --query "embeddings" --tags "Semantic Kernel" "OpenAI SDK"
 ```
 
-#### Listing Documents
-
+List recent documents:
 ```bash
-# List all documents
-python rag_data_pipeline.py list --limit 20
-
-# List documents by tags
-python rag_data_pipeline.py list \
-  --tags "Semantic Kernel" "ML.NET" \
-  --limit 10
+python cli.py list --limit 20
 ```
 
-#### Getting Statistics
-
+Get statistics:
 ```bash
-python rag_data_pipeline.py stats
+python cli.py stats
 ```
 
-### Programmatic Usage
+#### RSS Feed Monitoring
 
-You can also use the pipeline programmatically:
-
-```python
-from rag_data_pipeline import RAGDataPipeline
-from config import Config
-from dotnet_sdk_tags import categorize_with_ai
-
-# Load configuration
-config = Config.from_env()
-pipeline = RAGDataPipeline(config)
-
-# Add a document with AI categorization (automatic)
-content = "This is a tutorial about using Semantic Kernel for .NET AI development."
-
-doc_id = pipeline.add_document(
-    content=content,
-    source_url="https://example.com/tutorial",
-    metadata={"author": "John Doe", "category": "AI Tutorial"}
-    # AI categorization happens automatically when no tags are provided
-)
-
-# Search for documents
-results = pipeline.search_documents(
-    query="Semantic Kernel tutorial",
-    tags=["Semantic Kernel"],
-    limit=5
-)
-
-# Update a document
-pipeline.update_document(
-    document_id=doc_id,
-    tags=["Semantic Kernel", "Semantic Kernel Agents"]
-)
-```
-
-## AI-Powered Framework Categorization
-
-The pipeline uses OpenAI to intelligently categorize content by .NET AI frameworks:
-
-### Supported Frameworks
-- **Microsoft.Extensions.AI**: Microsoft's AI extensions for .NET
-- **ML.NET**: Microsoft's machine learning framework for .NET
-- **AutoGen**: Microsoft's AutoGen framework for AI agents
-- **Semantic Kernel**: Microsoft's AI orchestration library
-- **Semantic Kernel Agents**: Semantic Kernel's agent framework
-- **Semantic Kernel Process Framework**: Semantic Kernel's process orchestration
-- **OpenAI SDK**: Official OpenAI SDK for .NET
-
-### Automatic Categorization
-
-The pipeline automatically categorizes content using AI:
-
-```python
-from dotnet_sdk_tags import categorize_with_ai
-
-content = "Learn how to use Semantic Kernel with OpenAI embeddings for RAG applications"
-tags = categorize_with_ai(content, openai_client)
-# Returns: ['Semantic Kernel', 'OpenAI SDK']
-```
-
-### Semantic Kernel Family
-
-Content mentioning Semantic Kernel sub-frameworks automatically gets both the specific tag and the parent "Semantic Kernel" tag:
-- "Semantic Kernel Agents" → ["Semantic Kernel Agents", "Semantic Kernel"]
-- "Semantic Kernel Process Framework" → ["Semantic Kernel Process Framework", "Semantic Kernel"]
-
-## Document Structure
-
-Each document in the pipeline contains:
-
-```json
-{
-  "document_id": "doc_20241201_143022_1234",
-  "source_url": "https://example.com/tutorial",
-  "source_path": "/path/to/file.txt",
-  "source_type": "text",
-  "raw_content": "Original content...",
-  "markdown_content": "# Converted Markdown\n\nContent...",
-  "embeddings": [0.1, 0.2, 0.3, ...],
-  "tags": ["Semantic Kernel"],
-  "metadata": {
-    "author": "John Doe",
-    "category": "AI Tutorial",
-    "version": "1.0"
-  },
-  "created_at": "2024-12-01T14:30:22Z",
-  "updated_at": "2024-12-01T14:30:22Z"
-}
-```
-
-## Vector Search
-
-The pipeline supports semantic search using vector similarity:
-
-- **Embedding Model**: Uses OpenAI's text-embedding-3-small by default
-- **Similarity Calculation**: Cosine similarity between query and document embeddings
-- **Filtering**: Combine vector search with tag-based filtering
-- **Ranking**: Results ranked by similarity score
-
-## Error Handling
-
-The pipeline includes comprehensive error handling:
-
-- **Configuration Validation**: Ensures all required settings are provided
-- **API Error Handling**: Graceful handling of OpenAI API errors
-- **MongoDB Connection**: Connection error handling and retry logic
-- **Content Validation**: Validates content before processing
-- **Tag Validation**: Validates tags against predefined categories
-
-## Performance Considerations
-
-- **Batch Processing**: Supports batch operations for bulk document processing
-- **Content Length Limits**: Configurable maximum content length for embeddings
-- **Connection Pooling**: Efficient MongoDB connection management
-- **Indexing**: Automatic creation of MongoDB indexes for optimal performance
-
-## Security
-
-- **API Key Management**: Secure handling of OpenAI API keys
-- **Environment Variables**: Support for environment-based configuration
-- **Input Validation**: Validation of all input parameters
-- **Error Logging**: Secure error logging without exposing sensitive data
-
-## Troubleshooting
-
-### Common Issues
-
-1. **MongoDB Connection Error**
-   - Verify MongoDB is running
-   - Check connection string format
-   - Ensure network connectivity
-
-2. **OpenAI API Error**
-   - Verify API key is valid
-   - Check API quota and limits
-   - Ensure proper internet connectivity
-
-3. **MarkItDown Conversion Error**
-   - Check input content format
-   - Verify source type is supported
-   - Review content for malformed HTML/URLs
-
-### Logging
-
-Enable debug logging for troubleshooting:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-## Testing
-
-The pipeline includes a comprehensive test suite for validating the AI categorization functionality:
-
-### Running Tests
-
+Add an RSS feed subscription:
 ```bash
-# Run all tests (mock only, no API key required)
-python tests/run_tests.py
-
-# Run with OpenAI evaluation (requires API key)
-python tests/run_tests.py --openai
-
-# Run specific test file
-python tests/test_ai_categorization.py
+python rss_feed_monitor.py add-subscription \
+  --feed-url "https://devblogs.microsoft.com/dotnet/feed/" \
+  --name "Microsoft .NET Blog" \
+  --description "Official Microsoft .NET blog" \
+  --tags "ML.NET" "Semantic Kernel"
 ```
 
-### Test Coverage
+List all subscriptions:
+```bash
+python rss_feed_monitor.py list-subscriptions
+```
 
-- **Mock Tests**: Framework validation, categorization logic, error handling
-- **OpenAI Evaluation Tests**: Real API integration for validation
-- **Edge Cases**: Empty content, API errors, invalid tags
+Check all feeds for new content:
+```bash
+python rss_feed_monitor.py check-feeds
+```
 
-See `tests/README.md` for detailed testing documentation.
+Run daily check (for scheduled jobs):
+```bash
+python rss_feed_monitor.py daily-check
+```
+
+Remove a subscription:
+```bash
+python rss_feed_monitor.py remove-subscription \
+  --feed-url "https://devblogs.microsoft.com/dotnet/feed/"
+```
+
+Clean up old processed items:
+```bash
+python rss_feed_monitor.py cleanup --days 30
+```
+
+Launch UI for running RSS monitoring commands:
+```bash
+python rss_feed_monitor.py launch-ui
+```
+
+## CLI Command Reference
+
+### Document Management (`cli.py`)
+
+| Command | Parameters | Description |
+|---------|-----------|-------------|
+| `add` | `--source-url URL` | Add document from URL |
+| | `--tags TAG [TAG...]` | Manual tags (disables AI categorization) |
+| | `--metadata JSON` | Additional metadata as JSON string |
+| | `--no-ai-categorization` | Disable AI framework categorization |
+| | `--crawl-links` | Enable interactive link crawling |
+| `update` | `--document-id ID` | Update existing document |
+| | `--tags TAG [TAG...]` | New tags |
+| | `--metadata JSON` | New metadata |
+| `delete` | `--document-id ID` | Delete all chunks for document |
+| `get` | `--document-id ID` | Retrieve document chunks |
+| `search` | `--query TEXT` | Search query text |
+| | `--tags TAG [TAG...]` | Filter by tags |
+| | `--limit N` | Maximum results (default: 10) |
+| `list` | `--tags TAG [TAG...]` | Filter by tags |
+| | `--limit N` | Maximum results (default: 50) |
+| `stats` | | Get pipeline statistics |
+
+**Global Options:**
+- `--what-if`: Preview operations without making changes
+
+### RSS Feed Monitor (`rss_feed_monitor.py`)
+
+| Command | Parameters | Description |
+|---------|-----------|-------------|
+| `add-subscription` | `--feed-url URL` | RSS feed URL |
+| | `--name NAME` | Human-readable feed name |
+| | `--description TEXT` | Optional description |
+| | `--tags TAG [TAG...]` | Tags to apply to all items |
+| `remove-subscription` | `--feed-url URL` | Remove RSS subscription |
+| `list-subscriptions` | | List all subscriptions |
+| `check-feeds` | | Check all enabled feeds for new items |
+| `daily-check` | | Run daily check (same as check-feeds) |
+| `cleanup` | `--days N` | Clean up processed items older than N days (default: 30) |
+| `launch-ui` | | Launch Streamlit web interface |
+
+## Architecture
+
+For detailed information about the pipeline architecture, data flow, and extension points, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Run the test suite to ensure everything works
-6. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues and questions:
-- Check the troubleshooting section
-- Review the error logs
-- Open an issue in the repository 
+Contributions are welcome! Please see the architecture documentation for information on adding new source enrichers, host handlers, or framework categories.
