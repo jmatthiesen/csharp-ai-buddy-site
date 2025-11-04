@@ -111,7 +111,7 @@ elif choice == "Pending Items":
                 
                 with col1:
                     # Checkbox for selection
-                    if st.checkbox("", value=is_selected, key=f"cb_{item_id}"):
+                    if st.checkbox("Select item", value=is_selected, key=f"cb_{item_id}", label_visibility="collapsed"):
                         st.session_state.selected_items.add(item_id)
                     else:
                         st.session_state.selected_items.discard(item_id)
