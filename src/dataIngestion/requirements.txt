@@ -19,4 +19,4 @@ beautifulsoup4==4.12.3
 feedparser==6.0.11
 
 # UI for managing RSS feeds
-streamlit==1.48.1
+streamlit==1.54.0
