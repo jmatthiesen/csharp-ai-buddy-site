@@ -1,22 +1,22 @@
 # MongoDB driver
-pymongo==4.13.2
+pymongo==4.17.0
 
 # OpenAI client
-openai==1.95.1
+openai==2.36.0
 
 # MarkItDown for content conversion
-markitdown[all]
+markitdown[all]==0.1.5
 
 # NumPy for vector operations
-numpy>=1.26.0
+numpy>=2.4.4
 
 # Additional utilities
-python-dotenv==1.1.1
-requests==2.33.0 
-beautifulsoup4==4.12.3
+python-dotenv==1.2.2
+requests==2.34.1
+beautifulsoup4==4.14.3
 
 # RSS parsing
-feedparser==6.0.11
+feedparser==6.0.12
 
 # UI for managing RSS feeds
-streamlit==1.54.0
+streamlit==1.57.0
