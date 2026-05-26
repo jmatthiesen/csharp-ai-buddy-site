@@ -14,6 +14,14 @@ A modular Python pipeline for ingesting, processing, and indexing .NET AI develo
 - **MongoDB Storage**: Chunk-based storage optimized for retrieval with metadata and tags
 - **What-If Mode**: Preview operations without making database changes
 - **Comprehensive CLI**: Full command-line interface for all document and RSS operations
+- **Document Management**: Add, update, and delete documents
+- **Content Conversion**: Convert various input sources to Markdown using MarkItDown
+- **Vector Embeddings**: Generate embeddings using OpenAI models
+- **MongoDB Storage**: Store documents with metadata and vector embeddings
+- **AI-Powered Tagging**: Intelligent framework categorization using OpenAI
+- **Search Capabilities**: Vector similarity search with tag filtering
+- **Command Line Interface**: Easy-to-use CLI for pipeline operations
+- **RSS Feed Monitoring**: Automated RSS feed monitoring with human-in-the-loop approval workflow (see [RSS_FEED_MONITOR.md](RSS_FEED_MONITOR.md))
 
 ## Environment Setup
 
